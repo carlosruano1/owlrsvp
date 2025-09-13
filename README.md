@@ -103,3 +103,6 @@ MIT License - feel free to use for your events!
 ---
 
 Made with 🦉 for simple, beautiful RSVPs
+
+## Auto-Deploy Status
+✅ **Auto-deployment is now configured!** Any code changes will automatically deploy to Vercel.
