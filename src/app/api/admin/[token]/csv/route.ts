@@ -3,14 +3,16 @@ import { supabase } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ) {
   try {
+    const { token } = await params
+    
     // Verify admin token
     const { data: event, error: eventError } = await supabase
       .from('events')
       .select('id, title')
-      .eq('admin_token', params.token)
+      .eq('admin_token', token)
       .single()
 
     if (eventError || !event) {
