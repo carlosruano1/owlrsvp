@@ -8,6 +8,9 @@ CREATE TABLE events (
   allow_plus_guests BOOLEAN DEFAULT false,
   background_color TEXT DEFAULT '#1f2937',
   admin_token TEXT NOT NULL UNIQUE,
+  company_name TEXT,
+  company_logo_url TEXT,
+  open_invite BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -18,6 +21,9 @@ CREATE TABLE attendees (
   event_id UUID REFERENCES events(id) ON DELETE CASCADE,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  address TEXT,
   guest_count INTEGER DEFAULT 0,
   attending BOOLEAN NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

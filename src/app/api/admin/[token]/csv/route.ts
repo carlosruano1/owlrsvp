@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
@@ -31,11 +32,11 @@ export async function GET(
     }
 
     // Generate CSV
-    const csvHeader = 'First Name,Last Name,Attending,Guest Count,Total Party Size,RSVP Date\n'
+    const csvHeader = 'First Name,Last Name,Email,Phone,Address,Attending,Guest Count,Total Party Size,RSVP Date\n'
     const csvRows = (attendees || []).map(attendee => {
       const totalPartySize = attendee.attending ? 1 + attendee.guest_count : 0
       const rsvpDate = new Date(attendee.created_at).toLocaleDateString()
-      return `"${attendee.first_name}","${attendee.last_name}","${attendee.attending ? 'Yes' : 'No'}",${attendee.guest_count},${totalPartySize},"${rsvpDate}"`
+      return `"${attendee.first_name}","${attendee.last_name}","${attendee.email || ''}","${attendee.phone || ''}","${(attendee.address || '').replace(/"/g,'""')}","${attendee.attending ? 'Yes' : 'No'}",${attendee.guest_count},${totalPartySize},"${rsvpDate}"`
     }).join('\n')
 
     const csv = csvHeader + csvRows

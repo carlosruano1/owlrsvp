@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Event } from '@/lib/types'
+import Footer from '@/components/Footer'
 
 export default function EventRSVP() {
   const params = useParams()
@@ -15,6 +16,7 @@ export default function EventRSVP() {
   // Form state
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
+  const [email, setEmail] = useState('')
   const [guestCount, setGuestCount] = useState(0)
   const [attending, setAttending] = useState<boolean | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -31,6 +33,9 @@ export default function EventRSVP() {
         }
 
         setEvent(data.event)
+        // Set company color for spotlight
+        document.documentElement.style.setProperty('--company-color', data.event.background_color)
+        document.documentElement.style.setProperty('--company-color-alpha', `${data.event.background_color}33`)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load event')
       } finally {
@@ -58,6 +63,7 @@ export default function EventRSVP() {
           event_id: eventId,
           first_name: firstName.trim(),
           last_name: lastName.trim(),
+          email: email.trim() || undefined,
           guest_count: attending ? guestCount : 0,
           attending
         })
@@ -79,37 +85,44 @@ export default function EventRSVP() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-800">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen relative overflow-hidden">
+        <div className="animated-bg" />
+        <div className="spotlight" />
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
+          <div className="text-white/80 text-xl">Loading…</div>
+        </div>
+        <Footer showDonate={false} />
       </div>
     )
   }
 
   if (error && !event) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-800">
-        <div className="text-center">
-          <div className="text-red-400 text-xl mb-4">Event Not Found</div>
-          <div className="text-gray-300">This event link may be invalid or expired.</div>
+      <div className="min-h-screen relative overflow-hidden">
+        <div className="animated-bg" />
+        <div className="spotlight" />
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
+          <div className="text-center">
+            <div className="text-red-400 text-xl mb-4">Event Not Found</div>
+            <div className="text-white/70">This event link may be invalid or expired.</div>
+          </div>
         </div>
+        <Footer showDonate={false} />
       </div>
     )
   }
 
   if (submitted) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center p-4" 
-        style={{ backgroundColor: event?.background_color || '#1f2937' }}
-      >
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-2xl p-8 shadow-xl text-center">
+      <div className="min-h-screen relative overflow-hidden">
+        <div className="animated-bg" />
+        <div className="spotlight" />
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
+          <div className="w-full max-w-md glass-card rounded-3xl p-8 shadow-2xl text-center text-white">
             <div className="text-6xl mb-4">✅</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">RSVP Confirmed!</h1>
-            <p className="text-gray-600 mb-4">
-              Thank you for responding to <strong>{event?.title}</strong>
-            </p>
-            <p className="text-gray-500 text-sm">
+            <h1 className="text-2xl font-semibold mb-2">RSVP Confirmed</h1>
+            <p className="text-white/80 mb-4">Thank you for responding to <span className="font-medium">{event?.title}</span></p>
+            <p className="text-white/70 text-sm">
               {attending ? 
                 `You're attending${guestCount > 0 ? ` with ${guestCount} guest${guestCount > 1 ? 's' : ''}` : ''}!` :
                 "Sorry you can't make it."
@@ -117,116 +130,152 @@ export default function EventRSVP() {
             </p>
           </div>
         </div>
+        <Footer />
       </div>
     )
   }
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center p-4" 
-      style={{ backgroundColor: event?.background_color || '#1f2937' }}
-    >
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">{event?.title}</h1>
-          <p className="text-gray-300 text-lg">Please RSVP</p>
-        </div>
+    <div className="min-h-screen relative overflow-hidden">
+      <div className="animated-bg" />
+      <div className="spotlight" />
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-xl">
+          <div className="text-center mb-8 text-white text-glow">
+            {/* Company block */}
+            <div className="flex flex-col items-center gap-4 mb-6">
+              {event?.company_logo_url && (
+                <img
+                  src={event.company_logo_url}
+                  alt={event.company_name ? `${event.company_name} logo` : 'Company logo'}
+                  className="h-16 w-16 rounded-2xl object-contain bg-white/5 p-2 border border-white/10 backdrop-blur"
+                />
+              )}
+              {event?.company_name && (
+                <div className="text-2xl font-semibold tracking-tight">{event.company_name}</div>
+              )}
+            </div>
+            <div className="text-white/70 text-lg">is inviting you to:</div>
+            <h1 className="text-4xl md:text-5xl font-semibold tracking-tight mt-2">{event?.title}</h1>
+          </div>
 
-        <div className="bg-white rounded-2xl p-8 shadow-xl">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="glass-card rounded-3xl p-8 shadow-2xl text-white">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-white/80 mb-2">
+                    First Name
+                  </label>
+                  <input
+                    type="text"
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="modern-input w-full px-4 py-3"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-white/80 mb-2">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="modern-input w-full px-4 py-3"
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                  First Name
-                </label>
+                <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-2">Email</label>
                 <input
-                  type="text"
-                  id="firstName"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-                  required
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="modern-input w-full px-4 py-3"
+                  placeholder="you@example.com"
                 />
               </div>
+
               <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  id="lastName"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-                  required
-                />
+                <div className="text-sm font-medium text-white/80 mb-4">Will you attend?</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setAttending(true)}
+                    className={`py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-300 border ${
+                      attending === true
+                        ? 'bg-white text-black border-white/0'
+                        : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
+                    }`}
+                  >
+                    ✅ Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAttending(false)}
+                    className={`py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-300 border ${
+                      attending === false
+                        ? 'bg-white text-black border-white/0'
+                        : 'bg-white/10 text-white border-white/20 hover:bg-white/15'
+                    }`}
+                  >
+                    ❌ No
+                  </button>
+                </div>
               </div>
-            </div>
 
-            {event?.allow_plus_guests && (
-              <div>
-                <label htmlFor="guestCount" className="block text-sm font-medium text-gray-700 mb-2">
-                  Additional Guests
-                </label>
-                <select
-                  id="guestCount"
-                  value={guestCount}
-                  onChange={(e) => setGuestCount(parseInt(e.target.value))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-                >
-                  {[0, 1, 2, 3, 4, 5].map(num => (
-                    <option key={num} value={num}>
-                      {num === 0 ? 'Just me' : `+${num} guest${num > 1 ? 's' : ''}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+              {event?.allow_plus_guests && attending && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-white/80">Guests</label>
+                    <span className="text-white/70 text-sm">Me + {guestCount} {guestCount === 1 ? 'guest' : 'guests'}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      type="button" 
+                      onClick={() => setGuestCount(Math.max(0, guestCount - 1))} 
+                      className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/15 transition-all duration-300"
+                    >
+                      -
+                    </button>
+                    <div className="px-5 py-2 rounded-xl bg-white text-black font-semibold">{guestCount}</div>
+                    <button 
+                      type="button" 
+                      onClick={() => setGuestCount(Math.min(5, guestCount + 1))} 
+                      className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 hover:bg-white/15 transition-all duration-300"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <p className="text-white/60 text-xs mt-2">Your total party is <strong className="text-white">{attending ? 1 + guestCount : 0}</strong> (includes you).</p>
+                </div>
+              )}
 
-            <div>
-              <div className="text-sm font-medium text-gray-700 mb-4">Will you attend?</div>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setAttending(true)}
-                  className={`py-4 px-6 rounded-xl text-lg font-semibold transition-colors ${
-                    attending === true
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  ✅ Yes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAttending(false)}
-                  className={`py-4 px-6 rounded-xl text-lg font-semibold transition-colors ${
-                    attending === false
-                      ? 'bg-red-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  ❌ No
-                </button>
-              </div>
-            </div>
+              {error && (
+                <div className="text-red-200 text-sm bg-red-500/20 border border-red-400/30 p-3 rounded-lg">
+                  {error}
+                </div>
+              )}
 
-            {error && (
-              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting || !firstName.trim() || !lastName.trim() || attending === null}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold text-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {submitting ? 'Submitting...' : 'Submit RSVP'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={submitting || !firstName.trim() || !lastName.trim() || attending === null}
+                className="modern-button w-full py-3 px-4 text-lg"
+              >
+                {submitting ? 'Submitting...' : 'Submit RSVP'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
+
+      <Footer showDonate={false} />
     </div>
   )
 }
