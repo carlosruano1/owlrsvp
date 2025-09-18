@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Event } from '@/lib/types'
 import Footer from '@/components/Footer'
+import Image from 'next/image'
 
 export default function EventRSVP() {
   const params = useParams()
@@ -145,10 +146,13 @@ export default function EventRSVP() {
             {/* Company block */}
             <div className="flex flex-col items-center gap-4 mb-6">
               {event?.company_logo_url && (
-                <img
+                <Image
                   src={event.company_logo_url}
                   alt={event.company_name ? `${event.company_name} logo` : 'Company logo'}
                   className="h-16 w-16 rounded-2xl object-contain bg-white/5 p-2 border border-white/10 backdrop-blur"
+                  width={64}
+                  height={64}
+                  unoptimized
                 />
               )}
               {event?.company_name && (

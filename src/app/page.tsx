@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Footer from '@/components/Footer'
+import Image from 'next/image'
 
 export default function Home() {
   const [title, setTitle] = useState('')
@@ -161,7 +162,7 @@ export default function Home() {
                   className={`flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-6 transition-colors ${dragActive ? 'border-white/60 bg-white/10' : 'border-white/20 bg-white/5'}`}
                 >
                   {logoPreview ? (
-                    <img src={logoPreview} alt="Logo preview" className="h-16 w-16 object-contain rounded-xl bg-white/10 p-2 border border-white/10" />
+                    <Image src={logoPreview} alt="Logo preview" className="h-16 w-16 object-contain rounded-xl bg-white/10 p-2 border border-white/10" width={64} height={64} unoptimized />
                   ) : (
                     <div className="text-center text-white/70">
                       <div className="text-sm">Drag & drop your logo here</div>

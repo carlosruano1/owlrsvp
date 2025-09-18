@@ -6,6 +6,7 @@ import { Event, Attendee } from '@/lib/types'
 import * as XLSX from 'xlsx'
 import QRCode from 'qrcode'
 import Footer from '@/components/Footer'
+import Image from 'next/image'
 
 interface AdminData {
   event: Event
@@ -318,12 +319,13 @@ export default function AdminDashboard() {
               <div className="text-center">
                 <div className="text-sm font-medium text-white/80 mb-2">QR Code</div>
                 {qrCodeUrl && (
-                  <img 
+                  <Image 
                     src={qrCodeUrl} 
                     alt="Event QR Code" 
                     className="mx-auto border border-white/10 rounded-lg bg-white/5"
                     width={150}
                     height={150}
+                    unoptimized
                   />
                 )}
               </div>
