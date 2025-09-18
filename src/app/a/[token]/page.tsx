@@ -90,7 +90,7 @@ export default function AdminDashboard() {
     const buf = await file.arrayBuffer()
     const wb = XLSX.read(buf)
     const sheet = wb.Sheets[wb.SheetNames[0]]
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' })
+    const rows: Record<string, string | number>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' })
     // Normalize and import
     for (const row of rows) {
       const payload: Partial<Attendee> = {
@@ -122,7 +122,7 @@ export default function AdminDashboard() {
     setEditForm({})
   }
 
-  const updateEditForm = (field: string, value: any) => {
+  const updateEditForm = (field: string, value: string | number | boolean) => {
     setEditForm(prev => ({ ...prev, [field]: value }))
   }
 
