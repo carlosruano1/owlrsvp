@@ -10,6 +10,9 @@ export async function GET(
     const { token } = await params
     
     // Verify admin token
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
+    }
     const { data: event, error: eventError } = await supabase
       .from('events')
       .select('id, title')
@@ -21,6 +24,9 @@ export async function GET(
     }
 
     // Get attendees
+    if (!supabase) {
+      return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
+    }
     const { data: attendees, error: attendeesError } = await supabase
       .from('attendees')
       .select('*')
