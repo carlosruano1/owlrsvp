@@ -49,7 +49,7 @@ export default function CreateEvent() {
   const [eventLocation, setEventLocation] = useState('')
   const [error, setError] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
-  const [userPlan, setUserPlan] = useState<{tier: string, eventsCreated: number} | null>(null)
+  const [userPlan, setUserPlan] = useState<{tier: string, eventsCreated: number | null} | null>(null)
   const router = useRouter()
 
   // Check if user is logged in as admin and get their plan info
@@ -112,7 +112,7 @@ export default function CreateEvent() {
     if (!title.trim()) return
 
     // Check if user has reached their event limit
-    if (userPlan && userPlan.tier === 'free' && userPlan.eventsCreated >= 1) {
+    if (userPlan && userPlan.tier === 'free' && (userPlan.eventsCreated || 0) >= 1) {
       setError('You have reached the maximum number of events allowed in your free plan. Please upgrade to create more events.')
       return
     }
@@ -294,7 +294,7 @@ export default function CreateEvent() {
                 </Link>
               </div>
             )}
-            {userPlan && userPlan.tier === 'free' && userPlan.eventsCreated >= 1 && (
+            {userPlan && userPlan.tier === 'free' && (userPlan.eventsCreated || 0) >= 1 && (
               <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl max-w-md mx-auto">
                 <p className="text-red-200 text-sm">
                   ⚠️ <strong>Event Limit Reached:</strong> You have reached the maximum number of events allowed in your free plan.
@@ -827,7 +827,7 @@ export default function CreateEvent() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading || !title.trim() || (userPlan && userPlan.tier === 'free' && userPlan.eventsCreated >= 1)}
+                disabled={loading || !title.trim() || !!(userPlan && userPlan.tier === 'free' && (userPlan.eventsCreated || 0) >= 1)}
                 className="flex items-center justify-center gap-2 w-full py-3 px-6 rounded-xl bg-white text-black font-medium transition-all hover:bg-white/90 disabled:opacity-50 disabled:hover:bg-white"
               >
                 {loading ? (

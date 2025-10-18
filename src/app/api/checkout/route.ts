@@ -14,6 +14,13 @@ export async function POST(request: Request) {
       )
     }
     
+    if (!stripe) {
+      return NextResponse.json(
+        { error: { message: 'Stripe not configured' } },
+        { status: 500 }
+      )
+    }
+    
     if (!supabase || !supabaseAdmin) {
       return NextResponse.json(
         { error: { message: 'Database connection not available' } },

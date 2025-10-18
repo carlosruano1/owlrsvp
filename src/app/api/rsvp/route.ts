@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
       console.error('Event lookup failed')
       return NextResponse.json({ 
         error: 'Event not found or invalid event ID', 
-        details: eventError ? eventError.message || 'Unknown error' : 'Event not found',
-        code: eventError ? eventError.code : 'NOT_FOUND'
+        details: eventError && typeof eventError === 'object' && 'message' in eventError ? (eventError as any).message || 'Unknown error' : 'Event not found',
+        code: eventError && typeof eventError === 'object' && 'code' in eventError ? (eventError as any).code : 'NOT_FOUND'
       }, { status: 404 })
     }
     
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         // Check if adding this RSVP would exceed the guest limit
         if (currentAttendeeCount + totalPartySize > guestLimit) {
           // If user has a paid subscription, allow overflow with metered billing
-          if (tier !== PLANS.FREE && userData.stripe_subscription_id) {
+          if (tier !== PLANS.FREE && userData.stripe_subscription_id && stripe) {
             // Track the overflow for metered billing
             try {
               // Get the subscription item for metered billing

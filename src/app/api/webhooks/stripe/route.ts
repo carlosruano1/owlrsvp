@@ -16,6 +16,10 @@ export async function POST(request: Request) {
   const body = await request.text()
   const signature = headers().get('stripe-signature') as string
   
+  if (!stripe) {
+    return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
+  }
+  
   let event
   
   try {

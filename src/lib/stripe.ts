@@ -3,9 +3,11 @@ import { loadStripe } from '@stripe/stripe-js';
 import { supabaseAdmin } from './supabase';
 
 // Initialize Stripe with the secret key on the server side
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-08-27.basil', // Use the latest API version
-});
+export const stripe = process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: '2025-08-27.basil', // Use the latest API version
+    })
+  : null;
 
 // Initialize Stripe.js for client-side
 export const getStripe = async () => {
@@ -16,6 +18,10 @@ export const getStripe = async () => {
 // Get or create a Stripe customer for a user
 export const getOrCreateStripeCustomer = async (userId: string, email: string) => {
   try {
+    if (!stripe) {
+      throw new Error('Stripe not configured');
+    }
+    
     if (!supabaseAdmin) {
       throw new Error('Database connection not available');
     }
@@ -62,6 +68,10 @@ export const getOrCreateStripeCustomer = async (userId: string, email: string) =
 // Create a billing portal session for subscription management
 export const createBillingPortalSession = async (customerId: string, returnUrl: string) => {
   try {
+    if (!stripe) {
+      throw new Error('Stripe not configured');
+    }
+    
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: returnUrl,
@@ -158,6 +168,10 @@ export const createCheckoutSession = async ({
   cancelUrl: string;
 }) => {
   try {
+    if (!stripe) {
+      throw new Error('Stripe not configured');
+    }
+    
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
@@ -190,6 +204,10 @@ export const createCustomerPortalSession = async ({
   returnUrl: string;
 }) => {
   try {
+    if (!stripe) {
+      throw new Error('Stripe not configured');
+    }
+    
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: returnUrl,
@@ -213,6 +231,10 @@ export const createUsageRecord = async ({
   timestamp?: number;
 }) => {
   try {
+    if (!stripe) {
+      throw new Error('Stripe not configured');
+    }
+    
     const usageRecord = await (stripe.subscriptionItems as any).createUsageRecord(
       subscriptionItemId,
       {

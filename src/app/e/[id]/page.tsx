@@ -199,8 +199,8 @@ function EventRSVPContent() {
               <div className="mt-6">
                 <CalendarIntegration
                   eventTitle={event.title || ''}
-                  eventDate={event.event_date}
-                  eventLocation={event.event_location}
+                  eventDate={event.event_date || undefined}
+                  eventLocation={event.event_location || undefined}
                   eventDescription={`RSVP for ${event.title}`}
                 />
               </div>
