@@ -8,6 +8,7 @@ interface CalendarIntegrationProps {
   eventDate?: string
   eventLocation?: string
   eventDescription?: string
+  eventLink?: string
   className?: string
 }
 
@@ -16,6 +17,7 @@ export default function CalendarIntegration({
   eventDate,
   eventLocation,
   eventDescription,
+  eventLink,
   className = ''
 }: CalendarIntegrationProps) {
   const [showCalendarOptions, setShowCalendarOptions] = useState(false)
@@ -266,21 +268,74 @@ export default function CalendarIntegration({
     window.open(calendarUrl, '_blank')
   }
 
+  // Share functionality
+  const shareEvent = () => {
+    if (!eventLink) return
+    
+    const shareText = `You are invited to ${eventTitle}, this is the link to rsvp: ${eventLink}`
+    
+    // Check if Web Share API is available (mobile)
+    if (navigator.share) {
+      navigator.share({
+        title: `Invitation to ${eventTitle}`,
+        text: shareText,
+        url: eventLink
+      }).catch(err => {
+        console.log('Error sharing:', err)
+        // Fallback to email
+        shareViaEmail(shareText)
+      })
+    } else {
+      // Desktop fallback - show options
+      shareViaEmail(shareText)
+    }
+  }
+
+  const shareViaEmail = (shareText: string) => {
+    const subject = `Invitation to ${eventTitle}`
+    const body = shareText
+    const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.open(mailtoUrl)
+  }
+
+  const shareViaSMS = () => {
+    if (!eventLink) return
+    
+    const shareText = `You are invited to ${eventTitle}, this is the link to rsvp: ${eventLink}`
+    const smsUrl = `sms:?body=${encodeURIComponent(shareText)}`
+    window.open(smsUrl)
+  }
+
   if (!eventDate) {
     return null // Don't show calendar options if no event date
   }
 
   return (
     <div className={`calendar-integration ${className}`}>
-      <button
-        onClick={() => setShowCalendarOptions(!showCalendarOptions)}
-        className="w-full px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-all text-white text-sm font-medium flex items-center justify-center gap-2"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        Add to Calendar
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => setShowCalendarOptions(!showCalendarOptions)}
+          className="flex-1 px-4 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-all text-white text-sm font-medium flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Add to Calendar
+        </button>
+        
+        {eventLink && (
+          <button
+            onClick={shareEvent}
+            className="px-4 py-3 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 rounded-lg transition-all text-green-300 text-sm font-medium flex items-center justify-center gap-2"
+            title="Share event invitation"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+            </svg>
+            Share
+          </button>
+        )}
+      </div>
 
       {showCalendarOptions && (
         <div className="mt-3 space-y-2 animate-fadeIn">

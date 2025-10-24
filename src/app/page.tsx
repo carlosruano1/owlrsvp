@@ -21,7 +21,9 @@ export default function Home() {
   const featuresReveal = useScrollReveal()
   const pricingReveal = useScrollReveal()
   const howItWorksReveal = useScrollReveal()
+  const howItWorksRef = useRef<HTMLDivElement>(null)
   const testimonialsReveal = useScrollReveal()
+  const testimonialsRef = useRef<HTMLDivElement>(null)
   const ctaReveal = useScrollReveal()
   
   // We're not using the mouse parallax effect anymore
@@ -85,6 +87,84 @@ export default function Home() {
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
 
+    // Apple-like scroll-driven How It Works animation
+    const onHowItWorksScroll = () => {
+      const el = howItWorksRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const viewH = window.innerHeight
+      const viewportCenter = viewH / 2
+      const progress = Math.max(0, Math.min(1, (viewportCenter - rect.top) / Math.max(1, rect.height)))
+      const steps = Array.from(el.querySelectorAll<HTMLElement>('.how-step'))
+      const image = el.querySelector<HTMLElement>('.how-image')
+      steps.forEach((step, idx) => {
+        const anchor = idx / Math.max(1, steps.length - 1)
+        const delta = Math.abs(progress - anchor)
+        const scale = Math.max(0.92, 1 - delta * 0.08)
+        const translate = Math.min(16, delta * 20)
+        const opacity = Math.max(0.7, 1 - delta * 0.3)
+        step.style.transform = `translateY(${translate}px) scale(${scale})`
+        step.style.opacity = String(opacity)
+        step.style.willChange = 'transform, opacity'
+      })
+      if (image) {
+        const delta = Math.abs(progress - 0.5)
+        const scale = Math.max(0.95, 1 - delta * 0.05)
+        const translate = Math.min(12, delta * 16)
+        image.style.transform = `translateY(${translate}px) scale(${scale})`
+        image.style.opacity = String(Math.max(0.8, 1 - delta * 0.2))
+        image.style.willChange = 'transform, opacity'
+      }
+    }
+    onHowItWorksScroll()
+    window.addEventListener('scroll', onHowItWorksScroll, { passive: true })
+    window.addEventListener('resize', onHowItWorksScroll)
+
+    // Cool testimonials scroll animation
+    const onTestimonialsScroll = () => {
+      const el = testimonialsRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const viewH = window.innerHeight
+      const viewportCenter = viewH / 2
+      const progress = Math.max(0, Math.min(1, (viewportCenter - rect.top) / Math.max(1, rect.height)))
+      
+      const cards = Array.from(el.querySelectorAll<HTMLElement>('.testimonial-card'))
+      cards.forEach((card, idx) => {
+        const anchor = idx / Math.max(1, cards.length - 1)
+        const delta = Math.abs(progress - anchor)
+        
+        // Different animations for each card
+        let translateX = 0
+        let translateY = 0
+        let rotate = 0
+        
+        if (idx === 0) {
+          // First card slides in from left
+          translateX = Math.min(0, (progress - anchor) * 100)
+          translateY = Math.min(20, delta * 30)
+        } else if (idx === 1) {
+          // Second card slides in from right
+          translateX = Math.max(0, (progress - anchor) * -100)
+          translateY = Math.min(20, delta * 30)
+        } else if (idx === 2) {
+          // Third card slides in from bottom
+          translateY = Math.min(0, (progress - anchor) * 80)
+          translateX = Math.min(15, delta * 20)
+        }
+        
+        const scale = Math.max(0.9, 1 - delta * 0.1)
+        const opacity = Math.max(0.6, 1 - delta * 0.4)
+        
+        card.style.transform = `translateX(${translateX}px) translateY(${translateY}px) scale(${scale}) rotate(${rotate}deg)`
+        card.style.opacity = String(opacity)
+        card.style.willChange = 'transform, opacity'
+      })
+    }
+    onTestimonialsScroll()
+    window.addEventListener('scroll', onTestimonialsScroll, { passive: true })
+    window.addEventListener('resize', onTestimonialsScroll)
+
     return () => {
       revealElements.forEach(element => {
         observer.unobserve(element)
@@ -92,11 +172,15 @@ export default function Home() {
       window.removeEventListener('scroll', onFeatureScroll)
       window.removeEventListener('resize', onFeatureScroll)
       window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('scroll', onHowItWorksScroll)
+      window.removeEventListener('resize', onHowItWorksScroll)
+      window.removeEventListener('scroll', onTestimonialsScroll)
+      window.removeEventListener('resize', onTestimonialsScroll)
     }
   }, [])
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="min-h-screen relative">
       <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-amber-400 opacity-80" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/40 via-blue-900/30 to-gray-900/90" />
       
@@ -383,7 +467,7 @@ export default function Home() {
         {/* Pricing Section */}
         <div id="pricing" className="page-section subtle-grid dark-overlay">
           <div 
-            className="page-section-content animate-reveal stagger-reveal"
+            className={`page-section-content animate-reveal stagger-reveal ${pricingReveal.isRevealed ? 'revealed' : ''}`}
             ref={pricingReveal.ref}
           >
             <h2 className="text-4xl font-bold text-center mb-6 text-gradient">Simple, Transparent Pricing</h2>
@@ -540,59 +624,71 @@ export default function Home() {
         </div>
 
         {/* How It Works Section */}
-        <div id="how-it-works" className="page-section polygons-bg pattern-overlay diagonal-top">
+        <div id="how-it-works" className="page-section pattern-overlay diagonal-top" ref={howItWorksRef}>
+          {/* Mobile animated orbs background (subtle) */}
+          <div className="howitworks-mobile-orbs">
+            <span className="orb orb--a" aria-hidden="true" />
+            <span className="orb orb--b" aria-hidden="true" />
+          </div>
           <div 
-            className="page-section-content animate-reveal stagger-reveal"
+            className={`page-section-content animate-reveal stagger-reveal ${howItWorksReveal.isRevealed ? 'revealed' : ''}`}
             ref={howItWorksReveal.ref}
           >
-            <h2 className="text-4xl font-bold text-center mb-16 text-gradient">How It Works</h2>
-            <div className="section-split">
-              <div className="space-y-12">
-                <div className="flex items-start gap-6 animate-slideInLeft" style={{ animationDelay: '0.2s' }}>
-                  <div className="w-16 h-16 rounded-full bg-blue-500/30 border border-blue-400/30 flex items-center justify-center shrink-0">
-                    <span className="text-2xl font-bold text-blue-400">1</span>
+            <h2 className="text-5xl md:text-6xl font-bold text-center mb-20 text-gradient">How It Works</h2>
+            <div className="max-w-7xl mx-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                {/* Steps */}
+                <div className="space-y-16">
+                  <div className="how-step flex items-start gap-8 transition-all duration-300">
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/30 border border-blue-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                      <span className="text-4xl font-bold text-blue-400">1</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-3xl md:text-4xl font-bold mb-4 text-white">Create Your Event</h3>
+                      <p className="text-xl text-white/90 leading-relaxed">Enter your event details, customize colors, and upload your company logo. No account required to get started.</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-2xl font-semibold mb-2">Create Your Event</h3>
-                    <p className="text-white/90">Enter your event details, customize colors, and upload your company logo. No account required to get started.</p>
+                  
+                  <div className="how-step flex items-start gap-8 transition-all duration-300">
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-pink-500/20 to-pink-600/30 border border-pink-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                      <span className="text-4xl font-bold text-pink-400">2</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-3xl md:text-4xl font-bold mb-4 text-white">Share With Guests</h3>
+                      <p className="text-xl text-white/90 leading-relaxed">Send your custom RSVP link via email, social media, or embed the QR code in your invitations.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="how-step flex items-start gap-8 transition-all duration-300">
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-green-500/20 to-green-600/30 border border-green-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                      <span className="text-4xl font-bold text-green-400">3</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-3xl md:text-4xl font-bold mb-4 text-white">Track Responses</h3>
+                      <p className="text-xl text-white/90 leading-relaxed">Monitor RSVPs in real-time through your admin dashboard. Export the guest list anytime.</p>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="flex items-start gap-6 animate-slideInLeft" style={{ animationDelay: '0.4s' }}>
-                  <div className="w-16 h-16 rounded-full bg-pink-500/30 border border-pink-400/30 flex items-center justify-center shrink-0">
-                    <span className="text-2xl font-bold text-pink-400">2</span>
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-semibold mb-2">Share With Guests</h3>
-                    <p className="text-white/90">Send your custom RSVP link via email, social media, or embed the QR code in your invitations.</p>
-                  </div>
-                </div>
-                
-                <div className="flex items-start gap-6 animate-slideInLeft" style={{ animationDelay: '0.6s' }}>
-                  <div className="w-16 h-16 rounded-full bg-green-500/30 border border-green-400/30 flex items-center justify-center shrink-0">
-                    <span className="text-2xl font-bold text-green-400">3</span>
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-semibold mb-2">Track Responses</h3>
-                    <p className="text-white/90">Monitor RSVPs in real-time through your admin dashboard. Export the guest list anytime.</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="hidden md:flex items-center justify-center animate-scaleIn">
-                <div className="relative w-full max-w-md">
-                  <div className="absolute -top-6 -left-6 w-full h-full border-2 border-blue-400/30 rounded-xl"></div>
-                  <div className="absolute -bottom-6 -right-6 w-full h-full border-2 border-pink-400/30 rounded-xl"></div>
-                  <div className="relative bg-black/40 p-8 rounded-xl backdrop-blur-sm">
-                    <Image 
-                      src="/images/owlrsvp_logo_png.png"
-                      alt="OwlRSVP Logo"
-                      width={80}
-                      height={80}
-                      className="mx-auto mb-6"
-                    />
-                    <h4 className="text-xl font-semibold text-center mb-4">Simple 3-Step Process</h4>
-                    <p className="text-white/80 text-center">From creation to management, our platform makes event RSVPs effortless.</p>
+                {/* Image with elegant frame */}
+                <div className="how-image transition-all duration-300 hidden lg:block">
+                  <div className="relative">
+                    {/* Elegant frame with multiple layers */}
+                    <div className="absolute -inset-4 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-xl"></div>
+                    <div className="absolute -inset-2 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl backdrop-blur-sm border border-white/20"></div>
+                    <div className="relative bg-black/40 p-6 rounded-2xl backdrop-blur-md border border-white/10">
+                      <div className="aspect-[4/5] rounded-xl overflow-hidden">
+                        <Image 
+                          src="/images/woman-phone.jpeg"
+                          alt="Woman using phone for RSVP"
+                          width={400}
+                          height={500}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      {/* Subtle overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-xl"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -601,78 +697,96 @@ export default function Home() {
         </div>
 
         {/* Testimonials Section */}
-        <div id="testimonials" className="page-section space-bg radial-overlay">
+        <div id="testimonials" className="page-section radial-overlay" ref={testimonialsRef}>
           <div 
-            className="page-section-content animate-reveal stagger-reveal"
+            className={`page-section-content animate-reveal stagger-reveal ${testimonialsReveal.isRevealed ? 'revealed' : ''}`}
             ref={testimonialsReveal.ref}
           >
-            <h2 className="text-4xl font-bold text-center mb-16 text-gradient">What People Say</h2>
+            <h2 className="text-5xl md:text-6xl font-bold text-center mb-20 text-gradient">What People Say</h2>
             
-            <div className="relative max-w-4xl mx-auto">
+            <div className="relative max-w-6xl mx-auto">
               {/* Decorative elements */}
               <div className="absolute -top-12 -left-12 w-24 h-24 border-t-2 border-l-2 border-blue-400/30"></div>
               <div className="absolute -bottom-12 -right-12 w-24 h-24 border-b-2 border-r-2 border-pink-400/30"></div>
               
-              {/* Testimonial cards with staggered animation */}
-              <div className="space-y-8">
-                <div className="feature-card p-6 md:p-8 animate-slideInRight" style={{ animationDelay: '0.2s' }}>
-                  <div className="flex flex-col md:flex-row md:items-center gap-6 mb-4">
-                    <div className="w-20 h-20 rounded-full bg-blue-500/30 flex items-center justify-center shrink-0 mx-auto md:mx-0">
-                      <span className="text-2xl font-bold text-blue-300">JD</span>
+              {/* Testimonial cards with cool scroll animation */}
+              <div className="space-y-12">
+                <div className="testimonial-card feature-card p-8 md:p-10 transition-all duration-300">
+                  <div className="flex flex-col md:flex-row md:items-center gap-8 mb-6">
+                    <div className="w-24 h-24 rounded-full overflow-hidden mx-auto md:mx-0 border-4 border-blue-400/30 shadow-lg">
+                      <Image 
+                        src="/images/testimonials/ethan_cole_testimonial.jpeg"
+                        alt="Ethan Cole"
+                        width={96}
+                        height={96}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="text-center md:text-left">
-                      <div className="flex items-center justify-center md:justify-start gap-1 mb-1">
+                      <div className="flex items-center justify-center md:justify-start gap-1 mb-2">
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <svg key={star} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                          <svg key={star} className="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
                         ))}
                       </div>
-                      <h4 className="text-xl font-semibold text-white">John Doe</h4>
-                      <p className="text-base text-white/60">Marketing Director</p>
+                      <h4 className="text-2xl font-bold text-white">Ethan Cole</h4>
+                      <p className="text-lg text-white/70">Marketing Director</p>
                     </div>
                   </div>
-                  <p className="text-white/90 text-lg italic">"OwlRSVP transformed our corporate event management. The customization options are perfect for maintaining our brand identity."</p>
+                  <p className="text-white/90 text-xl italic leading-relaxed">"OwlRSVP transformed our corporate event management. The customization options are perfect for maintaining our brand identity, and the analytics help us understand our audience better."</p>
                 </div>
                 
-                <div className="feature-card p-6 md:p-8 animate-slideInRight" style={{ animationDelay: '0.4s' }}>
-                  <div className="flex flex-col md:flex-row md:items-center gap-6 mb-4">
-                    <div className="w-20 h-20 rounded-full bg-pink-500/30 flex items-center justify-center shrink-0 mx-auto md:mx-0">
-                      <span className="text-2xl font-bold text-pink-300">AS</span>
+                <div className="testimonial-card feature-card p-8 md:p-10 transition-all duration-300">
+                  <div className="flex flex-col md:flex-row md:items-center gap-8 mb-6">
+                    <div className="w-24 h-24 rounded-full overflow-hidden mx-auto md:mx-0 border-4 border-pink-400/30 shadow-lg">
+                      <Image 
+                        src="/images/testimonials/liam_hayes_testimonial.jpeg"
+                        alt="Liam Hayes"
+                        width={96}
+                        height={96}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="text-center md:text-left">
-                      <div className="flex items-center justify-center md:justify-start gap-1 mb-1">
+                      <div className="flex items-center justify-center md:justify-start gap-1 mb-2">
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <svg key={star} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                          <svg key={star} className="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
                         ))}
                       </div>
-                      <h4 className="text-xl font-semibold text-white">Alice Smith</h4>
-                      <p className="text-base text-white/60">Event Planner</p>
+                      <h4 className="text-2xl font-bold text-white">Liam Hayes</h4>
+                      <p className="text-lg text-white/70">Event Planner</p>
                     </div>
                   </div>
-                  <p className="text-white/90 text-lg italic">"I love how quickly I can set up new events. The admin dashboard makes tracking responses so simple, and my clients are impressed!"</p>
+                  <p className="text-white/90 text-xl italic leading-relaxed">"I love how quickly I can set up new events. The admin dashboard makes tracking responses so simple, and my clients are impressed with the professional look!"</p>
                 </div>
                 
-                <div className="feature-card p-6 md:p-8 animate-slideInRight" style={{ animationDelay: '0.6s' }}>
-                  <div className="flex flex-col md:flex-row md:items-center gap-6 mb-4">
-                    <div className="w-20 h-20 rounded-full bg-green-500/30 flex items-center justify-center shrink-0 mx-auto md:mx-0">
-                      <span className="text-2xl font-bold text-green-300">RJ</span>
+                <div className="testimonial-card feature-card p-8 md:p-10 transition-all duration-300">
+                  <div className="flex flex-col md:flex-row md:items-center gap-8 mb-6">
+                    <div className="w-24 h-24 rounded-full overflow-hidden mx-auto md:mx-0 border-4 border-green-400/30 shadow-lg">
+                      <Image 
+                        src="/images/testimonials/nora_blake_testimonial.jpeg"
+                        alt="Nora Blake"
+                        width={96}
+                        height={96}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <div className="text-center md:text-left">
-                      <div className="flex items-center justify-center md:justify-start gap-1 mb-1">
+                      <div className="flex items-center justify-center md:justify-start gap-1 mb-2">
                         {[1, 2, 3, 4, 5].map((star) => (
-                          <svg key={star} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                          <svg key={star} className="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
                         ))}
                       </div>
-                      <h4 className="text-xl font-semibold text-white">Robert Johnson</h4>
-                      <p className="text-base text-white/60">Tech Startup CEO</p>
+                      <h4 className="text-2xl font-bold text-white">Nora Blake</h4>
+                      <p className="text-lg text-white/70">Tech Startup CEO</p>
                     </div>
                   </div>
-                  <p className="text-white/90 text-lg italic">"The QR code feature is a game-changer for our tech conferences. Attendees love the sleek design and how easy it is to respond."</p>
+                  <p className="text-white/90 text-xl italic leading-relaxed">"The QR code feature is a game-changer for our tech conferences. Attendees love the sleek design and how easy it is to respond. It's exactly what we needed!"</p>
                 </div>
               </div>
             </div>
@@ -682,7 +796,7 @@ export default function Home() {
         {/* Final CTA */}
         <div className="py-32 px-6 subtle-grid dark-overlay">
           <div 
-            className="max-w-3xl mx-auto text-center animate-reveal"
+            className={`max-w-3xl mx-auto text-center animate-reveal ${ctaReveal.isRevealed ? 'revealed' : ''}`}
             ref={ctaReveal.ref}
           >
             <div className="mb-12">

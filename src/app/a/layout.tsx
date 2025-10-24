@@ -1,6 +1,7 @@
 'use client'
 
 import AdminNavigation from '@/components/AdminNavigation'
+import ScrollToTop from '@/components/ScrollToTop'
 
 export default function EventAdminLayout({
   children,
@@ -13,6 +14,7 @@ export default function EventAdminLayout({
       <div className="pt-16">
         {children}
       </div>
+      <ScrollToTop />
     </>
   )
 }

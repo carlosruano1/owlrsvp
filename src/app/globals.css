@@ -122,7 +122,7 @@ body {
 
 /* Footer styles */
 .footer {
-  @apply static p-4 mt-8;
+  @apply relative p-4 mt-8 z-10;
   background: rgba(0,0,0,0.3);
 }
 
@@ -541,6 +541,25 @@ body {
   }
 }
 
+@keyframes pulse-subtle {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.85;
+    transform: translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
 /* Text gradient animation */
 .text-gradient {
   background: linear-gradient(90deg, #3b82f6, #ec4899, #10b981, #3b82f6);
@@ -731,6 +750,72 @@ body {
 @media (max-width: 768px) {
   .section-split {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Apple-like How It Works animations */
+.how-step {
+  will-change: transform, opacity;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.how-image {
+  will-change: transform, opacity;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Enhanced step number styling */
+.how-step .w-24 {
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+/* Testimonial card animations */
+.testimonial-card {
+  will-change: transform, opacity;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.testimonial-card:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
+.howitworks-mobile-orbs { display:none; }
+@media (max-width: 768px) {
+  .howitworks-mobile-orbs {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    display: block;
+    pointer-events: none;
+  }
+  .howitworks-mobile-orbs .orb {
+    position: absolute;
+    width: 60vmin;
+    height: 60vmin;
+    border-radius: 50%;
+    filter: blur(28px);
+    opacity: 0.35;
+    mix-blend-mode: screen;
+    animation: orbFloat 22s ease-in-out infinite;
+  }
+  .howitworks-mobile-orbs .orb--a {
+    top: -10vmin; left: -15vmin;
+    background: radial-gradient(circle at 30% 30%, var(--theme-primary) 0%, transparent 60%);
+  }
+  .howitworks-mobile-orbs .orb--b {
+    bottom: -15vmin; right: -10vmin;
+    background: radial-gradient(circle at 70% 70%, var(--theme-secondary) 0%, transparent 60%);
+    animation-delay: -8s;
+  }
+  @keyframes orbFloat {
+    0% { transform: translate3d(0,0,0) scale(1); }
+    25% { transform: translate3d(6vmin,-4vmin,0) scale(1.08); }
+    50% { transform: translate3d(-3vmin,6vmin,0) scale(1); }
+    75% { transform: translate3d(-6vmin,-3vmin,0) scale(1.08); }
+    100% { transform: translate3d(0,0,0) scale(1); }
   }
 }
 

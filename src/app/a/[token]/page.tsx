@@ -9,7 +9,7 @@ import QRCode from 'qrcode'
 import Footer from '@/components/Footer'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ThemeProvider } from '@/components/ThemeProvider'
+import { ThemeProvider, useTheme } from '@/components/ThemeProvider'
 import ThemeColorPicker from '@/components/ThemeColorPicker'
 import PdfUploader from '@/components/PdfUploader'
 
@@ -52,6 +52,9 @@ function AdminDashboardContent() {
   const [contactInfoExpanded, setContactInfoExpanded] = useState(false)
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
+
+  // Theme from DB -> app theme
+  const { colors, setColors, saveTheme } = useTheme()
   
   // Event details editing
   const [showEventDetailsForm, setShowEventDetailsForm] = useState(false)
@@ -487,6 +490,18 @@ function AdminDashboardContent() {
           company_name: result.event.company_name || '',
           company_logo_url: result.event.company_logo_url || ''
         })
+
+        // Apply DB theme colors to ThemeProvider
+        try {
+          setColors({
+            bg: result.event.page_background_color || '#000000',
+            text: result.event.font_color || '#FFFFFF',
+            primary: result.event.background_color || '#007AFF',
+            secondary: result.event.spotlight_color || result.event.background_color || '#007AFF'
+          })
+        } catch (e) {
+          // ignore theme errors
+        }
       }
       
       setError('')
@@ -1438,11 +1453,20 @@ function AdminDashboardContent() {
                 
                 {/* Theme Color Picker */}
                 <ThemeColorPicker 
-                  onSave={() => {
-                    // Theme colors are automatically saved to localStorage by ThemeColorPicker
-                    // No need to save to database as theme system handles persistence
-                    console.log('Theme colors saved to localStorage');
-                    // Hide the color settings menu after saving
+                  onSave={async () => {
+                    // Save to localStorage
+                    saveTheme();
+                    // Persist to Supabase
+                    try {
+                      await updateEventSettings({
+                        background_color: colors.primary,
+                        page_background_color: colors.bg,
+                        spotlight_color: colors.secondary,
+                        font_color: colors.text,
+                      })
+                    } catch (e) {
+                      // ignore UI error, already alerted by updateEventSettings
+                    }
                     setShowColorSettings(false);
                   }}
                   className="mt-4"
@@ -1518,8 +1542,8 @@ function AdminDashboardContent() {
               )}
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Guest Link */}
+            <div className="space-y-6">
+              {/* Guest Link - Full Width */}
               <div>
                 <label className="block text-sm font-medium text-white/80 mb-2">
                   Guest RSVP Link
@@ -1546,28 +1570,88 @@ function AdminDashboardContent() {
                     >
                       Open
                     </a>
+                    <button
+                      onClick={() => {
+                        const shareText = `You are invited to ${data?.event.title || 'this event'}, this is the link to rsvp: ${guestLink}`
+                        
+                        // Check if Web Share API is available (mobile)
+                        if (navigator.share) {
+                          navigator.share({
+                            title: `Invitation to ${data?.event.title || 'Event'}`,
+                            text: shareText,
+                            url: guestLink
+                          }).catch(err => {
+                            console.log('Error sharing:', err)
+                            // Fallback to email
+                            const subject = `Invitation to ${data?.event.title || 'Event'}`
+                            const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shareText)}`
+                            window.open(mailtoUrl)
+                          })
+                        } else {
+                          // Desktop fallback - show email option
+                          const subject = `Invitation to ${data?.event.title || 'Event'}`
+                          const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shareText)}`
+                          window.open(mailtoUrl)
+                        }
+                      }}
+                      className="modern-button px-4 py-2 min-w-[80px] w-full sm:w-auto bg-green-600 hover:bg-green-700"
+                      title="Share event invitation"
+                    >
+                      Share
+                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* QR Code */}
-              <div className="text-center">
-                <div className="text-sm font-medium text-white/80 mb-2">QR Code</div>
-                {qrCodeUrl && (
-                  <Image 
-                    src={qrCodeUrl} 
-                    alt="Event QR Code" 
-                    className="mx-auto border border-white/10 rounded-lg bg-white/5"
-                    width={150}
-                    height={150}
-                    unoptimized
-                  />
-                )}
-                <div className="mt-3 flex flex-col sm:flex-row gap-2 justify-center">
-                  <button onClick={copyQrToClipboard} className="modern-button px-4 py-2 w-full sm:w-auto">
-                    {copyQrSuccess ? 'Copied QR' : 'Copy QR'}
-                  </button>
-                  <button onClick={downloadQr} className="modern-button px-4 py-2 w-full sm:w-auto">Download QR</button>
+              {/* QR Code - Compact Horizontal Layout */}
+              <div className="glass-card rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">QR Code</h3>
+                      <p className="text-sm text-white/60">Scan to RSVP instantly</p>
+                    </div>
+                  </div>
+                  
+                  {qrCodeUrl && (
+                    <div className="flex items-center gap-4">
+                      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-2 shadow-lg">
+                        <Image 
+                          src={qrCodeUrl} 
+                          alt="Event QR Code" 
+                          className="rounded-md"
+                          width={80}
+                          height={80}
+                          unoptimized
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <button 
+                          onClick={copyQrToClipboard} 
+                          className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-all duration-200 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          {copyQrSuccess ? 'Copied' : 'Copy QR'}
+                        </button>
+                        <button 
+                          onClick={downloadQr} 
+                          className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-all duration-200 flex items-center gap-2"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          Download QR
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

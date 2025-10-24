@@ -1,6 +1,7 @@
 'use client'
 
 import AdminNavigation from '@/components/AdminNavigation'
+import ScrollToTop from '@/components/ScrollToTop'
 
 export default function AdminLayout({
   children,
@@ -13,6 +14,7 @@ export default function AdminLayout({
       <div className="pt-16">
         {children}
       </div>
+      <ScrollToTop />
     </>
   )
 }

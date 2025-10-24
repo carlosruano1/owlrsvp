@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
 import Image from 'next/image'
+import { canCreateEvent } from '@/lib/plans'
 
 export default function CreateEvent() {
   const [title, setTitle] = useState('')
@@ -60,17 +61,25 @@ export default function CreateEvent() {
         if (response.ok) {
           const data = await response.json()
           setIsAdmin(true)
-          setUserPlan({
+          const planData = {
             tier: data.user.subscription_tier || 'free',
             eventsCreated: data.user.events_created_count || 0
-          })
+          }
+          setUserPlan(planData)
+          
+          // Check if user can create another event
+          if (!canCreateEvent(planData.eventsCreated, planData.tier)) {
+            // Redirect to pricing page with upgrade message
+            router.push('/pricing?upgrade=true&reason=event_limit')
+            return
+          }
         }
       } catch (err) {
         // Not logged in
       }
     }
     checkAdmin()
-  }, [])
+  }, [router])
 
   const titleExamples = useMemo(() => [
     'Name of the Event',
@@ -110,12 +119,6 @@ export default function CreateEvent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
-
-    // Check if user has reached their event limit
-    if (userPlan && userPlan.tier === 'free' && (userPlan.eventsCreated || 0) >= 1) {
-      setError('You have reached the maximum number of events allowed in your free plan. Please upgrade to create more events.')
-      return
-    }
 
     setLoading(true)
     setError('')
@@ -309,19 +312,6 @@ export default function CreateEvent() {
                   className="text-yellow-300 hover:text-yellow-200 text-sm underline mt-1 inline-block"
                 >
                   Sign up for free →
-                </Link>
-              </div>
-            )}
-            {userPlan && userPlan.tier === 'free' && (userPlan.eventsCreated || 0) >= 1 && (
-              <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl max-w-md mx-auto">
-                <p className="text-red-200 text-sm">
-                  ⚠️ <strong>Event Limit Reached:</strong> You have reached the maximum number of events allowed in your free plan.
-                </p>
-                <Link 
-                  href="/pricing" 
-                  className="text-red-300 hover:text-red-200 text-sm underline mt-1 inline-block"
-                >
-                  Upgrade to create more events →
                 </Link>
               </div>
             )}

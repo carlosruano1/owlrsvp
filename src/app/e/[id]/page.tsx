@@ -7,7 +7,7 @@ import CalendarIntegration from '@/components/CalendarIntegration'
 import Footer from '@/components/Footer'
 import PdfViewer from '@/components/PdfViewer'
 import Image from 'next/image'
-import { ThemeProvider, ThemeColors } from '@/components/ThemeProvider'
+import { ThemeProvider, ThemeColors, useTheme } from '@/components/ThemeProvider'
 import { formatDateLong, formatTime12h } from '@/lib/dateUtils'
  
 
@@ -35,6 +35,7 @@ function EventRSVPContent() {
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const { colors, setColors } = useTheme()
   
   // Form state
   const [firstName, setFirstName] = useState('')
@@ -106,8 +107,11 @@ function EventRSVPContent() {
           console.log('Could not load advanced color properties');
         }
         
-        // Update ThemeProvider with these colors
-        // This happens automatically because we're using the ThemeProvider
+        // Apply fetched colors to theme
+        setColors({
+          ...colors,
+          ...themeColors,
+        } as ThemeColors)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load event')
       } finally {
@@ -235,6 +239,7 @@ function EventRSVPContent() {
                   eventDate={event.event_date || undefined}
                   eventLocation={event.event_location || undefined}
                   eventDescription={`RSVP for ${event.title}${event.event_location ? ` at ${event.event_location}` : ''}`}
+                  eventLink={`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/e/${event.id}`}
                 />
               </div>
             )}

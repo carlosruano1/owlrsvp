@@ -103,71 +103,141 @@ export default function AdminEvents() {
             </div>
           )}
 
-          {/* Events Table */}
+          {/* Events List */}
           <div className="glass-card rounded-xl overflow-hidden">
             {events.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-white/10">
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-white/70">Event Name</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-white/70">Attendees</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-white/70">Created</th>
-                      <th className="px-6 py-4 text-right text-sm font-semibold text-white/70">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {events.map(event => (
-                      <tr key={event.id} className="border-b border-white/5 hover:bg-white/5">
-                        <td className="px-6 py-4 text-white">
-                          {event.title}
-                          {event.auto_associated && (
-                            <span className="ml-2 px-2 py-0.5 bg-green-500/20 text-green-300 text-xs rounded-full">
-                              Auto-linked
-                            </span>
-                          )}
-                          {event.access_type === 'collaborator' && (
-                            <span className="ml-2 px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full">
-                              Collaborator
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-white/70">{event.attendee_count || 0}</td>
-                        <td className="px-6 py-4 text-white/70">{formatDate(event.created_at)}</td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end items-center gap-2">
-                            {event.admin_token ? (
-                              <Link
-                                href={`/a/${event.admin_token}`}
-                                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded transition-colors"
-                              >
-                                Edit
-                              </Link>
-                            ) : (
-                              <span className="px-3 py-1.5 bg-gray-500/20 text-gray-400 text-sm rounded cursor-not-allowed">
-                                No Admin Token
+              <>
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-white/70">Event Name</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-white/70">Attendees</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-white/70">Created</th>
+                        <th className="px-6 py-4 text-right text-sm font-semibold text-white/70">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {events.map(event => (
+                        <tr key={event.id} className="border-b border-white/5 hover:bg-white/5">
+                          <td className="px-6 py-4 text-white">
+                            {event.title}
+                            {event.auto_associated && (
+                              <span className="ml-2 px-2 py-0.5 bg-green-500/20 text-green-300 text-xs rounded-full">
+                                Auto-linked
                               </span>
                             )}
-                            <Link
-                              href={`/admin/events/${event.id}/analytics`}
-                              className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-sm rounded transition-colors"
-                            >
-                              Analytics
-                            </Link>
-                            <Link
-                              href={`/e/${event.id}`}
-                              target="_blank"
-                              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded transition-colors"
-                            >
-                              View
-                            </Link>
+                            {event.access_type === 'collaborator' && (
+                              <span className="ml-2 px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full">
+                                Collaborator
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-white/70">{event.attendee_count || 0}</td>
+                          <td className="px-6 py-4 text-white/70">{formatDate(event.created_at)}</td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end items-center gap-2">
+                              {event.admin_token ? (
+                                <Link
+                                  href={`/a/${event.admin_token}`}
+                                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded transition-colors"
+                                >
+                                  Edit
+                                </Link>
+                              ) : (
+                                <span className="px-3 py-1.5 bg-gray-500/20 text-gray-400 text-sm rounded cursor-not-allowed">
+                                  No Admin Token
+                                </span>
+                              )}
+                              <Link
+                                href={`/admin/events/${event.id}/analytics`}
+                                className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-sm rounded transition-colors"
+                              >
+                                Analytics
+                              </Link>
+                              <Link
+                                href={`/e/${event.id}`}
+                                target="_blank"
+                                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded transition-colors"
+                              >
+                                View
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden">
+                  {events.map(event => (
+                    <div key={event.id} className="border-b border-white/5 p-4 hover:bg-white/5">
+                      <div className="space-y-3">
+                        {/* Event Title */}
+                        <div className="flex items-start justify-between">
+                          <h3 className="text-white font-medium text-lg pr-2">{event.title}</h3>
+                          <div className="flex gap-1 flex-wrap">
+                            {event.auto_associated && (
+                              <span className="px-2 py-0.5 bg-green-500/20 text-green-300 text-xs rounded-full">
+                                Auto-linked
+                              </span>
+                            )}
+                            {event.access_type === 'collaborator' && (
+                              <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full">
+                                Collaborator
+                              </span>
+                            )}
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </div>
+                        
+                        {/* Event Details */}
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-white/50">Attendees:</span>
+                            <span className="text-white/70 ml-1">{event.attendee_count || 0}</span>
+                          </div>
+                          <div>
+                            <span className="text-white/50">Created:</span>
+                            <span className="text-white/70 ml-1">{formatDate(event.created_at)}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {event.admin_token ? (
+                            <Link
+                              href={`/a/${event.admin_token}`}
+                              className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors flex-1 text-center"
+                            >
+                              Edit
+                            </Link>
+                          ) : (
+                            <span className="px-3 py-2 bg-gray-500/20 text-gray-400 text-sm rounded-lg cursor-not-allowed flex-1 text-center">
+                              No Admin Token
+                            </span>
+                          )}
+                          <Link
+                            href={`/admin/events/${event.id}/analytics`}
+                            className="px-3 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-sm rounded-lg transition-colors flex-1 text-center"
+                          >
+                            Analytics
+                          </Link>
+                          <Link
+                            href={`/e/${event.id}`}
+                            target="_blank"
+                            className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors flex-1 text-center"
+                          >
+                            View
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <div className="p-8 text-center">
                 <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">

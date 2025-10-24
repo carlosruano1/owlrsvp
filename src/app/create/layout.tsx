@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import AdminNavigation from '@/components/AdminNavigation'
+import ScrollToTop from '@/components/ScrollToTop'
 
 export default function CreateEventLayout({
   children,
@@ -31,6 +32,7 @@ export default function CreateEventLayout({
       <div className={isLoggedIn ? "pt-16" : ""}>
         {children}
       </div>
+      <ScrollToTop />
     </>
   )
 }
