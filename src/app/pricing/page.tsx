@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
 import { SubscriptionTier } from '@/lib/types'
@@ -8,7 +8,7 @@ import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
 
-export default function Pricing() {
+function PricingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isAnnual, setIsAnnual] = useState(true)
@@ -299,5 +299,17 @@ export default function Pricing() {
 
       <Footer showDonate={false} />
     </div>
+  )
+}
+
+export default function Pricing() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    }>
+      <PricingContent />
+    </Suspense>
   )
 }
