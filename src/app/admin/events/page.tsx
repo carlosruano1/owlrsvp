@@ -136,12 +136,18 @@ export default function AdminEvents() {
                         <td className="px-6 py-4 text-white/70">{formatDate(event.created_at)}</td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end items-center gap-2">
-                            <Link
-                              href={`/a/${event.admin_token}`}
-                              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded transition-colors"
-                            >
-                              Edit
-                            </Link>
+                            {event.admin_token ? (
+                              <Link
+                                href={`/a/${event.admin_token}`}
+                                className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm rounded transition-colors"
+                              >
+                                Edit
+                              </Link>
+                            ) : (
+                              <span className="px-3 py-1.5 bg-gray-500/20 text-gray-400 text-sm rounded cursor-not-allowed">
+                                No Admin Token
+                              </span>
+                            )}
                             <Link
                               href={`/admin/events/${event.id}/analytics`}
                               className="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-sm rounded transition-colors"

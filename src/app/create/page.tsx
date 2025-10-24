@@ -275,7 +275,25 @@ export default function CreateEvent() {
       <div className="animated-bg" />
       <div className="spotlight" />
       
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
+      {/* Home link in header */}
+      <div className="fixed top-0 left-0 right-0 z-50 py-4 px-6">
+        <Link href="/" className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-all">
+          <div className="relative h-8 w-8 overflow-hidden">
+            <Image 
+              src="/images/owlrsvp_logo_png.png" 
+              alt="OwlRSVP Logo" 
+              width={32} 
+              height={32} 
+              className="object-contain"
+            />
+          </div>
+          <span className="text-lg font-bold">
+            owl<span className="text-blue-400">rsvp</span>
+          </span>
+        </Link>
+      </div>
+      
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-6 pt-20">
         <div className="w-full max-w-lg">
           {/* Header */}
           <div className="text-center mb-12">

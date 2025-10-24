@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
@@ -45,6 +46,34 @@ export async function GET(request: NextRequest) {
       .eq('created_by_admin_id', userId)
       .order('created_at', { ascending: false });
 
+    // Generate admin tokens for events that don't have them
+    if (events && events.length > 0) {
+      const eventsNeedingTokens = events.filter(event => !event.admin_token);
+      if (eventsNeedingTokens.length > 0) {
+        console.log(`Found ${eventsNeedingTokens.length} events without admin tokens, generating them...`);
+        
+        for (const event of eventsNeedingTokens) {
+          // Generate a more secure admin token
+          const adminToken = Math.random().toString(36).substring(2, 15) + 
+                           Math.random().toString(36).substring(2, 15) +
+                           Math.random().toString(36).substring(2, 8);
+          
+          const { error: updateError } = await supabase
+            .from('events')
+            .update({ admin_token: adminToken })
+            .eq('id', event.id);
+            
+          if (updateError) {
+            console.error(`Failed to update admin token for event ${event.id}:`, updateError);
+          } else {
+            console.log(`Generated admin token for event ${event.id}: ${adminToken}`);
+            // Update the event in our local array
+            event.admin_token = adminToken;
+          }
+        }
+      }
+    }
+
     if (error) {
       console.error('Error fetching events:', error);
       return NextResponse.json({ error: 'Failed to fetch events: ' + error.message }, { status: 500 });
@@ -81,6 +110,25 @@ export async function GET(request: NextRequest) {
           
         if (!eventsError && accessEvents && accessEvents.length > 0) {
           console.log(`Found ${accessEvents.length} events through access records`);
+          
+          // Generate admin tokens for events that don't have them
+          for (const event of accessEvents) {
+            if (!event.admin_token) {
+              const adminToken = Math.random().toString(36).substring(2, 15) + 
+                               Math.random().toString(36).substring(2, 15) +
+                               Math.random().toString(36).substring(2, 8);
+              
+              const { error: updateError } = await supabase
+                .from('events')
+                .update({ admin_token: adminToken })
+                .eq('id', event.id);
+                
+              if (!updateError) {
+                event.admin_token = adminToken;
+              }
+            }
+          }
+          
           return NextResponse.json({ 
             events: accessEvents.map(event => ({
               ...event,
@@ -118,16 +166,30 @@ export async function GET(request: NextRequest) {
         if (!emailError && emailEvents && emailEvents.length > 0) {
           console.log(`Found ${emailEvents.length} events by contact email`);
           
-          // Update these events to associate them with this admin
-          emailEvents.forEach(async (event) => {
+          // Update these events to associate them with this admin and generate admin tokens
+          for (const event of emailEvents) {
+            const updates: any = {};
+            
             if (!event.created_by_admin_id) {
               console.log(`Updating event ${event.id} to associate with admin ${userId}`);
+              updates.created_by_admin_id = userId;
+            }
+            
+            if (!event.admin_token) {
+              const adminToken = Math.random().toString(36).substring(2, 15) + 
+                               Math.random().toString(36).substring(2, 15) +
+                               Math.random().toString(36).substring(2, 8);
+              updates.admin_token = adminToken;
+              event.admin_token = adminToken;
+            }
+            
+            if (Object.keys(updates).length > 0) {
               await supabase
                 .from('events')
-                .update({ created_by_admin_id: userId })
+                .update(updates)
                 .eq('id', event.id);
             }
-          });
+          }
           
           return NextResponse.json({ 
             events: emailEvents.map(event => ({

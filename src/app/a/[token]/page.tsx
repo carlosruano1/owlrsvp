@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams } from 'next/navigation'
 import { Event, Attendee } from '@/lib/types'
 import * as XLSX from 'xlsx'
@@ -10,6 +11,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { ThemeProvider } from '@/components/ThemeProvider'
 import ThemeColorPicker from '@/components/ThemeColorPicker'
+import PdfUploader from '@/components/PdfUploader'
 
 interface AdminData {
   event: Event
@@ -45,6 +47,8 @@ function AdminDashboardContent() {
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [promoCode, setPromoCode] = useState('')
   const [expandedAttendee, setExpandedAttendee] = useState<string | null>(null)
+  const [contextMenuPos, setContextMenuPos] = useState<{x:number;y:number} | null>(null)
+  const [contextAnchor, setContextAnchor] = useState<{left:number; right:number; bottom:number; top?: number} | null>(null)
   const [contactInfoExpanded, setContactInfoExpanded] = useState(false)
   const [contactName, setContactName] = useState('')
   const [contactEmail, setContactEmail] = useState('')
@@ -72,6 +76,8 @@ function AdminDashboardContent() {
   const [showColorSettings, setShowColorSettings] = useState(false)
   const [showDetailedStats, setShowDetailedStats] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const [rsvpMenuOpen, setRsvpMenuOpen] = useState(false)
+  const rsvpMenuRef = useRef<HTMLDivElement>(null)
 
   const guestLink = data ? `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/e/${data.event.id}` : ''
 
@@ -80,6 +86,10 @@ function AdminDashboardContent() {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setExpandedAttendee(null);
+        setContextMenuPos(null)
+      }
+      if (rsvpMenuRef.current && !rsvpMenuRef.current.contains(event.target as Node)) {
+        setRsvpMenuOpen(false)
       }
     }
     
@@ -88,6 +98,27 @@ function AdminDashboardContent() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [menuRef]);
+
+  // After the context menu renders, measure and clamp within viewport
+  useLayoutEffect(() => {
+    if (!expandedAttendee || !menuRef.current || !contextAnchor) return
+    const menuBounds = menuRef.current.getBoundingClientRect()
+    const margin = 8
+    // Align menu right edge to button right edge, below the button
+    let x = contextAnchor.right - menuBounds.width
+    let y = contextAnchor.bottom + margin
+    if (x + menuBounds.width > window.innerWidth - margin) {
+      x = Math.max(margin, window.innerWidth - menuBounds.width - margin)
+    }
+    if (y + menuBounds.height > window.innerHeight - margin) {
+      y = Math.max(margin, window.innerHeight - menuBounds.height - margin)
+    }
+    if (x < margin) x = margin
+    if (y < margin) y = margin
+    if (!contextMenuPos || x !== contextMenuPos.x || y !== contextMenuPos.y) {
+      setContextMenuPos({ x, y })
+    }
+  }, [expandedAttendee, contextAnchor])
 
   // Check if user is logged in as admin
   useEffect(() => {
@@ -113,12 +144,13 @@ function AdminDashboardContent() {
   // First validate the admin token before fetching data
   const validateAndFetchData = async () => {
     try {
+      console.log('Validating admin token:', adminToken);
       // Skip validation and directly fetch data
       // This allows access to the admin page even for users who created events without login
-      fetchData()
+      await fetchData()
     } catch (err) {
       console.error('Error validating admin token:', err)
-      setError('Failed to validate admin access')
+      setError(`Failed to validate admin access: ${err instanceof Error ? err.message : 'Unknown error'}`)
       setLoading(false)
     }
   }
@@ -427,10 +459,15 @@ function AdminDashboardContent() {
   // Function to fetch admin data
   const fetchData = async () => {
     try {
+      console.log('Fetching data for admin token:', adminToken);
       const response = await fetch(`/api/admin/${adminToken}`)
       const result = await response.json()
 
+      console.log('API response status:', response.status);
+      console.log('API response data:', result);
+
       if (!response.ok) {
+        console.error('API error:', result);
         throw new Error(result.error || 'Invalid admin token')
       }
 
@@ -521,9 +558,18 @@ function AdminDashboardContent() {
         <div className="animated-bg" />
         <div className="spotlight" />
         <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
-          <div className="text-center">
+          <div className="text-center max-w-md">
             <div className="text-red-400 text-xl mb-4">Access Denied</div>
-            <div className="text-white/70">Invalid admin token.</div>
+            <div className="text-white/70 mb-4">{error}</div>
+            <div className="text-white/50 text-sm mb-6">
+              Admin Token: {adminToken}
+            </div>
+            <Link 
+              href="/admin/settings" 
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              Back to Settings
+            </Link>
           </div>
         </div>
       </div>
@@ -603,15 +649,29 @@ function AdminDashboardContent() {
           <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h2 className="text-2xl font-bold">Attendance Overview</h2>
-              <button 
-                onClick={() => setShowDetailedStats(!showDetailedStats)}
-                className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 text-white/90 transition-all flex items-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                {showDetailedStats ? 'Hide Detailed Stats' : 'Show Detailed Stats'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setShowDetailedStats(!showDetailedStats)}
+                  className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 text-white/90 transition-all flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  {showDetailedStats ? 'Hide Detailed Stats' : 'Show Detailed Stats'}
+                </button>
+                {data?.event?.id && (
+                  <Link 
+                    href={`/admin/events/${data.event.id}/analytics`}
+                    className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 text-blue-300 transition-all flex items-center gap-2"
+                    title="Open full analytics dashboard"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M3 13h4v8H3v-8zm7-6h4v14h-4V7zm7-4h4v18h-4V3z" fill="currentColor"/>
+                    </svg>
+                    Analytics
+                  </Link>
+                )}
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 admin-grid">
@@ -1150,6 +1210,39 @@ function AdminDashboardContent() {
                       </div>
                     )}
                   </div>
+
+                  {/* Information PDF for Guests */}
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">
+                      Information PDF (shown on invite)
+                    </label>
+                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <div className="text-sm text-white/70">
+                          {data?.event.info_pdf_url ? 'PDF is uploaded and visible to guests.' : 'No PDF uploaded yet.'}
+                        </div>
+                        {data?.event.info_pdf_url && (
+                          <a
+                            href={data.event.info_pdf_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 text-xs rounded-lg bg-white/10 hover:bg-white/15"
+                          >
+                            View
+                          </a>
+                        )}
+                      </div>
+                      {/* Uploader */}
+                      {data?.event?.id && (
+                        <PdfUploader
+                          eventId={data.event.id}
+                          onUploadComplete={(url) => {
+                            updateEventSettings({ info_pdf_url: url })
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
                   
                   {/* Form Actions */}
                   <div className="flex gap-3 pt-4">
@@ -1484,22 +1577,31 @@ function AdminDashboardContent() {
           <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
               <h2 className="text-2xl font-bold">RSVPs</h2>
-              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 admin-actions w-full sm:w-auto">
+              <div className="relative w-full sm:w-auto" ref={rsvpMenuRef}>
                 <button
-                  onClick={downloadCSV}
-                  className="modern-button px-4 py-2 w-full sm:w-auto"
+                  onClick={() => setRsvpMenuOpen(!rsvpMenuOpen)}
+                  className="modern-button px-4 py-2 w-full sm:w-auto inline-flex items-center justify-center gap-2"
+                  aria-haspopup="menu"
+                  aria-expanded={rsvpMenuOpen}
                 >
-                  Export CSV
+                  Manage RSVPs
+                  <svg className={`w-4 h-4 transition-transform ${rsvpMenuOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
-                {/* Only show template and import options for guest list mode */}
-                {data?.event.auth_mode === 'guest_list' && (
-                  <>
-                    <button onClick={downloadTemplate} className="modern-button px-4 py-2 w-full sm:w-auto">Download Template</button>
-                    <label className="modern-button px-4 py-2 cursor-pointer w-full sm:w-auto text-center">
-                      Import XLSX
-                      <input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => e.target.files && importXlsx(e.target.files[0])} />
-                    </label>
-                  </>
+                {rsvpMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-gray-800 rounded-lg shadow-lg z-10 py-1 border border-white/10" role="menu">
+                    <button onClick={downloadCSV} className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-white/10" role="menuitem">Export CSV</button>
+                    {data?.event.auth_mode === 'guest_list' && (
+                      <>
+                        <button onClick={downloadTemplate} className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-white/10" role="menuitem">Download Template</button>
+                        <label className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-white/10 cursor-pointer" role="menuitem">
+                          Import XLSX
+                          <input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => e.target.files && importXlsx(e.target.files[0])} />
+                        </label>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -1641,57 +1743,32 @@ function AdminDashboardContent() {
                           <div className="flex justify-center gap-2">
                             <button
                               onClick={() => startEdit(attendee)}
-                              className="modern-button px-3 py-1"
+                              className="modern-button modern-button-sm inline-flex items-center justify-center w-24"
                             >
                               Edit
                             </button>
                             <div className="relative" ref={expandedAttendee === attendee.id ? menuRef : undefined}>
                               <button
-                                onClick={() => setExpandedAttendee(expandedAttendee === attendee.id ? null : attendee.id)}
-                                className="modern-button px-3 py-1 flex items-center justify-center"
+                                onClick={(e) => {
+                                  const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
+                                  setContextAnchor({ left: rect.left, right: rect.right, bottom: rect.bottom, top: rect.top })
+                                  setExpandedAttendee(expandedAttendee === attendee.id ? null : attendee.id)
+                                }}
+                                className="modern-button modern-button-sm inline-flex items-center justify-center w-24"
                                 aria-label="More options"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                                 </svg>
                               </button>
-                              
-                              {expandedAttendee === attendee.id && (
-                                <div className="absolute right-0 top-full mt-1 w-48 bg-gray-800 rounded-lg shadow-lg z-10 py-1 border border-white/10">
-                                  {attendee.email && (
-                                    <a 
-                                      href={`mailto:${attendee.email}?subject=${encodeURIComponent('Hello from ' + (data?.event.title || 'our event'))}&body=${encodeURIComponent(`Hi ${attendee.first_name || ''},\n\nThis is a quick note about ${data?.event.title || 'our event'}. You can view details and RSVP here:\n${guestLink}\n\nThanks!\n${data?.event.company_name || 'Event Organizer'}`)}`}
-                                      className="block px-4 py-2 text-sm text-white hover:bg-white/10 flex items-center gap-2"
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                      </svg>
-                                      Email
-                                    </a>
-                                  )}
-                                  {attendee.phone && (
-                                    <a 
-                                      href={`tel:${attendee.phone}`}
-                                      className="block px-4 py-2 text-sm text-white hover:bg-white/10 flex items-center gap-2"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                      </svg>
-                                      Call
-                                    </a>
-                                  )}
-                                  <button
-                                    onClick={() => deleteAttendee(attendee.id)}
-                                    className="block w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-500/20 flex items-center gap-2"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                    Delete
-                                  </button>
-                                </div>
+                              {expandedAttendee === attendee.id && contextAnchor && (
+                                <RowMenu
+                                  anchorRect={{ left: contextAnchor.left, right: contextAnchor.right, bottom: contextAnchor.bottom!, top: contextAnchor.top! } as DOMRect}
+                                  onClose={() => { setExpandedAttendee(null); setContextMenuPos(null) }}
+                                  email={attendee.email}
+                                  phone={attendee.phone}
+                                  onDelete={() => deleteAttendee(attendee.id)}
+                                />
                               )}
                             </div>
                           </div>
@@ -1979,4 +2056,64 @@ function AddGuestForm({ adminToken, onAdded }: { adminToken: string, onAdded: (a
       {success && <div className="text-green-300 text-sm">{success}</div>}
     </form>
   );
+}
+
+// Portal-based row menu component
+function RowMenu({ anchorRect, onClose, email, phone, onDelete }: { anchorRect: DOMRect, onClose: () => void, email?: string | null, phone?: string | null, onDelete: () => void }) {
+  const menuRef = React.useRef<HTMLDivElement>(null)
+  const [pos, setPos] = React.useState<{x:number;y:number}>({ x: 0, y: 0 })
+
+  React.useLayoutEffect(() => {
+    const margin = 8
+    const menuEl = menuRef.current
+    if (!menuEl) return
+    const { offsetWidth: width, offsetHeight: height } = menuEl
+    let x = anchorRect.right - width
+    let y = anchorRect.bottom + margin
+    x = Math.min(x, window.innerWidth - width - margin)
+    x = Math.max(x, margin)
+    if (y + height > window.innerHeight - margin) {
+      y = anchorRect.top - height - margin
+    }
+    if (y < margin) y = Math.max(margin, anchorRect.bottom + margin)
+    setPos({ x, y })
+  }, [anchorRect])
+
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    function onResize() { onClose() }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('resize', onResize)
+    window.addEventListener('scroll', onResize, true)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('scroll', onResize, true)
+    }
+  }, [onClose])
+
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div ref={menuRef} className="fixed z-50 w-48 bg-gray-800 rounded-lg shadow-lg py-1 border border-white/10" style={{ left: pos.x, top: pos.y }} role="menu">
+        {email && (
+          <a href={`mailto:${email}`} className="block px-4 py-2 text-sm text-white hover:bg-white/10 flex items-center gap-2" target="_blank" rel="noopener noreferrer" role="menuitem">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+            Email
+          </a>
+        )}
+        {phone && (
+          <a href={`tel:${phone}`} className="block px-4 py-2 text-sm text-white hover:bg-white/10 flex items-center gap-2" role="menuitem">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+            Call
+          </a>
+        )}
+        <button onClick={onDelete} className="block w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-500/20 flex items-center gap-2" role="menuitem">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+          Delete
+        </button>
+      </div>
+    </>,
+    document.body
+  )
 }

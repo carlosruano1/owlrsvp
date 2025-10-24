@@ -7,10 +7,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
     }
     
-    // Get all events with their IDs and titles
+    // Get all events with their IDs, titles, and dates
     const { data: events, error } = await supabase
       .from('events')
-      .select('id, title, admin_token, created_at')
+      .select('id, title, admin_token, created_at, event_date')
       .order('created_at', { ascending: false })
     
     if (error) {

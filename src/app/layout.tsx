@@ -9,6 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://owlrsvp.com'),
   title: "OwlRSVP - Beautiful Event RSVP Management | Create Custom Event Pages",
   description: "Create stunning RSVP pages in seconds. Perfect for corporate events, parties, conferences with custom branding, QR codes, and guest management. No signup required.",
   keywords: "event management, RSVP, event planning, guest list, corporate events, QR code, custom branding, event page",

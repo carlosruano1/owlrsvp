@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { getCalendarFloatingRange } from '@/lib/dateUtils'
 
 interface CalendarIntegrationProps {
   eventTitle: string
@@ -19,51 +20,14 @@ export default function CalendarIntegration({
 }: CalendarIntegrationProps) {
   const [showCalendarOptions, setShowCalendarOptions] = useState(false)
 
-  // Format date for calendar
+  // Use floating local times derived from the raw datetime-local string
   const formatDateForCalendar = (dateString?: string | null) => {
-    if (!dateString) {
-      console.log('No date string provided')
-      return null
-    }
-    
-    try {
-      console.log('Original date string:', dateString, 'Type:', typeof dateString)
-      
-      // Try different date parsing approaches
-      let date: Date
-      
-      // First try direct parsing
-      date = new Date(dateString)
-      
-      // If that fails, try parsing as ISO string
-      if (isNaN(date.getTime())) {
-        console.log('Direct parsing failed, trying ISO format')
-        date = new Date(dateString + 'T00:00:00.000Z')
-      }
-      
-      // If still fails, try with current time
-      if (isNaN(date.getTime())) {
-        console.log('ISO parsing failed, using current time')
-        date = new Date()
-      }
-      
-      console.log('Final parsed date:', date, 'Valid:', !isNaN(date.getTime()))
-      
-      const startFormatted = date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
-      const endDate = new Date(date.getTime() + 2 * 60 * 60 * 1000) // 2 hours duration
-      const endFormatted = endDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
-      
-      console.log('Formatted start:', startFormatted)
-      console.log('Formatted end:', endFormatted)
-      
-      return {
-        start: startFormatted,
-        end: endFormatted
-      }
-    } catch (error) {
-      console.error('Error formatting date:', error, 'Input:', dateString)
-      return null
-    }
+    const range = getCalendarFloatingRange(dateString, 120); // 2 hours
+    if (!range) return null;
+    return {
+      start: range.start,
+      end: range.end,
+    };
   }
 
   const calendarData = formatDateForCalendar(eventDate)
@@ -91,20 +55,29 @@ export default function CalendarIntegration({
     return icsContent
   }
 
-  // Download .ics file
-  const downloadICS = () => {
+  // Create an object URL for ICS and attempt to open with default calendar
+  const openICSDefault = () => {
     const icsContent = generateICS()
-    if (!icsContent) return
+    if (!icsContent) return null
 
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' })
     const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${eventTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+
+    // Try to open in a new tab first (mobile often prompts calendar app)
+    const w = window.open(url, '_blank')
+    if (!w) {
+      // Fallback to programmatic click
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${eventTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    }
+
+    // Revoke later to allow browser to resolve the URL
+    setTimeout(() => URL.revokeObjectURL(url), 4000)
+    return url
   }
 
   // Generate calendar URL that opens calendar app directly
@@ -130,13 +103,28 @@ export default function CalendarIntegration({
       return getOutlookCalendarUrl() || getGoogleCalendarUrl()
     }
     
-    // Format dates for calendar URLs
+    // Format dates for calendar URLs - preserving original time
     const formatCalendarDate = (date: Date) => {
       if (isNaN(date.getTime())) {
         console.error('Invalid date passed to formatCalendarDate:', date)
         return ''
       }
-      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+      
+      // Create a UTC date that preserves the original time values
+      // This ensures the time displayed is exactly what was entered
+      const utcDate = new Date(Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        date.getHours(),
+        date.getMinutes(),
+        date.getSeconds()
+      ))
+      
+      console.log('Calendar URL date input:', date);
+      console.log('Calendar URL UTC date:', utcDate);
+      
+      return utcDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
     }
 
     // Detect device type
@@ -192,7 +180,17 @@ export default function CalendarIntegration({
     }
 
     const formatCalendarDate = (date: Date) => {
-      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+      // Create a UTC date that preserves the original time values
+      const utcDate = new Date(Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        date.getHours(),
+        date.getMinutes(),
+        date.getSeconds()
+      ))
+      
+      return utcDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
     }
 
     const params = new URLSearchParams({
@@ -228,7 +226,20 @@ export default function CalendarIntegration({
     }
 
     const formatCalendarDate = (date: Date) => {
-      return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+      // Create a UTC date that preserves the original time values
+      const utcDate = new Date(Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        date.getHours(),
+        date.getMinutes(),
+        date.getSeconds()
+      ))
+      
+      console.log('Google Calendar date input:', date);
+      console.log('Google Calendar UTC date:', utcDate);
+      
+      return utcDate.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
     }
 
     const params = new URLSearchParams({
@@ -244,30 +255,15 @@ export default function CalendarIntegration({
   // Handle calendar link clicks
   const handleCalendarClick = (e: React.MouseEvent) => {
     e.preventDefault()
-    
+
+    // First, try ICS which lets OS choose default calendar
+    const icsUrl = openICSDefault()
+    if (icsUrl) return
+
+    // Fallback to URL-based handlers
     const calendarUrl = getCalendarUrl()
-    console.log('Calendar URL:', calendarUrl)
-    
-    // Don't try to open if URL is invalid
-    if (!calendarUrl || calendarUrl === '#') {
-      console.error('Invalid calendar URL, cannot open calendar')
-      return
-    }
-    
-    // Try to open calendar app directly
-    try {
-      // Create a temporary link and click it
-      const link = document.createElement('a')
-      link.href = calendarUrl
-      link.style.display = 'none'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-    } catch (error) {
-      console.error('Failed to open calendar:', error)
-      // Fallback: try window.open instead of window.location
-      window.open(calendarUrl, '_blank')
-    }
+    if (!calendarUrl || calendarUrl === '#') return
+    window.open(calendarUrl, '_blank')
   }
 
   if (!eventDate) {
@@ -294,20 +290,9 @@ export default function CalendarIntegration({
             className="w-full px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 rounded-lg transition-all text-blue-300 text-sm flex items-center justify-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 01-2-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
             Add to Calendar
-          </button>
-
-          {/* Download .ics File */}
-          <button
-            onClick={downloadICS}
-            className="w-full px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg transition-all text-purple-300 text-sm flex items-center justify-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Download .ics File
           </button>
         </div>
       )}

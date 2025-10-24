@@ -115,6 +115,11 @@ export async function PATCH(
     if (body.company_logo_url !== undefined) {
       updates.company_logo_url = body.company_logo_url || null
     }
+
+    // Optional field to store information PDF URL
+    if (body.info_pdf_url !== undefined) {
+      updates.info_pdf_url = body.info_pdf_url || null
+    }
     
     // Handle color customization fields
     if (body.background_color !== undefined) {

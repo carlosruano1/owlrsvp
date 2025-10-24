@@ -1,13 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { formatDateTimeShort } from '@/lib/dateUtils'
 import Link from 'next/link'
+
+const formatEventDate = (dateString: string | null | undefined): string => {
+  return formatDateTimeShort(dateString);
+}
 
 interface Event {
   id: string
   title: string
   admin_token: string
   created_at: string
+  event_date?: string | null
 }
 
 export default function ListEvents() {
@@ -76,9 +82,9 @@ export default function ListEvents() {
                 <thead>
                   <tr className="bg-gray-800">
                     <th className="p-3 text-left">Title</th>
+                    <th className="p-3 text-left">Event Date</th>
                     <th className="p-3 text-left">Event ID</th>
                     <th className="p-3 text-left">Admin Token</th>
-                    <th className="p-3 text-left">Created At</th>
                     <th className="p-3 text-left">Links</th>
                   </tr>
                 </thead>
@@ -86,6 +92,11 @@ export default function ListEvents() {
                   {events.map((event) => (
                     <tr key={event.id} className="border-t border-gray-700 hover:bg-gray-800">
                       <td className="p-3">{event.title}</td>
+                      <td className="p-3">
+                        <span className="text-white/80">
+                          {formatEventDate(event.event_date)}
+                        </span>
+                      </td>
                       <td className="p-3">
                         <button 
                           onClick={() => copyToClipboard(event.id, 'id')}
@@ -103,9 +114,6 @@ export default function ListEvents() {
                         >
                           {copied === `token-${event.admin_token}` ? 'Copied!' : event.admin_token}
                         </button>
-                      </td>
-                      <td className="p-3">
-                        {new Date(event.created_at).toLocaleString()}
                       </td>
                       <td className="p-3">
                         <div className="flex space-x-2">

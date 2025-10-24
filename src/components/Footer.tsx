@@ -18,7 +18,18 @@ export default function Footer({ showDonate = false }: FooterProps) {
               <span className="logo-word-rsvp">rsvp</span>
             </span>
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10 border border-white/20">
-              <img src="/flags/us.svg" width={16} height={16} alt="USA flag" className="inline-block" />
+              <span className="inline-block align-middle" aria-label="USA flag" role="img">
+                <svg width="16" height="12" viewBox="0 0 64 48" xmlns="http://www.w3.org/2000/svg">
+                  <rect width="64" height="48" fill="#fff"/>
+                  <g fill="#B22234">
+                    <rect y="0" width="64" height="6"/>
+                    <rect y="12" width="64" height="6"/>
+                    <rect y="24" width="64" height="6"/>
+                    <rect y="36" width="64" height="6"/>
+                  </g>
+                  <rect width="28" height="26" fill="#3C3B6E"/>
+                </svg>
+              </span>
               <span className="text-xs">USA</span>
             </span>
           </span>

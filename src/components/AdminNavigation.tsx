@@ -22,7 +22,7 @@ export default function AdminNavigation() {
     <header className="bg-black/80 backdrop-blur-md shadow-lg py-3 sticky top-0 z-50">
       <div className="container mx-auto px-4 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/admin/settings" className="flex items-center gap-3 mt-1 relative z-50">
+        <Link href="/" className="flex items-center gap-3 mt-1 relative z-50">
           <div className="relative h-8 w-8 overflow-hidden">
             <Image 
               src="/images/owlrsvp_logo_png.png" 

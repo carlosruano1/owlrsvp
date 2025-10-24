@@ -1,17 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
 import ElegantLogo from '@/components/ElegantLogo'
 import Navigation from '@/components/Navigation'
 import Image from 'next/image'
+import FeatureCarousel from '@/components/FeatureCarousel'
 import { useScrollReveal, useParallax } from '@/hooks/useScrollReveal'
 
 export default function Home() {
   const router = useRouter()
   const [isLoaded, setIsLoaded] = useState(false)
+  const growRef = useRef<HTMLSpanElement>(null)
+  const featuresSectionRef = useRef<HTMLDivElement>(null)
   
   // Animation hooks
   const heroReveal = useScrollReveal()
@@ -42,10 +45,53 @@ export default function Home() {
       observer.observe(element)
     })
     
+    // Apple-like compact scroll highlight for feature cards
+    const section = featuresSectionRef.current
+    const cards = section ? Array.from(section.querySelectorAll<HTMLElement>('.apple-feature')) : []
+    const onFeatureScroll = () => {
+      if (!section || cards.length === 0) return
+      const rect = section.getBoundingClientRect()
+      const viewH = window.innerHeight
+      const viewportCenter = viewH / 2
+      const progress = Math.max(0, Math.min(1, (viewportCenter - rect.top) / Math.max(1, rect.height)))
+      const total = Math.max(1, cards.length - 1)
+      cards.forEach((el, idx) => {
+        const anchor = idx / total
+        const delta = Math.abs(progress - anchor)
+        const scale = Math.max(0.94, 1 - delta * 0.06)
+        const translate = Math.min(10, delta * 14)
+        const opacity = Math.max(0.65, 1 - delta * 0.4)
+        el.style.transform = `translateY(${translate}px) scale(${scale})`
+        el.style.opacity = String(opacity)
+        el.style.willChange = 'transform, opacity'
+      })
+    }
+    onFeatureScroll()
+    window.addEventListener('scroll', onFeatureScroll, { passive: true })
+    window.addEventListener('resize', onFeatureScroll)
+
+    // Scroll-driven scaling for the word "grow"
+    const onScroll = () => {
+      const el = growRef.current
+      if (!el) return
+      const y = window.scrollY
+      const start = 0
+      const end = 500
+      const progress = Math.max(0, Math.min(1, (y - start) / (end - start)))
+      const scale = 1 + progress * 0.35 // up to ~1.35x
+      el.style.transform = `scale(${scale})`
+      el.style.transformOrigin = 'left center'
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+
     return () => {
       revealElements.forEach(element => {
         observer.unobserve(element)
       })
+      window.removeEventListener('scroll', onFeatureScroll)
+      window.removeEventListener('resize', onFeatureScroll)
+      window.removeEventListener('scroll', onScroll)
     }
   }, [])
 
@@ -67,7 +113,7 @@ export default function Home() {
               className="transform transition-all duration-700 animate-reveal text-left"
               ref={heroReveal.ref}
             >
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-8 leading-tight tracking-tight">
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-3 leading-tight tracking-tight">
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 animate-gradient-x">
                   Event
                 </span>
@@ -80,14 +126,11 @@ export default function Home() {
                   infrastructure
                 </span>
               </h1>
-              <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-8 leading-tight tracking-tight">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-white">
-                  to grow your
-                </span>
-                {" "}
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 animate-gradient-x">
-                  attendance
-                </span>
+              <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight tracking-tight">
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-white">to</span>{" "}
+                <span ref={growRef} className="inline-block bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-white will-change-transform">grow</span>{" "}
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-white">your</span>{" "}
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 animate-gradient-x">attendance</span>
               </h2>
             </div>
 
@@ -153,19 +196,24 @@ export default function Home() {
               
               {/* Phone Inner Frame */}
               <div className="absolute inset-[3px] bg-black rounded-[38px] z-20 overflow-hidden">
-                {/* Phone Screen */}
+                {/* Real mobile screenshot */}
                 <div className="absolute inset-0 z-30">
-                  <img 
-                    src="/screenshots/phone_sc.png" 
-                    alt="OwlRSVP Mobile App" 
-                    className="w-full h-full object-cover"
-                  />
-                  
-                  {/* Animated screen shine effect */}
+                  {/* Safe area to avoid notch overlap */}
+                  <div className="absolute inset-x-[8px] top-[16px] bottom-[8px] rounded-[30px] overflow-hidden">
+                    <Image 
+                      src="/screenshots/phone-sc.png.png" 
+                      alt="Mobile RSVP experience"
+                      fill
+                      className="object-cover"
+                      priority
+                      sizes="(max-width: 768px) 100vw, 300px"
+                    />
+                  </div>
+                  {/* Subtle screen shine */}
                   <div 
                     className="absolute inset-0 z-40 pointer-events-none"
                     style={{
-                      background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
+                      background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent)",
                       backgroundSize: "200% 100%",
                       animation: "shine-effect 3s linear infinite"
                     }}
@@ -213,7 +261,7 @@ export default function Home() {
               <h3 className="inline-block px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white/90 rounded-full text-sm font-medium mb-4 animate-pulse">
                 Powerful Dashboard
               </h3>
-              <h2 className="text-3xl font-bold text-white mb-4 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+              <h2 className="text-5xl md:text-6xl font-extrabold text-white mb-4 tracking-tight">
                 Manage your events with ease
               </h2>
               <p className="text-lg text-white/70 max-w-2xl mx-auto">
@@ -247,42 +295,13 @@ export default function Home() {
                   </div>
                 </div>
                 
-                {/* Screenshot with Interactive Effects */}
-                <div className="relative rounded-md overflow-hidden">
-                  <img 
-                    src="/screenshots/desktop_sc.png" 
-                    alt="OwlRSVP Dashboard" 
-                    className="w-full h-auto object-cover"
-                  />
-                  
-                  {/* Interactive Hover Highlight */}
-                  <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300">
-                    <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-purple-500/10 to-transparent"></div>
-                    
-                    {/* Hotspot Animations */}
-                    <div className="absolute top-1/4 left-1/4 w-16 h-16 bg-blue-500/30 rounded-full animate-ping" style={{animationDuration: "3s"}}></div>
-                    <div className="absolute top-2/3 right-1/3 w-12 h-12 bg-purple-500/30 rounded-full animate-ping" style={{animationDuration: "4s", animationDelay: "1s"}}></div>
-                  </div>
-                  
-                  {/* Enhanced Reflection/Glare Effect */}
-                  <div 
-                    className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/15 pointer-events-none"
-                    style={{
-                      maskImage: "linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0.5), rgba(0,0,0,0))",
-                      WebkitMaskImage: "linear-gradient(to bottom, rgba(0,0,0,1), rgba(0,0,0,0.5), rgba(0,0,0,0))"
-                    }}
-                  ></div>
-                  
-                  {/* Moving Shine Effect */}
-                  <div 
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
-                      backgroundSize: "200% 100%",
-                      animation: "shine-effect 3s linear infinite"
-                    }}
-                  ></div>
-                </div>
+                {/* Feature Carousel */}
+                <FeatureCarousel
+                  slides={[
+                    { title: 'Analytics', subtitle: 'Understand responses at a glance', src: '/screenshots/analytics-sc.png', alt: 'Analytics dashboard', badge: 'Analytics' },
+                    { title: 'Admin Dashboard', subtitle: 'Edit details and manage attendees', src: '/screenshots/admin-sc.png', alt: 'Admin dashboard', badge: 'Admin' },
+                  ]}
+                />
               </div>
               
               {/* Animated Decorative Elements */}
@@ -306,16 +325,20 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Main Features Section */}
+        {/* Main Features Section (compact, Apple-like) */}
         <div id="features" className="page-section bg-gradient-to-b from-transparent to-gray-900/50 diagonal-bottom">
           <div 
-            className="page-section-content animate-reveal stagger-reveal"
-            ref={featuresReveal.ref}
+            className="page-section-content"
+            ref={featuresSectionRef}
           >
-            <h2 className="text-4xl font-bold text-center mb-16 text-gradient">Main Features</h2>
+            <div className="text-center mb-10 animate-reveal" ref={featuresReveal.ref}>
+              <div className="apple-kicker">FEATURES</div>
+              <h2 className="apple-section-title">Built for modern events</h2>
+              <p className="apple-subtitle mt-3 text-white/80">Fast to set up. Effortless to manage. Delightful for guests.</p>
+            </div>
             <div className="section-cards">
-              <div className="feature-card p-8 text-center hover:scale-105 transition-all duration-300">
-                <div className="w-16 h-16 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <div className="feature-card apple-feature p-8 text-center transition-all duration-300">
+                <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
@@ -324,8 +347,8 @@ export default function Home() {
                 <p className="text-white/80 text-lg">Create and customize your RSVP page in under 60 seconds. No complex setup required.</p>
               </div>
               
-              <div className="feature-card p-8 text-center hover:scale-105 transition-all duration-300">
-                <div className="w-16 h-16 bg-green-500/20 rounded-xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <div className="feature-card apple-feature p-8 text-center transition-all duration-300">
+                <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
@@ -334,8 +357,8 @@ export default function Home() {
                 <p className="text-white/80 text-lg">Stunning, modern interface that your guests will love. Customize colors and branding to match your style.</p>
               </div>
               
-              <div className="feature-card p-8 text-center hover:scale-105 transition-all duration-300">
-                <div className="w-16 h-16 bg-purple-500/20 rounded-xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <div className="feature-card apple-feature p-8 text-center transition-all duration-300">
+                <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
@@ -344,8 +367,8 @@ export default function Home() {
                 <p className="text-white/80 text-lg">Track responses, export data, and manage your guest list with our intuitive admin dashboard.</p>
               </div>
               
-              <div className="feature-card p-8 text-center hover:scale-105 transition-all duration-300">
-                <div className="w-16 h-16 bg-yellow-500/20 rounded-xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <div className="feature-card apple-feature p-8 text-center transition-all duration-300">
+                <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-6">
                   <svg className="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>

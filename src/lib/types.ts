@@ -9,6 +9,7 @@ export interface Event {
   admin_token: string
   company_name?: string
   company_logo_url?: string
+  info_pdf_url?: string | null
   open_invite?: boolean
   auth_mode?: 'open' | 'code' | 'guest_list'
   promo_code?: string | null

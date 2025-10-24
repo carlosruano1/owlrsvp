@@ -1,35 +1,43 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+
+// Navigation links data - single source of truth
+const NAV_LINKS = [
+  { href: '/#features', label: 'Features' },
+  { href: '/#pricing', label: 'Pricing' },
+  { href: '/#how-it-works', label: 'How It Works' },
+  { href: '/about', label: 'About' }
+]
 
 export default function Navigation() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const router = useRouter()
-  
-  // Handle scroll effect
+
+  // Handle scroll effect with debounce
   useEffect(() => {
-    const handleScroll = () => {
-      const isScrolled = window.scrollY > 20
-      if (isScrolled !== scrolled) {
-        setScrolled(isScrolled)
+    let ticking = false
+
+    const updateScrolled = () => {
+      setScrolled(window.scrollY > 20)
+      ticking = false
+    }
+
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateScrolled)
+        ticking = true
       }
     }
-    
-    window.addEventListener('scroll', handleScroll)
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-    }
-  }, [scrolled])
-  
-  // Close mobile menu when navigating
-  const handleNavigate = (path: string) => {
-    setMobileMenuOpen(false)
-    router.push(path)
-  }
+
+    updateScrolled() // Initial check
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   // Prevent scrolling when mobile menu is open
   useEffect(() => {
@@ -43,140 +51,145 @@ export default function Navigation() {
     }
   }, [mobileMenuOpen])
   
+  // Handle navigation
+  const handleNavigate = (path: string) => {
+    setMobileMenuOpen(false)
+    router.push(path)
+  }
+
   return (
-    <header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled || mobileMenuOpen
-          ? 'bg-black/80 backdrop-blur-md shadow-lg py-3' 
-          : 'bg-transparent py-5'
-      }`}
-    >
-      <div className="container mx-auto px-4 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 mt-1 relative z-50">
-          <div className="relative h-10 w-10 overflow-hidden">
-            <Image 
-              src="/images/owlrsvp_logo_png.png" 
-              alt="OwlRSVP Logo" 
-              width={40} 
-              height={40} 
-              className="object-contain"
-            />
-          </div>
-          <span className="text-white text-xl font-bold hidden sm:inline-block">
-            owl<span className="text-blue-400">rsvp</span>
-          </span>
-        </Link>
-        
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-8">
-          <Link href="/#features" className="text-white/80 hover:text-white transition-colors">
-            Features
-          </Link>
-          <Link href="/#pricing" className="text-white/80 hover:text-white transition-colors">
-            Pricing
-          </Link>
-          <Link href="/#how-it-works" className="text-white/80 hover:text-white transition-colors">
-            How It Works
-          </Link>
-          <Link href="/about" className="text-white/80 hover:text-white transition-colors">
-            About
-          </Link>
-        </nav>
-        
-        {/* CTA & Admin */}
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => router.push('/create')}
-            className="bg-white text-black px-5 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors"
-          >
-            Create Event
-          </button>
-          <Link 
-            href="/admin/login" 
-            className="text-white/70 hover:text-white text-sm transition-colors hidden sm:block"
-          >
-            Login
-          </Link>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden relative z-50 p-1"
-            aria-label="Toggle mobile menu"
-          >
-            <div className="w-6 h-5 flex flex-col justify-between">
-              <span 
-                className={`w-full h-0.5 bg-white transition-all duration-300 ${mobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`}
-              ></span>
-              <span 
-                className={`w-full h-0.5 bg-white transition-all duration-300 ${mobileMenuOpen ? 'opacity-0' : 'opacity-100'}`}
-              ></span>
-              <span 
-                className={`w-full h-0.5 bg-white transition-all duration-300 ${mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`}
-              ></span>
+    <Fragment>
+      {/* Fixed header */}
+      <header 
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled || mobileMenuOpen
+            ? 'bg-black/80 backdrop-blur-md shadow-lg py-3' 
+            : 'bg-transparent py-5'
+        }`}
+      >
+        <div className="container mx-auto px-4 flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3 mt-1 relative z-50">
+            <div className="relative h-10 w-10 overflow-hidden">
+              <Image 
+                src="/images/owlrsvp_logo_png.png" 
+                alt="OwlRSVP Logo" 
+                width={40} 
+                height={40} 
+                className="object-contain"
+              />
             </div>
-          </button>
-        </div>
-      </div>
+            <span className="text-white text-xl font-bold hidden sm:inline-block">
+              owl<span className="text-blue-400">rsvp</span>
+            </span>
+          </Link>
+          
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-8">
+            {NAV_LINKS.map((link) => (
+              <Link 
+                key={link.href} 
+                href={link.href} 
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+          
+          {/* CTA & Admin */}
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => router.push('/create')}
+              className="bg-white text-black px-5 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+            >
+              Create Event
+            </button>
+            <Link 
+              href="/admin/login" 
+              className="text-white/70 hover:text-white text-sm transition-colors hidden sm:block"
+            >
+              Login
+            </Link>
 
-      {/* Mobile Menu Overlay */}
-      <div 
-        className={`fixed inset-0 bg-black/90 backdrop-blur-lg z-40 md:hidden transition-all duration-300 ${
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden relative z-50 p-2"
+              aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-menu"
+            >
+              <div className="w-6 h-5 flex flex-col justify-between">
+                <span 
+                  className={`w-full h-0.5 bg-white transition-transform duration-300 ${
+                    mobileMenuOpen ? 'translate-y-2 rotate-45' : ''
+                  }`}
+                />
+                <span 
+                  className={`w-full h-0.5 bg-white transition-opacity duration-300 ${
+                    mobileMenuOpen ? 'opacity-0' : 'opacity-100'
+                  }`}
+                />
+                <span 
+                  className={`w-full h-0.5 bg-white transition-transform duration-300 ${
+                    mobileMenuOpen ? '-translate-y-2 -rotate-45' : ''
+                  }`}
+                />
+              </div>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Mobile Menu - Full Screen Sheet */}
+      <div
+        id="mobile-menu"
+        className={`fixed inset-0 bg-black z-40 md:hidden transition-all duration-300 ${
           mobileMenuOpen 
             ? 'opacity-100 pointer-events-auto' 
             : 'opacity-0 pointer-events-none'
         }`}
+        aria-hidden={!mobileMenuOpen}
+        role="dialog"
+        aria-modal="true"
       >
-        <div className="flex flex-col items-center justify-center h-full">
-          <nav className="flex flex-col items-center gap-8 py-8">
-            <Link 
-              href="/#features" 
-              className="text-white/80 hover:text-white transition-colors text-2xl font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Features
-            </Link>
-            <Link 
-              href="/#pricing" 
-              className="text-white/80 hover:text-white transition-colors text-2xl font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Pricing
-            </Link>
-            <Link 
-              href="/#how-it-works" 
-              className="text-white/80 hover:text-white transition-colors text-2xl font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              How It Works
-            </Link>
-            <Link 
-              href="/about" 
-              className="text-white/80 hover:text-white transition-colors text-2xl font-medium"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              About
-            </Link>
-            <Link 
-              href="/admin/login" 
-              className="text-white/70 hover:text-white transition-colors text-xl mt-4"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Login
-            </Link>
+        {/* Safe area for iOS/Android */}
+        <div className="flex flex-col h-full pt-20 pb-8 px-6">
+          {/* Navigation Links */}
+          <div className="flex-1 flex flex-col justify-center">
+            <nav className="space-y-1">
+              {NAV_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block py-4 text-center text-white text-2xl font-medium border-b border-white/10"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <Link
+                href="/admin/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="block py-4 text-center text-white text-2xl font-medium border-b border-white/10"
+              >
+                Login
+              </Link>
+            </nav>
+          </div>
+          
+          {/* CTA Button */}
+          <div className="mt-8">
             <button
-              onClick={() => {
-                setMobileMenuOpen(false);
-                router.push('/create');
-              }}
-              className="mt-8 px-8 py-4 bg-white text-black font-semibold rounded-xl hover:bg-white/90 transition-all"
+              onClick={() => handleNavigate('/create')}
+              className="w-full py-4 bg-white text-black font-semibold rounded-xl hover:bg-white/90 transition-all text-lg"
             >
               Create Your Event
             </button>
-          </nav>
+          </div>
         </div>
       </div>
-    </header>
+    </Fragment>
   )
 }

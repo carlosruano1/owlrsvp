@@ -52,9 +52,7 @@
       ]
     }
   ],
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/" }
-  ],
+  
   "env": {
     "NEXT_PUBLIC_BASE_URL": "https://owlrsvp.com"
   }

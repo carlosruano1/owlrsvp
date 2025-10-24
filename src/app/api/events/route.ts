@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase'
 import { CreateEventData } from '@/lib/types'
 import { canCreateEvent, getPlanLimits } from '@/lib/plans'

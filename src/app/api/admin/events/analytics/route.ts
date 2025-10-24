@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase';
 
 // Helper function to group dates by day for charts
