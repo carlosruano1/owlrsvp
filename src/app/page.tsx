@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
@@ -11,7 +11,7 @@ import FeatureCarousel from '@/components/FeatureCarousel'
 import { useScrollReveal, useParallax } from '@/hooks/useScrollReveal'
 import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
 
-export default function Home() {
+function HomeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isLoaded, setIsLoaded] = useState(false)
@@ -929,5 +929,22 @@ export default function Home() {
 
       <Footer showDonate={true} />
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen relative overflow-hidden">
+        <div className="animated-bg" />
+        <div className="spotlight" />
+        <div className="relative z-10 min-h-screen flex items-center justify-center">
+          <div className="text-white">Loading...</div>
+        </div>
+        <Footer showDonate={true} />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }

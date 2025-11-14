@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
 
-export default function ResetPassword() {
+function ResetPasswordContent() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -187,6 +187,23 @@ export default function ResetPassword() {
       </div>
       <Footer showDonate={false} />
     </div>
+  )
+}
+
+export default function ResetPassword() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen relative overflow-hidden">
+        <div className="animated-bg" />
+        <div className="spotlight" />
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
+          <div className="text-white">Loading...</div>
+        </div>
+        <Footer showDonate={false} />
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
   )
 }
 
