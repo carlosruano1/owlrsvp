@@ -54,7 +54,6 @@ export async function POST(request: NextRequest) {
                       Math.random().toString(36).substring(2, 15)
     
     // Check if user is authenticated
-    const sessionCookie = request.cookies.get('admin_session')?.value;
     let userId = null;
     let userTier = 'free';
     let eventsCreated = 0;

@@ -8,9 +8,13 @@ import { PLANS } from '@/lib/stripe'
 
 // Helper to determine subscription tier from price ID
 const getPlanFromPriceId = (priceId: string): string => {
-  if (priceId.includes('basic')) return PLANS.BASIC
-  if (priceId.includes('pro')) return PLANS.PRO
-  if (priceId.includes('enterprise')) return PLANS.ENTERPRISE
+  const basicPriceId = process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID || 'price_1SSRI2Bw9m7IQubA6tAJWcq4'
+  const proPriceId = process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || 'price_1SSRKABw9m7IQubAdsfUBPRT'
+  const enterprisePriceId = process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID || 'price_1SSRKqBw9m7IQubAK6MFOF1T'
+  
+  if (priceId === basicPriceId) return PLANS.BASIC
+  if (priceId === proPriceId) return PLANS.PRO
+  if (priceId === enterprisePriceId) return PLANS.ENTERPRISE
   return PLANS.FREE
 }
 
@@ -50,7 +54,7 @@ export async function POST(request: Request) {
         
         // Find the user with this Stripe customer ID
         const { data: userData, error: userError } = await supabaseAdmin
-          .from('users')
+          .from('admin_users')
           .select('id')
           .eq('stripe_customer_id', customerId)
           .single()
@@ -69,7 +73,7 @@ export async function POST(request: Request) {
         
         // Update user's subscription information
         await supabaseAdmin
-          .from('users')
+          .from('admin_users')
           .update({
             subscription_tier: planTier,
             stripe_subscription_id: subscription.id,
@@ -133,7 +137,7 @@ export async function POST(request: Request) {
         
         // Find the user with this Stripe customer ID
         const { data: userData, error: userError } = await supabaseAdmin
-          .from('users')
+          .from('admin_users')
           .select('id')
           .eq('stripe_customer_id', customerId)
           .single()
@@ -149,7 +153,7 @@ export async function POST(request: Request) {
         
         // Update user's subscription information
         await supabaseAdmin
-          .from('users')
+          .from('admin_users')
           .update({
             subscription_tier: planTier,
             subscription_status: subscription.status,
@@ -172,7 +176,7 @@ export async function POST(request: Request) {
         
         // Find the user with this Stripe customer ID
         const { data: userData, error: userError } = await supabaseAdmin
-          .from('users')
+          .from('admin_users')
           .select('id')
           .eq('stripe_customer_id', customerId)
           .single()

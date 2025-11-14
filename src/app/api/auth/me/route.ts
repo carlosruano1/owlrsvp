@@ -33,10 +33,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ user: result.user })
     }
 
-    // Remove sensitive fields
-    const { password_hash, email_verification_token, totp_secret, ...safeUserData } = userData
-
-    return NextResponse.json({ user: safeUserData })
+    // User data is already safe - we only selected non-sensitive fields
+    return NextResponse.json({ user: userData })
   } catch (error) {
     console.error('Error in me API:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

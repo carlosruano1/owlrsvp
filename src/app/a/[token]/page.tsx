@@ -196,7 +196,7 @@ function AdminDashboardContent() {
       // This ensures proper image format and handles both data URLs and regular URLs
       const imageUrlToBlob = async (url: string): Promise<Blob> => {
         return new Promise<Blob>((resolve, reject) => {
-          const img = new Image()
+          const img = document.createElement('img')
           
           // Handle CORS for external images
           if (!url.startsWith('data:')) {
