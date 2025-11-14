@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { canUseCustomBranding } from '@/lib/tierEnforcement'
 
 // POST /api/uploads/logo
 // Accepts multipart/form-data with field "file"
@@ -7,6 +8,18 @@ export async function POST(request: NextRequest) {
   try {
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Storage not configured. Missing Supabase env.' }, { status: 500 })
+    }
+
+    // Check if user has custom branding feature
+    const sessionCookie = request.cookies.get('admin_session')?.value
+    const canBrand = await canUseCustomBranding(sessionCookie)
+    
+    if (!canBrand) {
+      return NextResponse.json({ 
+        error: 'Custom branding is only available on Basic, Pro, and Enterprise plans. Please upgrade to upload logos.',
+        requiresUpgrade: true,
+        upgradeUrl: '/?upgrade=true&reason=branding#pricing'
+      }, { status: 403 })
     }
 
     const contentType = request.headers.get('content-type') || ''

@@ -6,6 +6,7 @@ import { Event } from '@/lib/types'
 import CalendarIntegration from '@/components/CalendarIntegration'
 import Footer from '@/components/Footer'
 import PdfViewer from '@/components/PdfViewer'
+import Watermark from '@/components/Watermark'
 import Image from 'next/image'
 import { ThemeProvider, ThemeColors, useTheme } from '@/components/ThemeProvider'
 import { formatDateLong, formatTime12h } from '@/lib/dateUtils'
@@ -35,6 +36,7 @@ function EventRSVPContent() {
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [creatorTier, setCreatorTier] = useState<string>('free')
   const { colors, setColors } = useTheme()
   
   // Form state
@@ -42,6 +44,8 @@ function EventRSVPContent() {
   const [lastName, setLastName] = useState('')
   const [promoCodeError, setPromoCodeError] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
   const [guestCount, setGuestCount] = useState(0)
   const [attending, setAttending] = useState<boolean | null>(null)
   const [promoCode, setPromoCode] = useState('')
@@ -85,6 +89,10 @@ function EventRSVPContent() {
 
         console.log('Event data received:', data.event);
         setEvent(data.event)
+        // Track creator tier for watermark display
+        if (data.creatorTier) {
+          setCreatorTier(data.creatorTier)
+        }
         // Get colors from event data
         const themeColors: Partial<ThemeColors> = {
           primary: data.event.background_color || '#007AFF',
@@ -128,6 +136,24 @@ function EventRSVPContent() {
     e.preventDefault()
     if (!firstName.trim() || !lastName.trim() || attending === null) return
 
+    // Validate required fields based on event settings
+    if (event?.required_rsvp_fields?.email && !email.trim()) {
+      setError('Email is required')
+      return
+    }
+    if (event?.required_rsvp_fields?.phone && !phone.trim()) {
+      setError('Phone number is required')
+      return
+    }
+    if (event?.required_rsvp_fields?.address && !address.trim()) {
+      setError('Address is required')
+      return
+    }
+    if (event?.required_rsvp_fields?.guests && attending && guestCount === 0) {
+      setError('Number of guests is required')
+      return
+    }
+
     setSubmitting(true)
     setError('')
 
@@ -147,6 +173,8 @@ function EventRSVPContent() {
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         email: email.trim() || undefined,
+        phone: phone.trim() || undefined,
+        address: address.trim() || undefined,
         guest_count: attending ? guestCount : 0,
         attending,
         promo_code: promoCode.trim() || undefined
@@ -403,17 +431,59 @@ function EventRSVPContent() {
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-2">Email</label>
-                <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="modern-input w-full px-4 py-3"
-                  placeholder="you@example.com"
-                />
-              </div>
+              {/* Email field - show if required or if event has required_rsvp_fields config */}
+              {(event?.required_rsvp_fields?.email || !event?.required_rsvp_fields) && (
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-2">
+                    Email {event?.required_rsvp_fields?.email && <span className="text-red-400">*</span>}
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="modern-input w-full px-4 py-3"
+                    placeholder="you@example.com"
+                    required={event?.required_rsvp_fields?.email || false}
+                  />
+                </div>
+              )}
+
+              {/* Phone field - show only if required */}
+              {event?.required_rsvp_fields?.phone && (
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-medium text-white/80 mb-2">
+                    Phone Number <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="modern-input w-full px-4 py-3"
+                    placeholder="(555) 123-4567"
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Address field - show only if required */}
+              {event?.required_rsvp_fields?.address && (
+                <div>
+                  <label htmlFor="address" className="block text-sm font-medium text-white/80 mb-2">
+                    Address <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="modern-input w-full px-4 py-3"
+                    placeholder="123 Main St, City, State ZIP"
+                    required
+                  />
+                </div>
+              )}
 
               <div>
                 <div className="text-sm font-medium text-white/80 mb-4">Will you attend?</div>
@@ -437,10 +507,13 @@ function EventRSVPContent() {
                 </div>
               </div>
 
-              {event?.allow_plus_guests && attending && (
+              {/* Guests field - show if allow_plus_guests is true OR if required_rsvp_fields.guests is true */}
+              {((event?.allow_plus_guests && attending) || (event?.required_rsvp_fields?.guests && attending)) && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-white/80">Guests</label>
+                    <label className="block text-sm font-medium text-white/80">
+                      Guests {event?.required_rsvp_fields?.guests && <span className="text-red-400">*</span>}
+                    </label>
                     <span className="text-white/70 text-sm">Me + {guestCount} {guestCount === 1 ? 'guest' : 'guests'}</span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -476,7 +549,16 @@ function EventRSVPContent() {
 
               <button
                 type="submit"
-                disabled={submitting || !firstName.trim() || !lastName.trim() || attending === null}
+                disabled={
+                  submitting || 
+                  !firstName.trim() || 
+                  !lastName.trim() || 
+                  attending === null ||
+                  (event?.required_rsvp_fields?.email && !email.trim()) ||
+                  (event?.required_rsvp_fields?.phone && !phone.trim()) ||
+                  (event?.required_rsvp_fields?.address && !address.trim()) ||
+                  (event?.required_rsvp_fields?.guests && attending && guestCount === 0)
+                }
                 className="modern-button w-full py-3 px-4 text-lg"
               >
                 {submitting ? 'Submitting...' : 'Submit RSVP'}
@@ -532,6 +614,9 @@ function EventRSVPContent() {
           </div>
         </div>
       )}
+
+      {/* Show watermark for free tier events */}
+      {creatorTier === 'free' && <Watermark />}
 
       <Footer showDonate={false} />
     </div>

@@ -13,9 +13,17 @@ const NAV_LINKS = [
   { href: '/about', label: 'About' }
 ]
 
+interface User {
+  username?: string
+  email?: string
+}
+
 export default function Navigation() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   // Handle scroll effect with debounce
@@ -37,6 +45,30 @@ export default function Navigation() {
     updateScrolled() // Initial check
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/auth/me')
+        if (response.ok) {
+          const data = await response.json()
+          setIsLoggedIn(true)
+          setUser(data.user)
+        } else {
+          setIsLoggedIn(false)
+          setUser(null)
+        }
+      } catch (err) {
+        setIsLoggedIn(false)
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    checkAuth()
   }, [])
 
   // Prevent scrolling when mobile menu is open
@@ -105,12 +137,26 @@ export default function Navigation() {
             >
               Create Event
             </button>
-            <Link 
-              href="/admin/login" 
-              className="text-white/70 hover:text-white text-sm transition-colors hidden sm:block"
-            >
-              Login
-            </Link>
+            {!loading && (
+              isLoggedIn && user ? (
+                <Link 
+                  href="/admin/settings" 
+                  className="text-white/90 hover:text-white text-sm font-medium transition-colors hidden sm:flex items-center gap-2"
+                >
+                  <span>{user.username || user.email || 'Admin'}</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </Link>
+              ) : (
+                <Link 
+                  href="/admin/login" 
+                  className="text-white/70 hover:text-white text-sm transition-colors hidden sm:block"
+                >
+                  Login
+                </Link>
+              )
+            )}
 
             {/* Mobile Menu Button */}
             <button
@@ -169,13 +215,25 @@ export default function Navigation() {
                   {link.label}
                 </Link>
               ))}
-              <Link
-                href="/admin/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="block py-4 text-center text-white text-2xl font-medium border-b border-white/10"
-              >
-                Login
-              </Link>
+              {!loading && (
+                isLoggedIn && user ? (
+                  <Link
+                    href="/admin/settings"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block py-4 text-center text-white text-2xl font-medium border-b border-white/10"
+                  >
+                    {user.username || user.email || 'Admin'}
+                  </Link>
+                ) : (
+                  <Link
+                    href="/admin/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="block py-4 text-center text-white text-2xl font-medium border-b border-white/10"
+                  >
+                    Login
+                  </Link>
+                )
+              )}
             </nav>
           </div>
           

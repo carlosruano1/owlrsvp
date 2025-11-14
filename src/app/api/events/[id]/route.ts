@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { supabase, supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(
   request: NextRequest,
@@ -23,6 +23,8 @@ export async function GET(
       .eq('id', id)
       .single()
 
+    let finalEvent = event
+
     if (error) {
       console.error('Error fetching event by ID:', error);
       
@@ -44,16 +46,45 @@ export async function GET(
       }
       
       console.log('Found event by admin_token:', eventByToken.id);
-      return NextResponse.json({ event: eventByToken })
+      finalEvent = eventByToken
     }
 
-    if (!event) {
+    if (!finalEvent) {
       console.error('Event query returned null');
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    console.log('Found event by ID:', event.id);
-    return NextResponse.json({ event })
+    // Check if event creator is on free tier (for watermark display)
+    let creatorTier = 'free'
+    if (finalEvent.created_by_admin_id && supabaseAdmin) {
+      try {
+        const { data: creatorData } = await supabaseAdmin
+          .from('admin_users')
+          .select('subscription_tier')
+          .eq('id', finalEvent.created_by_admin_id)
+          .single()
+        
+        if (creatorData) {
+          creatorTier = creatorData.subscription_tier || 'free'
+        }
+      } catch (err) {
+        // If we can't get creator tier, default to free (show watermark)
+        console.log('Could not fetch creator tier, defaulting to free')
+      }
+    }
+
+    // If event has no custom branding features, it's likely free tier
+    if (!finalEvent.company_logo_url && !finalEvent.company_name && 
+        !finalEvent.page_background_color && !finalEvent.spotlight_color && 
+        !finalEvent.font_color) {
+      creatorTier = 'free'
+    }
+
+    console.log('Found event by ID:', finalEvent.id, 'Creator tier:', creatorTier);
+    return NextResponse.json({ 
+      event: finalEvent,
+      creatorTier // Include creator tier for watermark logic
+    })
   } catch (error) {
     console.error('Error fetching event:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

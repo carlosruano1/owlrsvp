@@ -14,13 +14,22 @@ export default function AdminLogin() {
   const [error, setError] = useState('')
   const router = useRouter()
 
+  // Get redirect URL from query params
+  const getRedirectUrl = () => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      return params.get('redirect') || '/admin/settings'
+    }
+    return '/admin/settings'
+  }
+
   // Check if already logged in
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const response = await fetch('/api/auth/me')
         if (response.ok) {
-          router.push('/admin/settings')
+          router.push(getRedirectUrl())
         }
       } catch (err) {
         // Not logged in, continue
@@ -47,8 +56,8 @@ export default function AdminLogin() {
         throw new Error(data.error || 'Login failed')
       }
 
-      // Redirect to admin settings
-      router.push('/admin/settings')
+      // Redirect to intended destination or admin settings
+      router.push(getRedirectUrl())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {

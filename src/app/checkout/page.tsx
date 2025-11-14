@@ -6,19 +6,15 @@ import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
 import StripeCheckoutButton from '@/components/StripeCheckoutButton'
-import { supabase } from '@/lib/supabase'
-
 function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
 
   // Get plan from URL params
   const planParam = searchParams?.get('plan')?.toLowerCase() || 'basic'
-  const billingCycle = searchParams?.get('billing')?.toLowerCase() || 'monthly'
   
   // Determine which plan to use
   const planKey = planParam === 'pro' ? PLANS.PRO : 
@@ -26,43 +22,34 @@ function CheckoutContent() {
                  PLANS.BASIC
   
   const plan = PLAN_DETAILS[planKey]
-  const isAnnual = billingCycle === 'annual'
-  
-  // Calculate price with annual discount if applicable
-  const annualDiscount = 0.2
-  const annualPrice = isAnnual ? plan.price * 12 * (1 - annualDiscount) : plan.price
-  const displayPrice = isAnnual ? annualPrice / 12 : plan.price
-  const billingAmount = isAnnual ? annualPrice : plan.price
+  const displayPrice = plan.price
+  const billingAmount = plan.price
 
   useEffect(() => {
-    // Check if user is logged in
+    // Check if user is logged in (admin session)
     const checkAuth = async () => {
-      if (!supabase) {
-        console.error('Supabase client not available')
-        return
-      }
-
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session && session.user.email) {
-        setIsLoggedIn(true)
-        setUserEmail(session.user.email)
+      try {
+        const response = await fetch('/api/auth/me')
+        if (response.ok) {
+          const data = await response.json()
+          setIsLoggedIn(true)
+          setUserEmail(data.user?.email || data.user?.username || 'User')
+        }
+      } catch (err) {
+        // Not logged in
+        setIsLoggedIn(false)
       }
     }
     
     checkAuth()
   }, [])
 
-  // Handle checkout errors
-  const handleCheckoutError = (err: Error) => {
-    console.error('Checkout error:', err)
-    setError(err.message || 'An error occurred during checkout')
-    setIsLoading(false)
-  }
-
   // Handle login/signup if needed
   const handleCheckoutWithAuth = () => {
     if (!isLoggedIn) {
-      router.push(`/auth/register?plan=${planParam}&billing=${billingCycle}`)
+      // Redirect to admin login with return URL (properly encoded)
+      const redirectUrl = `/checkout?plan=${planParam}`
+      router.push(`/admin/login?redirect=${encodeURIComponent(redirectUrl)}`)
     }
   }
 
@@ -87,13 +74,10 @@ function CheckoutContent() {
                 <div className="flex justify-between items-center mb-4">
                   <div>
                     <h3 className="text-lg font-medium text-white">{plan.name} Plan</h3>
-                    <p className="text-white/70">{isAnnual ? 'Annual' : 'Monthly'} billing</p>
+                    <p className="text-white/70">Monthly billing</p>
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-semibold text-white">${displayPrice.toFixed(2)}/mo</p>
-                    {isAnnual && (
-                      <p className="text-green-400 text-sm">Billed annually (${billingAmount.toFixed(2)})</p>
-                    )}
                   </div>
                 </div>
                 
@@ -101,7 +85,7 @@ function CheckoutContent() {
                   <div className="flex justify-between items-center">
                     <p className="text-white font-medium">Total</p>
                     <p className="text-white font-bold">
-                      ${billingAmount.toFixed(2)} {isAnnual ? '/year' : '/month'}
+                      ${billingAmount.toFixed(2)}/month
                     </p>
                   </div>
                 </div>
@@ -129,7 +113,7 @@ function CheckoutContent() {
                     <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-white/80">$0.03 per guest over limit</span>
+                    <span className="text-white/80">$0.05 per guest over limit</span>
                   </li>
                 </ul>
               </div>
@@ -161,18 +145,9 @@ function CheckoutContent() {
                   <StripeCheckoutButton
                     priceId={plan.stripePriceId || ''}
                     planName={plan.name}
-                    isAnnual={isAnnual}
                     isLoading={isLoading}
-                    onError={handleCheckoutError}
                   />
                 </div>
-                
-                {/* Error Message */}
-                {error && (
-                  <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
-                    <p className="text-white">{error}</p>
-                  </div>
-                )}
               </>
             )}
             

@@ -18,6 +18,12 @@ export interface Event {
   contact_phone?: string | null
   event_date?: string | null
   event_location?: string | null
+  required_rsvp_fields?: {
+    email?: boolean
+    phone?: boolean
+    address?: boolean
+    guests?: boolean
+  } | null
   created_at: string
   updated_at: string
   user_id?: string | null
@@ -54,6 +60,12 @@ export interface CreateEventData {
   contact_phone?: string
   event_date?: string
   event_location?: string
+  required_rsvp_fields?: {
+    email?: boolean
+    phone?: boolean
+    address?: boolean
+    guests?: boolean
+  }
 }
 
 export interface CreateRSVPData {

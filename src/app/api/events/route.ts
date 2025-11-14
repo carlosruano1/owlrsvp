@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase'
 import { CreateEventData } from '@/lib/types'
 import { canCreateEvent, getPlanLimits } from '@/lib/plans'
+import { canUseCustomBranding } from '@/lib/tierEnforcement'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,15 +16,37 @@ export async function POST(request: NextRequest) {
 
     const body: CreateEventData = await request.json()
 
+    // Check if user has custom branding feature
+    const sessionCookie = request.cookies.get('admin_session')?.value
+    const canBrand = await canUseCustomBranding(sessionCookie)
+
     // Basic validation for logo URL if provided
     const allowedLogoExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.svg']
     if (body.company_logo_url) {
+      // Check if free tier is trying to use logo
+      if (!canBrand) {
+        return NextResponse.json({ 
+          error: 'Custom branding (logo upload) is only available on Basic, Pro, and Enterprise plans. Please upgrade to use custom logos.',
+          requiresUpgrade: true,
+          upgradeUrl: '/?upgrade=true&reason=branding#pricing'
+        }, { status: 403 })
+      }
+
       const url = body.company_logo_url.trim()
       const isHttp = url.startsWith('http://') || url.startsWith('https://')
       const hasAllowedExt = allowedLogoExtensions.some(ext => url.toLowerCase().includes(ext))
       if (!isHttp || !hasAllowedExt) {
         return NextResponse.json({ error: 'Invalid logo URL. Use a direct link to png, jpg, jpeg, webp, or svg.' }, { status: 400 })
       }
+    }
+
+    // Check if free tier is trying to use custom colors
+    if (!canBrand && (body.page_background_color || body.spotlight_color || body.font_color || body.company_name)) {
+      return NextResponse.json({ 
+        error: 'Custom branding (colors, company name) is only available on Basic, Pro, and Enterprise plans. Please upgrade to customize your event appearance.',
+        requiresUpgrade: true,
+        upgradeUrl: '/pricing?upgrade=true&reason=branding'
+      }, { status: 403 })
     }
     
     // Generate random admin token
@@ -102,6 +125,7 @@ export async function POST(request: NextRequest) {
         if (body.font_color) eventData.font_color = body.font_color;
         if (body.event_date) eventData.event_date = body.event_date;
         if (body.event_location) eventData.event_location = body.event_location;
+        if (body.required_rsvp_fields) eventData.required_rsvp_fields = body.required_rsvp_fields;
         if (userId) eventData.created_by_admin_id = userId;
       } else {
         console.log('Could not verify table structure, using minimal fields only');

@@ -6,7 +6,6 @@ import { getStripe } from '@/lib/stripe'
 interface StripeCheckoutButtonProps {
   priceId: string
   planName: string
-  isAnnual?: boolean
   isLoading?: boolean
   onError?: (error: Error) => void
 }
@@ -14,7 +13,6 @@ interface StripeCheckoutButtonProps {
 export default function StripeCheckoutButton({
   priceId,
   planName,
-  isAnnual = false,
   isLoading = false,
   onError
 }: StripeCheckoutButtonProps) {
@@ -56,9 +54,7 @@ export default function StripeCheckoutButton({
       }
     } catch (err) {
       console.error('Stripe checkout error:', err)
-      if (onError && err instanceof Error) {
-        onError(err)
-      }
+      // Silently handle errors - don't show to user
     } finally {
       setIsProcessing(false)
     }
@@ -67,7 +63,7 @@ export default function StripeCheckoutButton({
   return (
     <button
       onClick={handleCheckout}
-      disabled={isLoading || isProcessing || !priceId}
+      disabled={isLoading || isProcessing}
       className={`w-full py-3 px-6 rounded-lg font-semibold transition-all ${
         isLoading || isProcessing
           ? 'bg-gray-400 cursor-not-allowed'
@@ -83,7 +79,7 @@ export default function StripeCheckoutButton({
           Processing...
         </div>
       ) : (
-        `Subscribe to ${planName} ${isAnnual ? 'Yearly' : 'Monthly'}`
+        `Subscribe to ${planName}`
       )}
     </button>
   )

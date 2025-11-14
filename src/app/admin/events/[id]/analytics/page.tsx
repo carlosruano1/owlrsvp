@@ -51,7 +51,17 @@ export default function EventAnalyticsPage() {
         setLoading(true)
         const response = await fetch(`/api/admin/events/analytics?eventId=${eventId}`)
         if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
+          if (response.status === 401) {
+            router.push('/admin/login')
+            return
+          }
+          if (response.status === 403) {
+            // Check if it's an upgrade requirement
+            const errorData = await response.json().catch(() => ({}))
+            if (errorData.requiresUpgrade) {
+              router.push(errorData.upgradeUrl || '/?upgrade=true&reason=analytics#pricing')
+              return
+            }
             router.push('/admin/login')
             return
           }

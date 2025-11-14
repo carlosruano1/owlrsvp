@@ -97,61 +97,57 @@ export const PLAN_DETAILS = {
   [PLANS.FREE]: {
     name: 'Free',
     price: 0,
-    guestLimit: 50,
+    guestLimit: 25,
     features: [
       'Single event',
-      'Basic customization',
-      'Up to 50 guests',
+      'Up to 25 guests',
       'Export to CSV',
+      'Basic RSVP page',
     ],
     stripePriceId: null, // No price ID for free plan
   },
   [PLANS.BASIC]: {
     name: 'Basic',
     price: 9,
-    guestLimit: 500,
+    guestLimit: 200,
     features: [
-      'Multiple events',
-      'Custom branding',
-      'Up to 500 guests',
+      '5 events',
+      'Custom branding (logo + colors)',
+      'Up to 200 guests',
+      'Basic analytics',
       'Export to CSV',
       'Email notifications',
+      'No watermark',
     ],
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID || 'price_1SSRI2Bw9m7IQubA6tAJWcq4',
   },
   [PLANS.PRO]: {
     name: 'Pro',
     price: 29,
-    guestLimit: 5000,
+    guestLimit: 1000,
     features: [
-      'Unlimited events',
-      'Advanced customization',
-      'Up to 5,000 guests',
-      'Export to CSV',
-      'Email notifications',
-      'Analytics dashboard',
-      'Priority support',
+      '25 events',
+      'All Basic features',
+      'Up to 1,000 guests',
+      'Advanced analytics',
     ],
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || 'price_1SSRKABw9m7IQubAdsfUBPRT',
   },
   [PLANS.ENTERPRISE]: {
     name: 'Enterprise',
     price: 99,
-    guestLimit: 50000,
+    guestLimit: 5000,
     features: [
       'Unlimited events',
-      'White-label solution',
-      'Up to 50,000 guests',
-      'Advanced analytics',
-      'Dedicated support',
-      'Custom integrations',
+      'All Pro features',
+      'Up to 5,000 guests',
     ],
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID || 'price_1SSRKqBw9m7IQubAK6MFOF1T',
   },
 };
 
 // Guest overflow pricing (per guest beyond plan limit)
-export const OVERFLOW_PRICE_PER_GUEST = 0.03;
+export const OVERFLOW_PRICE_PER_GUEST = 0.05;
 
 // Helper to create a checkout session
 export const createCheckoutSession = async ({

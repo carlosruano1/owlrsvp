@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase';
+import { canAccessAdvancedAnalytics } from '@/lib/tierEnforcement';
 
 // Helper function to group dates by day for charts
 function groupByDay(dates: string[]) {
@@ -63,6 +64,16 @@ export async function GET(request: NextRequest) {
     }
     
     const userId = data[0].user_id;
+
+    // Check if user has access to advanced analytics
+    const canAccess = await canAccessAdvancedAnalytics(sessionToken);
+    if (!canAccess) {
+      return NextResponse.json({
+        error: 'Advanced analytics is only available on Pro and Enterprise plans. Please upgrade to access analytics.',
+        requiresUpgrade: true,
+        upgradeUrl: '/?upgrade=true&reason=analytics#pricing'
+      }, { status: 403 });
+    }
 
     // Fetch event details to verify ownership
     const { data: event, error: eventError } = await supabase

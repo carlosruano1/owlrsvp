@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
 import ElegantLogo from '@/components/ElegantLogo'
@@ -9,10 +9,14 @@ import Navigation from '@/components/Navigation'
 import Image from 'next/image'
 import FeatureCarousel from '@/components/FeatureCarousel'
 import { useScrollReveal, useParallax } from '@/hooks/useScrollReveal'
+import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
 
 export default function Home() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoaded, setIsLoaded] = useState(false)
+  const [upgradeMessage, setUpgradeMessage] = useState('')
+  const [showUpgradeMessage, setShowUpgradeMessage] = useState(false)
   const growRef = useRef<HTMLSpanElement>(null)
   const featuresSectionRef = useRef<HTMLDivElement>(null)
   
@@ -29,9 +33,54 @@ export default function Home() {
   // We're not using the mouse parallax effect anymore
   // const heroParallax = useParallax()
 
+  // Check for upgrade parameters
+  useEffect(() => {
+    const upgrade = searchParams.get('upgrade')
+    const reason = searchParams.get('reason')
+
+    if (upgrade === 'true') {
+      if (reason === 'event_limit') {
+        setUpgradeMessage('You\'ve reached your event limit! Upgrade to create more events.')
+      } else if (reason === 'branding') {
+        setUpgradeMessage('Custom branding is only available on paid plans. Upgrade to access these features.')
+      } else if (reason === 'analytics') {
+        setUpgradeMessage('Advanced analytics is only available on Pro and Enterprise plans.')
+      } else {
+        setUpgradeMessage('Upgrade your plan to unlock more features!')
+      }
+      
+      setShowUpgradeMessage(true)
+
+      // Scroll to pricing section after a short delay
+      setTimeout(() => {
+        const pricingSection = document.getElementById('pricing')
+        if (pricingSection) {
+          pricingSection.scrollIntoView({ behavior: 'smooth' })
+        }
+      }, 500)
+      
+      // Clear URL parameters to prevent message from persisting
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href)
+          url.searchParams.delete('upgrade')
+          url.searchParams.delete('reason')
+          window.history.replaceState({}, '', url.toString())
+        }
+      }, 1000)
+      
+      // Auto-dismiss after 10 seconds
+      setTimeout(() => {
+        setShowUpgradeMessage(false)
+      }, 10000)
+    } else {
+      setShowUpgradeMessage(false)
+    }
+  }, [searchParams])
+
   useEffect(() => {
     setIsLoaded(true)
-    
+
     // Initialize reveal animations on page load
     const revealElements = document.querySelectorAll('.animate-reveal')
     const observer = new IntersectionObserver((entries) => {
@@ -42,11 +91,11 @@ export default function Home() {
         }
       })
     }, { threshold: 0.1 })
-    
+
     revealElements.forEach(element => {
       observer.observe(element)
     })
-    
+
     // Apple-like compact scroll highlight for feature cards
     const section = featuresSectionRef.current
     const cards = section ? Array.from(section.querySelectorAll<HTMLElement>('.apple-feature')) : []
@@ -464,10 +513,36 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Upgrade Message */}
+        {upgradeMessage && showUpgradeMessage && (
+          <div className="px-6 mb-8">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/30 rounded-xl p-6 text-center relative">
+                <button
+                  onClick={() => setShowUpgradeMessage(false)}
+                  className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h2 className="text-xl font-semibold text-white">Upgrade Required</h2>
+                </div>
+                <p className="text-white/80 text-lg">{upgradeMessage}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Pricing Section */}
-        <div id="pricing" className="page-section subtle-grid dark-overlay">
-          <div 
-            className={`page-section-content animate-reveal stagger-reveal ${pricingReveal.isRevealed ? 'revealed' : ''}`}
+        <div id="pricing" className="page-section subtle-grid dark-overlay relative z-10">
+          <div
+            className={`page-section-content animate-reveal stagger-reveal relative z-20 ${pricingReveal.isRevealed ? 'revealed' : ''}`}
             ref={pricingReveal.ref}
           >
             <h2 className="text-4xl font-bold text-center mb-6 text-gradient">Simple, Transparent Pricing</h2>
@@ -475,136 +550,154 @@ export default function Home() {
               Choose the plan that fits your needs. All plans include our beautiful RSVP pages and core features.
             </p>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
               {/* Free Plan */}
-              <div className="glass-card rounded-2xl p-8 hover:transform hover:scale-105 transition-all duration-300">
+              <div className="glass-card rounded-2xl p-6 relative transition-all duration-300 hover:transform hover:scale-105 flex flex-col">
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold text-white mb-2">Free</h3>
-                  <div className="text-4xl font-bold text-white mb-2">$0</div>
-                  <p className="text-white/70">Perfect for small events</p>
+                  <h3 className="text-xl font-bold text-white mb-2">{PLAN_DETAILS[PLANS.FREE].name}</h3>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-3xl font-bold text-white">${PLAN_DETAILS[PLANS.FREE].price.toFixed(2)}</span>
+                  </div>
+                  <p className="text-white/70 text-sm mt-2">Up to {PLAN_DETAILS[PLANS.FREE].guestLimit.toLocaleString()} guests per event</p>
                 </div>
                 
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">Up to 50 guests</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">Single event</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">Basic customization</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">Export to CSV</span>
-                  </li>
-                </ul>
+                <div className="mb-6 flex-grow">
+                  <ul className="space-y-3">
+                    {PLAN_DETAILS[PLANS.FREE].features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-white/80">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
                 
                 <button
                   onClick={() => router.push('/create')}
-                  className="w-full py-3 rounded-lg font-medium transition-all bg-white/20 text-white hover:bg-white/30"
+                  className="w-full py-3 rounded-lg font-medium transition-all bg-white/20 text-white hover:bg-white/30 mt-auto"
                 >
                   Get Started
                 </button>
               </div>
               
               {/* Basic Plan */}
-              <div className="glass-card rounded-2xl p-8 border-2 border-blue-400/50 transform scale-105">
-                <div className="absolute -top-3 right-4">
-                  <span className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">POPULAR</span>
+              <div className="glass-card rounded-2xl p-6 relative transition-all duration-300 hover:transform hover:scale-105 border-2 border-blue-400/50 flex flex-col">
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                  <div className="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
+                    POPULAR
+                  </div>
                 </div>
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold text-white mb-2">Basic</h3>
-                  <div className="text-4xl font-bold text-white mb-2">$9</div>
-                  <p className="text-white/70">Per month</p>
+                  <h3 className="text-xl font-bold text-white mb-2">{PLAN_DETAILS[PLANS.BASIC].name}</h3>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-3xl font-bold text-white">${PLAN_DETAILS[PLANS.BASIC].price.toFixed(2)}</span>
+                    <span className="text-white/60">/mo</span>
+                  </div>
+                  <p className="text-white/70 text-sm mt-2">Up to {PLAN_DETAILS[PLANS.BASIC].guestLimit.toLocaleString()} guests per event</p>
                 </div>
                 
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">Up to 500 guests</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">Multiple events</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">Custom branding</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">$0.03 per guest over limit</span>
-                  </li>
-                </ul>
+                <div className="mb-6 flex-grow">
+                  <ul className="space-y-3">
+                    {PLAN_DETAILS[PLANS.BASIC].features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-white/80">{feature}</span>
+                      </li>
+                    ))}
+                    <li className="flex items-start gap-2">
+                      <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-white/80">$0.05 per guest over limit</span>
+                    </li>
+                  </ul>
+                </div>
                 
                 <button
-                  onClick={() => router.push('/create')}
-                  className="w-full py-3 rounded-lg font-medium transition-all bg-blue-500 text-white hover:bg-blue-600"
+                  onClick={() => router.push('/checkout?plan=basic')}
+                  className="w-full py-3 rounded-lg font-medium transition-all bg-blue-500 text-white hover:bg-blue-600 cursor-pointer mt-auto"
                 >
-                  Choose Plan
+                  Subscribe
                 </button>
               </div>
               
               {/* Pro Plan */}
-              <div className="glass-card rounded-2xl p-8 hover:transform hover:scale-105 transition-all duration-300">
+              <div className="glass-card rounded-2xl p-6 relative transition-all duration-300 hover:transform hover:scale-105 flex flex-col">
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold text-white mb-2">Pro</h3>
-                  <div className="text-4xl font-bold text-white mb-2">$29</div>
-                  <p className="text-white/70">Per month</p>
+                  <h3 className="text-xl font-bold text-white mb-2">{PLAN_DETAILS[PLANS.PRO].name}</h3>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-3xl font-bold text-white">${PLAN_DETAILS[PLANS.PRO].price.toFixed(2)}</span>
+                    <span className="text-white/60">/mo</span>
+                  </div>
+                  <p className="text-white/70 text-sm mt-2">Up to {PLAN_DETAILS[PLANS.PRO].guestLimit.toLocaleString()} guests per event</p>
                 </div>
                 
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">Up to 5,000 guests</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">Unlimited events</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">Advanced analytics</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-white/80">$0.03 per guest over limit</span>
-                  </li>
-                </ul>
+                <div className="mb-6 flex-grow">
+                  <ul className="space-y-3">
+                    {PLAN_DETAILS[PLANS.PRO].features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-white/80">{feature}</span>
+                      </li>
+                    ))}
+                    <li className="flex items-start gap-2">
+                      <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-white/80">$0.05 per guest over limit</span>
+                    </li>
+                  </ul>
+                </div>
                 
                 <button
-                  onClick={() => router.push('/create')}
-                  className="w-full py-3 rounded-lg font-medium transition-all bg-white/20 text-white hover:bg-white/30"
+                  onClick={() => router.push('/checkout?plan=pro')}
+                  className="w-full py-3 rounded-lg font-medium transition-all bg-white text-black hover:bg-white/90 cursor-pointer mt-auto"
                 >
-                  Choose Plan
+                  Subscribe
+                </button>
+              </div>
+              
+              {/* Enterprise Plan */}
+              <div className="glass-card rounded-2xl p-6 relative transition-all duration-300 hover:transform hover:scale-105 flex flex-col">
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-bold text-white mb-2">{PLAN_DETAILS[PLANS.ENTERPRISE].name}</h3>
+                  <div className="flex items-center justify-center gap-1">
+                    <span className="text-3xl font-bold text-white">${PLAN_DETAILS[PLANS.ENTERPRISE].price.toFixed(2)}</span>
+                    <span className="text-white/60">/mo</span>
+                  </div>
+                  <p className="text-white/70 text-sm mt-2">Up to {PLAN_DETAILS[PLANS.ENTERPRISE].guestLimit.toLocaleString()} guests per event</p>
+                </div>
+                
+                <div className="mb-6 flex-grow">
+                  <ul className="space-y-3">
+                    {PLAN_DETAILS[PLANS.ENTERPRISE].features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        <span className="text-white/80">{feature}</span>
+                      </li>
+                    ))}
+                    <li className="flex items-start gap-2">
+                      <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-white/80">$0.05 per guest over limit</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <button
+                  onClick={() => router.push('/contact?subject=Enterprise%20Plan%20Inquiry')}
+                  className="w-full py-3 rounded-lg font-medium transition-all bg-white/20 text-white hover:bg-white/30 mt-auto"
+                >
+                  Contact Us
                 </button>
               </div>
             </div>

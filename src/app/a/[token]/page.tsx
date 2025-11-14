@@ -76,11 +76,22 @@ function AdminDashboardContent() {
   const [dragActive, setDragActive] = useState(false)
   const [contactPhone, setContactPhone] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
+  const [userTier, setUserTier] = useState<string>('free')
+  const [canUseBranding, setCanUseBranding] = useState(false)
+  const [canAccessAnalytics, setCanAccessAnalytics] = useState(false)
   const [showColorSettings, setShowColorSettings] = useState(false)
   const [showDetailedStats, setShowDetailedStats] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const [rsvpMenuOpen, setRsvpMenuOpen] = useState(false)
   const rsvpMenuRef = useRef<HTMLDivElement>(null)
+  const [attendeesExpanded, setAttendeesExpanded] = useState(false)
+  const [requiredFields, setRequiredFields] = useState<{
+    email?: boolean
+    phone?: boolean
+    address?: boolean
+    guests?: boolean
+  }>({})
+  const [searchQuery, setSearchQuery] = useState('')
 
   const guestLink = data ? `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/e/${data.event.id}` : ''
 
@@ -123,16 +134,25 @@ function AdminDashboardContent() {
     }
   }, [expandedAttendee, contextAnchor])
 
-  // Check if user is logged in as admin
+  // Check if user is logged in as admin and get tier
   useEffect(() => {
     const checkAdmin = async () => {
       try {
         const response = await fetch('/api/auth/me')
         if (response.ok) {
+          const data = await response.json()
           setIsAdmin(true)
+          const tier = data.user?.subscription_tier || 'free'
+          setUserTier(tier)
+          // Check feature access based on tier
+          setCanUseBranding(tier !== 'free')
+          setCanAccessAnalytics(tier === 'pro' || tier === 'enterprise')
         }
       } catch (err) {
-        // Not logged in
+        // Not logged in - default to free tier
+        setUserTier('free')
+        setCanUseBranding(false)
+        setCanAccessAnalytics(false)
       }
     }
     checkAdmin()
@@ -171,15 +191,123 @@ function AdminDashboardContent() {
   const copyQrToClipboard = async () => {
     try {
       if (!qrCodeUrl) return
-      const res = await fetch(qrCodeUrl)
-      const blob = await res.blob()
-      // @ts-ignore: ClipboardItem is available in browsers
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
-      setCopyQrSuccess(true)
-      setTimeout(() => setCopyQrSuccess(false), 2000)
+      
+      // Helper function to convert image URL to blob via canvas
+      // This ensures proper image format and handles both data URLs and regular URLs
+      const imageUrlToBlob = async (url: string): Promise<Blob> => {
+        return new Promise<Blob>((resolve, reject) => {
+          const img = new Image()
+          
+          // Handle CORS for external images
+          if (!url.startsWith('data:')) {
+            img.crossOrigin = 'anonymous'
+          }
+          
+          img.onload = () => {
+            try {
+              // Create canvas and draw image
+              const canvas = document.createElement('canvas')
+              canvas.width = img.width
+              canvas.height = img.height
+              const ctx = canvas.getContext('2d')
+              
+              if (!ctx) {
+                reject(new Error('Could not get canvas context'))
+                return
+              }
+              
+              ctx.drawImage(img, 0, 0)
+              
+              // Convert canvas to blob with explicit PNG type
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  resolve(blob)
+                } else {
+                  reject(new Error('Failed to create blob from canvas'))
+                }
+              }, 'image/png')
+            } catch (error) {
+              reject(error)
+            }
+          }
+          
+          img.onerror = () => {
+            reject(new Error('Failed to load image'))
+          }
+          
+          img.src = url
+        })
+      }
+      
+      // Method 1: Use ClipboardItem API (works on iOS 13.4+ and modern browsers)
+      try {
+        const blob = await imageUrlToBlob(qrCodeUrl)
+        
+        // Check if ClipboardItem is available (iOS 13.4+ supports this)
+        // @ts-ignore: ClipboardItem may not be in TypeScript types
+        if (typeof ClipboardItem !== 'undefined') {
+          // @ts-ignore: ClipboardItem is available in browsers
+          const clipboardItem = new ClipboardItem({ 
+            'image/png': blob 
+          })
+          
+          // Ensure clipboard.write is available
+          if (navigator.clipboard && navigator.clipboard.write) {
+            await navigator.clipboard.write([clipboardItem])
+            setCopyQrSuccess(true)
+            setTimeout(() => setCopyQrSuccess(false), 2000)
+            return
+          }
+        }
+      } catch (clipboardError) {
+        // ClipboardItem API failed, try alternative method
+        console.log('ClipboardItem API failed, trying alternative:', clipboardError)
+      }
+      
+      // Method 2: Alternative approach - fetch and use blob directly
+      // Sometimes this works better on iOS
+      try {
+        let blob: Blob
+        
+        if (qrCodeUrl.startsWith('data:')) {
+          // For data URLs, convert via canvas (already handled above, but try direct fetch)
+          const response = await fetch(qrCodeUrl)
+          blob = await response.blob()
+        } else {
+          // For regular URLs, fetch directly
+          const response = await fetch(qrCodeUrl)
+          if (!response.ok) throw new Error('Failed to fetch image')
+          blob = await response.blob()
+        }
+        
+        // Ensure it's a PNG blob
+        if (!blob.type || !blob.type.startsWith('image/')) {
+          // Convert to proper image blob via canvas
+          blob = await imageUrlToBlob(qrCodeUrl)
+        }
+        
+        // Try ClipboardItem again with the fetched blob
+        // @ts-ignore: ClipboardItem may not be in TypeScript types
+        if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+          // @ts-ignore: ClipboardItem is available in browsers
+          const clipboardItem = new ClipboardItem({ 
+            'image/png': blob 
+          })
+          await navigator.clipboard.write([clipboardItem])
+          setCopyQrSuccess(true)
+          setTimeout(() => setCopyQrSuccess(false), 2000)
+          return
+        }
+      } catch (altError) {
+        console.log('Alternative method failed:', altError)
+      }
+      
+      // If all methods fail, show helpful message
+      alert('Copy failed on this device. Please use the download button instead.')
+      console.error('All copy methods failed')
     } catch (err) {
-      alert('Copy failed. You can download instead.')
       console.error('Failed to copy QR:', err)
+      alert('Copy failed. You can download instead.')
     }
   }
 
@@ -191,6 +319,38 @@ function AdminDashboardContent() {
     document.body.appendChild(a)
     a.click()
     a.remove()
+  }
+
+  // Social sharing functions
+  const shareText = `Join me at ${data?.event.title || 'this event'}! RSVP here: ${guestLink}`
+  
+  const shareOnLinkedIn = () => {
+    const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(guestLink)}`
+    window.open(url, '_blank', 'width=600,height=400')
+  }
+
+  const shareOnTwitter = () => {
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(guestLink)}`
+    window.open(url, '_blank', 'width=600,height=400')
+  }
+
+  const shareOnFacebook = () => {
+    const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(guestLink)}`
+    window.open(url, '_blank', 'width=600,height=400')
+  }
+
+  const shareOnWhatsApp = () => {
+    const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`
+    window.open(url, '_blank')
+  }
+
+  const shareOnInstagram = () => {
+    // Instagram doesn't support direct URL sharing, so we copy the link and show instructions
+    navigator.clipboard.writeText(guestLink).then(() => {
+      alert('Link copied! Open Instagram Stories, add the QR code image, and paste the link in your story.')
+    }).catch(() => {
+      alert('Please copy the link manually and share it on Instagram Stories with the QR code image.')
+    })
   }
 
   const downloadCSV = () => {
@@ -502,6 +662,13 @@ function AdminDashboardContent() {
         } catch (e) {
           // ignore theme errors
         }
+
+        // Initialize required RSVP fields
+        if (result.event.required_rsvp_fields) {
+          setRequiredFields(result.event.required_rsvp_fields)
+        } else {
+          setRequiredFields({})
+        }
       }
       
       setError('')
@@ -675,16 +842,46 @@ function AdminDashboardContent() {
                   {showDetailedStats ? 'Hide Detailed Stats' : 'Show Detailed Stats'}
                 </button>
                 {data?.event?.id && (
-                  <Link 
-                    href={`/admin/events/${data.event.id}/analytics`}
-                    className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 text-blue-300 transition-all flex items-center gap-2"
-                    title="Open full analytics dashboard"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 13h4v8H3v-8zm7-6h4v14h-4V7zm7-4h4v18h-4V3z" fill="currentColor"/>
-                    </svg>
-                    Analytics
-                  </Link>
+                  canAccessAnalytics ? (
+                    <Link 
+                      href={`/admin/events/${data.event.id}/analytics`}
+                      className="px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-xl hover:bg-blue-500/30 text-blue-300 transition-all flex items-center gap-2"
+                      title="Open full analytics dashboard"
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 13h4v8H3v-8zm7-6h4v14h-4V7zm7-4h4v18h-4V3z" fill="currentColor"/>
+                      </svg>
+                      Analytics
+                    </Link>
+                  ) : (
+                    <div className="relative group">
+                      <button
+                        disabled
+                        className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white/40 cursor-not-allowed flex items-center gap-2 opacity-50"
+                        title="Advanced analytics available on Pro and Enterprise plans"
+                      >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M3 13h4v8H3v-8zm7-6h4v14h-4V7zm7-4h4v18h-4V3z" fill="currentColor"/>
+                        </svg>
+                        Analytics
+                        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      </button>
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                        <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg border border-white/20 whitespace-nowrap">
+                          <p className="mb-1">Advanced analytics requires Pro or Enterprise plan</p>
+                          <Link 
+                            href="/?upgrade=true&reason=analytics#pricing" 
+                            className="text-blue-400 hover:text-blue-300 underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Upgrade now →
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  )
                 )}
               </div>
             </div>
@@ -1007,6 +1204,150 @@ function AdminDashboardContent() {
             )}
           </div>
 
+          {/* QR Code - Prominent Section */}
+          {qrCodeUrl && (
+            <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">QR Code</h2>
+                  <p className="text-white/60">Share this QR code for instant RSVP access</p>
+                </div>
+              </div>
+              
+              <div className="flex flex-col lg:flex-row items-center lg:items-start gap-8">
+                {/* QR Code Image */}
+                <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-4 shadow-lg shrink-0">
+                  <Image 
+                    src={qrCodeUrl} 
+                    alt="Event QR Code" 
+                    className="rounded-md"
+                    width={200}
+                    height={200}
+                    unoptimized
+                  />
+                </div>
+                
+                {/* Actions Column - Full Width on Desktop */}
+                <div className="flex flex-col gap-4 flex-1 w-full">
+                  {/* Copy & Download Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button 
+                      onClick={copyQrToClipboard} 
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 border border-blue-400/30 rounded-xl text-white transition-all duration-200 flex items-center justify-center gap-2 font-medium backdrop-blur-sm"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      {copyQrSuccess ? 'Copied!' : 'Copy QR'}
+                    </button>
+                    <button 
+                      onClick={downloadQr} 
+                      className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500/20 to-purple-600/20 hover:from-purple-500/30 hover:to-purple-600/30 border border-purple-400/30 rounded-xl text-white transition-all duration-200 flex items-center justify-center gap-2 font-medium backdrop-blur-sm"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Download
+                    </button>
+                  </div>
+
+                  {/* Copy Link Section */}
+                  <div className="pt-4 border-t border-white/10">
+                    <h3 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                      Share Event Link
+                    </h3>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={guestLink}
+                        readOnly
+                        className="flex-1 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white/90 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                      />
+                      <button
+                        onClick={copyGuestLink}
+                        className="px-6 py-2 bg-gradient-to-r from-green-500/20 to-green-600/20 hover:from-green-500/30 hover:to-green-600/30 border border-green-400/30 rounded-lg text-white transition-all duration-200 flex items-center justify-center gap-2 font-medium backdrop-blur-sm whitespace-nowrap"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        {copySuccess ? 'Copied!' : 'Copy Link'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Social Sharing Section */}
+                  <div className="pt-4 border-t border-white/10">
+                    <h3 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.885 12.938 9 12.482 9 12c0-.482-.115-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                      </svg>
+                      Share on Social Media
+                    </h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {/* LinkedIn */}
+                      <button
+                        onClick={shareOnLinkedIn}
+                        className="group relative px-4 py-3 bg-gradient-to-br from-[#0077b5]/20 to-[#0077b5]/30 hover:from-[#0077b5]/30 hover:to-[#0077b5]/40 border border-[#0077b5]/40 rounded-xl transition-all duration-200 flex flex-col items-center gap-2 backdrop-blur-sm hover:scale-105 hover:shadow-lg hover:shadow-[#0077b5]/20"
+                      >
+                        <svg className="w-6 h-6 text-[#0077b5]" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                        </svg>
+                        <span className="text-xs font-medium text-white/90">LinkedIn</span>
+                      </button>
+
+                      {/* X (Twitter) */}
+                      <button
+                        onClick={shareOnTwitter}
+                        className="group relative px-4 py-3 bg-gradient-to-br from-black/40 to-gray-900/40 hover:from-black/50 hover:to-gray-900/50 border border-white/20 rounded-xl transition-all duration-200 flex flex-col items-center gap-2 backdrop-blur-sm hover:scale-105 hover:shadow-lg hover:shadow-white/10"
+                      >
+                        <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                        <span className="text-xs font-medium text-white/90">X.com</span>
+                      </button>
+
+                      {/* Facebook */}
+                      <button
+                        onClick={shareOnFacebook}
+                        className="group relative px-4 py-3 bg-gradient-to-br from-[#1877f2]/20 to-[#1877f2]/30 hover:from-[#1877f2]/30 hover:to-[#1877f2]/40 border border-[#1877f2]/40 rounded-xl transition-all duration-200 flex flex-col items-center gap-2 backdrop-blur-sm hover:scale-105 hover:shadow-lg hover:shadow-[#1877f2]/20"
+                      >
+                        <svg className="w-6 h-6 text-[#1877f2]" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        <span className="text-xs font-medium text-white/90">Facebook</span>
+                      </button>
+
+                      {/* WhatsApp */}
+                      <button
+                        onClick={shareOnWhatsApp}
+                        className="group relative px-4 py-3 bg-gradient-to-br from-[#25d366]/20 to-[#25d366]/30 hover:from-[#25d366]/30 hover:to-[#25d366]/40 border border-[#25d366]/40 rounded-xl transition-all duration-200 flex flex-col items-center gap-2 backdrop-blur-sm hover:scale-105 hover:shadow-lg hover:shadow-[#25d366]/20"
+                      >
+                        <svg className="w-6 h-6 text-[#25d366]" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                        </svg>
+                        <span className="text-xs font-medium text-white/90">WhatsApp</span>
+                      </button>
+
+                      {/* Instagram */}
+                      <button
+                        onClick={shareOnInstagram}
+                        className="group relative px-4 py-3 bg-gradient-to-br from-[#E4405F]/20 via-[#F56040]/20 to-[#FCAF45]/20 hover:from-[#E4405F]/30 hover:via-[#F56040]/30 hover:to-[#FCAF45]/30 border border-[#E4405F]/40 rounded-xl transition-all duration-200 flex flex-col items-center gap-2 backdrop-blur-sm hover:scale-105 hover:shadow-lg hover:shadow-[#E4405F]/20"
+                      >
+                        <svg className="w-6 h-6 text-[#E4405F]" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                        </svg>
+                        <span className="text-xs font-medium text-white/90">Instagram</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Event Details */}
           <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -1050,13 +1391,19 @@ function AdminDashboardContent() {
                     
                     // Update event details
                     console.log('Saving event date:', eventDetailsForm.event_date);
-                    await updateEventSettings({
+                    const updateData: any = {
                       title: eventDetailsForm.title,
                       event_date: eventDetailsForm.event_date ? formatDateForDatabase(eventDetailsForm.event_date) : undefined,
                       event_location: eventDetailsForm.event_location || undefined,
-                      company_name: eventDetailsForm.company_name || undefined,
-                      company_logo_url: finalLogoUrl || undefined
-                    });
+                    };
+                    
+                    // Only include branding fields if user has access
+                    if (canUseBranding) {
+                      updateData.company_name = eventDetailsForm.company_name || undefined;
+                      updateData.company_logo_url = finalLogoUrl || undefined;
+                    }
+                    
+                    await updateEventSettings(updateData);
                     
                     setShowEventDetailsForm(false);
                     setLogoFile(null);
@@ -1113,115 +1460,166 @@ function AdminDashboardContent() {
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
                       Company Name
+                      {!canUseBranding && (
+                        <span className="ml-2 text-xs text-yellow-400">(Premium Feature)</span>
+                      )}
                     </label>
-                    <input
-                      type="text"
-                      value={eventDetailsForm.company_name}
-                      onChange={(e) => setEventDetailsForm({...eventDetailsForm, company_name: e.target.value})}
-                      className="modern-input w-full px-4 py-3"
-                    />
+                    {canUseBranding ? (
+                      <input
+                        type="text"
+                        value={eventDetailsForm.company_name}
+                        onChange={(e) => setEventDetailsForm({...eventDetailsForm, company_name: e.target.value})}
+                        className="modern-input w-full px-4 py-3"
+                        placeholder="Your company name"
+                      />
+                    ) : (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={eventDetailsForm.company_name}
+                          disabled
+                          className="modern-input w-full px-4 py-3 opacity-50 cursor-not-allowed"
+                          placeholder="Upgrade to Basic plan to add company name"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-end pr-3 pointer-events-none">
+                          <Link 
+                            href="/?upgrade=true&reason=branding#pricing"
+                            className="text-xs text-blue-400 hover:text-blue-300 underline pointer-events-auto"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Upgrade →
+                          </Link>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   {/* Company Logo */}
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
                       Company Logo
+                      {!canUseBranding && (
+                        <span className="ml-2 text-xs text-yellow-400">(Premium Feature)</span>
+                      )}
                     </label>
                     
-                    {/* Logo Preview */}
-                    {(logoPreview || eventDetailsForm.company_logo_url) && (
-                      <div className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/10 mb-3">
-                        <Image 
-                          src={logoPreview || eventDetailsForm.company_logo_url} 
-                          alt="Logo preview" 
-                          className="h-12 w-12 object-contain rounded-lg bg-white/10 p-2" 
-                          width={48} 
-                          height={48} 
-                          unoptimized 
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-white/90 truncate">
-                            {logoFile?.name || 'Current logo'}
+                    {canUseBranding ? (
+                      <>
+                        {/* Logo Preview */}
+                        {(logoPreview || eventDetailsForm.company_logo_url) && (
+                          <div className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/10 mb-3">
+                            <Image 
+                              src={logoPreview || eventDetailsForm.company_logo_url} 
+                              alt="Logo preview" 
+                              className="h-12 w-12 object-contain rounded-lg bg-white/10 p-2" 
+                              width={48} 
+                              height={48} 
+                              unoptimized 
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm text-white/90 truncate">
+                                {logoFile?.name || 'Current logo'}
+                              </div>
+                              <button 
+                                type="button" 
+                                onClick={() => { 
+                                  setLogoFile(null); 
+                                  setLogoPreview(''); 
+                                  setEventDetailsForm({...eventDetailsForm, company_logo_url: ''});
+                                }}
+                                className="text-xs text-white/60 hover:text-white/80"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
-                          <button 
-                            type="button" 
-                            onClick={() => { 
-                              setLogoFile(null); 
-                              setLogoPreview(''); 
-                              setEventDetailsForm({...eventDetailsForm, company_logo_url: ''});
-                            }}
-                            className="text-xs text-white/60 hover:text-white/80"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                        )}
 
-                    {/* Upload Options */}
-                    {!logoPreview && !eventDetailsForm.company_logo_url && (
-                      <div className="flex flex-col gap-3">
-                        {/* URL Input */}
-                        <input
-                          type="url"
-                          value={eventDetailsForm.company_logo_url}
-                          onChange={(e) => setEventDetailsForm({...eventDetailsForm, company_logo_url: e.target.value})}
-                          placeholder="Paste logo URL"
-                          className="modern-input w-full px-4 py-3 text-base"
-                          pattern="https?://.*\.(png|jpg|jpeg|webp|svg)"
-                        />
-                        
-                        {/* Divider */}
-                        <div className="flex items-center gap-3">
-                          <div className="h-px flex-1 bg-white/10"></div>
-                          <span className="text-xs text-white/40">or</span>
-                          <div className="h-px flex-1 bg-white/10"></div>
-                        </div>
+                        {/* Upload Options */}
+                        {!logoPreview && !eventDetailsForm.company_logo_url && (
+                          <div className="flex flex-col gap-3">
+                            {/* URL Input */}
+                            <input
+                              type="url"
+                              value={eventDetailsForm.company_logo_url}
+                              onChange={(e) => setEventDetailsForm({...eventDetailsForm, company_logo_url: e.target.value})}
+                              placeholder="Paste logo URL"
+                              className="modern-input w-full px-4 py-3 text-base"
+                              pattern="https?://.*\.(png|jpg|jpeg|webp|svg)"
+                            />
+                            
+                            {/* Divider */}
+                            <div className="flex items-center gap-3">
+                              <div className="h-px flex-1 bg-white/10"></div>
+                              <span className="text-xs text-white/40">or</span>
+                              <div className="h-px flex-1 bg-white/10"></div>
+                            </div>
 
-                        {/* Upload Area */}
-                        <div
-                          role="button"
-                          aria-label="Logo dropzone"
-                          onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
-                          onDragLeave={() => setDragActive(false)}
-                          onDrop={(e) => {
-                            e.preventDefault()
-                            setDragActive(false)
-                            const f = e.dataTransfer.files?.[0]
-                            if (!f) return
-                            if (!['image/png','image/jpeg','image/webp','image/svg+xml'].includes(f.type)) return
-                            if (f.size > 2 * 1024 * 1024) { setError('Logo too large. Max 2MB.'); return }
-                            setLogoFile(f)
-                            setLogoPreview(URL.createObjectURL(f))
-                          }}
-                          onClick={() => document.getElementById('eventLogoFileInput')?.click()}
-                          className={`flex items-center justify-center gap-3 rounded-xl border border-dashed p-4 transition-all cursor-pointer ${
-                            dragActive 
-                              ? 'border-white/60 bg-white/10' 
-                              : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
-                          }`}
-                        >
-                          <svg className="w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            {/* Upload Area */}
+                            <div
+                              role="button"
+                              aria-label="Logo dropzone"
+                              onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
+                              onDragLeave={() => setDragActive(false)}
+                              onDrop={(e) => {
+                                e.preventDefault()
+                                setDragActive(false)
+                                const f = e.dataTransfer.files?.[0]
+                                if (!f) return
+                                if (!['image/png','image/jpeg','image/webp','image/svg+xml'].includes(f.type)) return
+                                if (f.size > 2 * 1024 * 1024) { setError('Logo too large. Max 2MB.'); return }
+                                setLogoFile(f)
+                                setLogoPreview(URL.createObjectURL(f))
+                              }}
+                              onClick={() => document.getElementById('eventLogoFileInput')?.click()}
+                              className={`flex items-center justify-center gap-3 rounded-xl border border-dashed p-4 transition-all cursor-pointer ${
+                                dragActive 
+                                  ? 'border-white/60 bg-white/10' 
+                                  : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
+                              }`}
+                            >
+                              <svg className="w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span className="text-sm text-white/60">Choose or drop image</span>
+                            </div>
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0] || null
+                                if (!f) { setLogoFile(null); setLogoPreview(''); return }
+                                if (!['image/png','image/jpeg','image/webp','image/svg+xml'].includes(f.type)) { setError('Unsupported file type'); return }
+                                if (f.size > 2 * 1024 * 1024) { setError('Logo too large. Max 2MB.'); return }
+                                setError('')
+                                setLogoFile(f)
+                                setLogoPreview(URL.createObjectURL(f))
+                              }}
+                              className="hidden"
+                              id="eventLogoFileInput"
+                            />
+                            <p className="text-white/40 text-xs">Supported: PNG, JPG, JPEG, WebP, SVG • Max size: 2MB</p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+                        <div className="flex items-start gap-3">
+                          <svg className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                           </svg>
-                          <span className="text-sm text-white/60">Choose or drop image</span>
+                          <div className="flex-1">
+                            <p className="text-white/90 text-sm mb-2">
+                              Logo upload is only available on Basic, Pro, and Enterprise plans.
+                            </p>
+                            <Link 
+                              href="/?upgrade=true&reason=branding#pricing"
+                              className="inline-flex items-center gap-2 text-sm text-yellow-300 hover:text-yellow-200 underline"
+                            >
+                              Upgrade to unlock logo upload →
+                            </Link>
+                          </div>
                         </div>
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0] || null
-                            if (!f) { setLogoFile(null); setLogoPreview(''); return }
-                            if (!['image/png','image/jpeg','image/webp','image/svg+xml'].includes(f.type)) { setError('Unsupported file type'); return }
-                            if (f.size > 2 * 1024 * 1024) { setError('Logo too large. Max 2MB.'); return }
-                            setError('')
-                            setLogoFile(f)
-                            setLogoPreview(URL.createObjectURL(f))
-                          }}
-                          className="hidden"
-                          id="eventLogoFileInput"
-                        />
-                        <p className="text-white/40 text-xs">Supported: PNG, JPG, JPEG, WebP, SVG • Max size: 2MB</p>
                       </div>
                     )}
                   </div>
@@ -1419,15 +1817,50 @@ function AdminDashboardContent() {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <h2 className="text-2xl font-bold">Event Settings</h2>
               <div className="flex flex-wrap gap-2">
-                <button 
-                  onClick={() => setShowColorSettings(!showColorSettings)}
-                  className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 text-white/90 transition-all flex items-center gap-2"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                  </svg>
-                  Colors
-                </button>
+                {canUseBranding ? (
+                  <button 
+                    onClick={() => setShowColorSettings(!showColorSettings)}
+                    className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 text-white/90 transition-all flex items-center gap-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                    </svg>
+                    Colors
+                  </button>
+                ) : (
+                  <div className="relative group">
+                    <button
+                      disabled
+                      onClick={() => {
+                        // Show upgrade prompt
+                        const upgradeUrl = '/?upgrade=true&reason=branding#pricing'
+                        window.open(upgradeUrl, '_blank')
+                      }}
+                      className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white/40 cursor-not-allowed flex items-center gap-2 opacity-50 hover:opacity-70"
+                      title="Custom colors available on Basic, Pro, and Enterprise plans"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                      </svg>
+                      Colors
+                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </button>
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                      <div className="bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg border border-white/20 whitespace-nowrap">
+                        <p className="mb-1">Custom colors require Basic plan or higher</p>
+                        <Link 
+                          href="/?upgrade=true&reason=branding#pricing" 
+                          className="text-blue-400 hover:text-blue-300 underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Upgrade now →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <Link href={`/a/${adminToken}/access`} className="modern-button px-4 py-2 flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -1447,7 +1880,7 @@ function AdminDashboardContent() {
             </div>
             
             {/* Color Customization Panel */}
-            {showColorSettings && (
+            {showColorSettings && canUseBranding && (
               <div className="mb-6 p-5 rounded-xl bg-black/30 border border-white/10 animate-fadeIn">
                 <h3 className="text-lg font-medium mb-4">Color Settings</h3>
                 
@@ -1471,6 +1904,30 @@ function AdminDashboardContent() {
                   }}
                   className="mt-4"
                 />
+              </div>
+            )}
+            {showColorSettings && !canUseBranding && (
+              <div className="mb-6 p-5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 animate-fadeIn">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-medium text-yellow-300 mb-2">Custom Colors Unavailable</h3>
+                    <p className="text-white/80 text-sm mb-3">
+                      Custom color customization is only available on Basic, Pro, and Enterprise plans. Upgrade to unlock this feature and personalize your event appearance.
+                    </p>
+                    <Link 
+                      href="/?upgrade=true&reason=branding#pricing"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-yellow-300 hover:bg-yellow-500/30 transition-all text-sm font-medium"
+                    >
+                      View Plans & Upgrade
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
               </div>
             )}
             
@@ -1521,146 +1978,96 @@ function AdminDashboardContent() {
                 )}
               </div>
               
+              {/* Required RSVP Fields Configuration (Paid Users Only) */}
+              {userTier !== 'free' && (
+                <div className="mt-6 p-5 rounded-xl bg-black/30 border border-white/10">
+                  <h3 className="text-lg font-medium mb-4">Required RSVP Fields</h3>
+                  <p className="text-sm text-white/60 mb-4">
+                    Choose which information attendees must provide when RSVPing. Name and last name are always required.
+                  </p>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={requiredFields.email || false}
+                        onChange={(e) => {
+                          const newFields = { ...requiredFields, email: e.target.checked }
+                          setRequiredFields(newFields)
+                          updateEventSettings({ required_rsvp_fields: newFields })
+                        }}
+                        className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-white/90">Email Address</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={requiredFields.phone || false}
+                        onChange={(e) => {
+                          const newFields = { ...requiredFields, phone: e.target.checked }
+                          setRequiredFields(newFields)
+                          updateEventSettings({ required_rsvp_fields: newFields })
+                        }}
+                        className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-white/90">Phone Number</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={requiredFields.address || false}
+                        onChange={(e) => {
+                          const newFields = { ...requiredFields, address: e.target.checked }
+                          setRequiredFields(newFields)
+                          updateEventSettings({ required_rsvp_fields: newFields })
+                        }}
+                        className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-white/90">Address</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={requiredFields.guests || false}
+                        onChange={(e) => {
+                          const newFields = { ...requiredFields, guests: e.target.checked }
+                          setRequiredFields(newFields)
+                          updateEventSettings({ required_rsvp_fields: newFields })
+                        }}
+                        className="w-5 h-5 rounded border-white/20 bg-white/5 text-blue-500 focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-white/90">Number of Guests</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+              
               {/* Contact info moved to its own section below */}
             </div>
           </div>
           
-          {/* Share Section */}
-          <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className="text-2xl font-bold">Share Event</h2>
-              {!isAdmin && (
-                <Link 
-                  href="/magic-login" 
-                  className="flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 text-white/90 transition-all text-sm"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Quick Login
-                </Link>
-              )}
-            </div>
-            
-            <div className="space-y-6">
-              {/* Guest Link - Full Width */}
-              <div>
-                <label className="block text-sm font-medium text-white/80 mb-2">
-                  Guest RSVP Link
-                </label>
-                <div className="flex flex-col sm:flex-row gap-2 w-full">
-                  <input
-                    type="text"
-                    value={guestLink}
-                    readOnly
-                    className="modern-input flex-1 px-4 py-2 text-sm"
-                  />
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <button
-                      onClick={copyGuestLink}
-                      className="modern-button px-4 py-2 min-w-[80px] w-full sm:w-auto"
-                    >
-                      {copySuccess ? 'Copied' : 'Copy'}
-                    </button>
-                    <a
-                      href={guestLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="modern-button px-4 py-2 min-w-[80px] w-full sm:w-auto"
-                    >
-                      Open
-                    </a>
-                    <button
-                      onClick={() => {
-                        const shareText = `You are invited to ${data?.event.title || 'this event'}, this is the link to rsvp: ${guestLink}`
-                        
-                        // Check if Web Share API is available (mobile)
-                        if (navigator.share) {
-                          navigator.share({
-                            title: `Invitation to ${data?.event.title || 'Event'}`,
-                            text: shareText,
-                            url: guestLink
-                          }).catch(err => {
-                            console.log('Error sharing:', err)
-                            // Fallback to email
-                            const subject = `Invitation to ${data?.event.title || 'Event'}`
-                            const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shareText)}`
-                            window.open(mailtoUrl)
-                          })
-                        } else {
-                          // Desktop fallback - show email option
-                          const subject = `Invitation to ${data?.event.title || 'Event'}`
-                          const mailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shareText)}`
-                          window.open(mailtoUrl)
-                        }
-                      }}
-                      className="modern-button px-4 py-2 min-w-[80px] w-full sm:w-auto bg-green-600 hover:bg-green-700"
-                      title="Share event invitation"
-                    >
-                      Share
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* QR Code - Compact Horizontal Layout */}
-              <div className="glass-card rounded-xl p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">QR Code</h3>
-                      <p className="text-sm text-white/60">Scan to RSVP instantly</p>
-                    </div>
-                  </div>
-                  
-                  {qrCodeUrl && (
-                    <div className="flex items-center gap-4">
-                      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-2 shadow-lg">
-                        <Image 
-                          src={qrCodeUrl} 
-                          alt="Event QR Code" 
-                          className="rounded-md"
-                          width={80}
-                          height={80}
-                          unoptimized
-                        />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <button 
-                          onClick={copyQrToClipboard} 
-                          className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-all duration-200 flex items-center gap-2"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          {copyQrSuccess ? 'Copied' : 'Copy QR'}
-                        </button>
-                        <button 
-                          onClick={downloadQr} 
-                          className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-all duration-200 flex items-center gap-2"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          Download QR
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Attendees List */}
           <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-              <h2 className="text-2xl font-bold">RSVPs</h2>
+              <div 
+                className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setAttendeesExpanded(!attendeesExpanded)}
+              >
+                <h2 className="text-2xl font-bold">RSVPs</h2>
+                {data?.attendees && data.attendees.length > 0 && (
+                  <span className="text-sm text-white/60">
+                    ({data.attendees.length} {data.attendees.length === 1 ? 'response' : 'responses'})
+                  </span>
+                )}
+                <svg 
+                  className={`w-5 h-5 text-white/60 transition-transform ${attendeesExpanded ? 'rotate-180' : ''}`} 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
               <div className="relative w-full sm:w-auto" ref={rsvpMenuRef}>
                 <button
                   onClick={() => setRsvpMenuOpen(!rsvpMenuOpen)}
@@ -1710,20 +2117,67 @@ function AdminDashboardContent() {
               </div>
             )}
 
-            {data?.attendees && data.attendees.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-white admin-table">
-                  <thead>
-                    <tr className="border-b border-white/20">
-                      <th className="text-left py-3 px-4 font-medium text-white/80">Name</th>
-                      <th className="text-left py-3 px-4 font-medium text-white/80">Email</th>
-                      <th className="text-left py-3 px-4 font-medium text-white/80">Status</th>
-                      <th className="text-center py-3 px-4 font-medium text-white/80">Guests</th>
-                      <th className="text-center py-3 px-4 font-medium text-white/80">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.attendees.map((attendee) => editing === attendee.id ? (
+            {/* Search Bar */}
+            {attendeesExpanded && data?.attendees && data.attendees.length > 0 && (
+              <div className="mb-4">
+                <div className="relative">
+                  <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by name, email, or phone..."
+                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/30"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/40 hover:text-white/60"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                {searchQuery && (
+                  <div className="mt-2 text-sm text-white/60">
+                    {data.attendees.filter(attendee => {
+                      const query = searchQuery.toLowerCase()
+                      const fullName = `${attendee.first_name} ${attendee.last_name}`.toLowerCase()
+                      const email = (attendee.email || '').toLowerCase()
+                      const phone = (attendee.phone || '').toLowerCase()
+                      return fullName.includes(query) || email.includes(query) || phone.includes(query)
+                    }).length} result(s)
+                  </div>
+                )}
+              </div>
+            )}
+
+            {attendeesExpanded && data?.attendees && data.attendees.length > 0 ? (
+              <>
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-white admin-table">
+                    <thead>
+                      <tr className="border-b border-white/20">
+                        <th className="text-left py-3 px-4 font-medium text-white/80">Name</th>
+                        <th className="text-left py-3 px-4 font-medium text-white/80">Email</th>
+                        <th className="text-left py-3 px-4 font-medium text-white/80">Status</th>
+                        <th className="text-center py-3 px-4 font-medium text-white/80">Guests</th>
+                        <th className="text-center py-3 px-4 font-medium text-white/80">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(searchQuery ? data.attendees.filter(attendee => {
+                        const query = searchQuery.toLowerCase()
+                        const fullName = `${attendee.first_name} ${attendee.last_name}`.toLowerCase()
+                        const email = (attendee.email || '').toLowerCase()
+                        const phone = (attendee.phone || '').toLowerCase()
+                        return fullName.includes(query) || email.includes(query) || phone.includes(query)
+                      }) : data.attendees).map((attendee) => editing === attendee.id ? (
                       <tr key={attendee.id} className="border-b border-white/10 bg-white/10">
                         <td className="py-3 px-4" data-label="Name">
                           <div className="flex flex-col sm:flex-row gap-2">
@@ -1858,9 +2312,172 @@ function AdminDashboardContent() {
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile List View */}
+                <div className="md:hidden space-y-2 max-h-[600px] overflow-y-auto -mx-2 px-2">
+                  {(searchQuery ? data.attendees.filter(attendee => {
+                    const query = searchQuery.toLowerCase()
+                    const fullName = `${attendee.first_name} ${attendee.last_name}`.toLowerCase()
+                    const email = (attendee.email || '').toLowerCase()
+                    const phone = (attendee.phone || '').toLowerCase()
+                    return fullName.includes(query) || email.includes(query) || phone.includes(query)
+                  }) : data.attendees).map((attendee) => editing === attendee.id ? (
+                    <div key={attendee.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={editForm.first_name || ''}
+                            onChange={(e) => updateEditForm('first_name', e.target.value)}
+                            className="modern-input w-full px-3 py-2 text-sm"
+                            placeholder="First name"
+                          />
+                          <input
+                            type="text"
+                            value={editForm.last_name || ''}
+                            onChange={(e) => updateEditForm('last_name', e.target.value)}
+                            className="modern-input w-full px-3 py-2 text-sm"
+                            placeholder="Last name"
+                          />
+                        </div>
+                        <input
+                          type="email"
+                          value={editForm.email || ''}
+                          onChange={(e) => updateEditForm('email', e.target.value)}
+                          className="modern-input w-full px-3 py-2 text-sm"
+                          placeholder="Email"
+                        />
+                        <select
+                          value={editForm.attending ? 'yes' : 'no'}
+                          onChange={(e) => updateEditForm('attending', e.target.value === 'yes')}
+                          className="modern-input w-full px-3 py-2 text-sm"
+                        >
+                          <option value="yes">Attending</option>
+                          <option value="no">Not Attending</option>
+                        </select>
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm text-white/70">Guests:</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="20"
+                            value={editForm.guest_count || 0}
+                            onChange={(e) => updateEditForm('guest_count', parseInt(e.target.value) || 0)}
+                            className="modern-input w-20 px-3 py-2 text-center text-sm"
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={saveAttendee}
+                            disabled={saving}
+                            className="flex-1 modern-button px-3 py-2 text-sm"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/15 text-sm"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      key={attendee.id} 
+                      className="bg-white/5 border-b border-white/10 py-3 px-3 active:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-medium text-white truncate">
+                              {attendee.first_name} {attendee.last_name}
+                            </h3>
+                            <button
+                              onClick={() => toggleAttendance(attendee)}
+                              className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                attendee.attending 
+                                  ? 'bg-green-500/20 text-green-300 border border-green-400/30' 
+                                  : 'bg-red-500/20 text-red-300 border border-red-400/30'
+                              }`}
+                            >
+                              {attendee.attending ? 'Yes' : 'No'}
+                            </button>
+                            {attendee.attending && attendee.guest_count > 0 && (
+                              <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                                +{attendee.guest_count}
+                              </span>
+                            )}
+                          </div>
+                          {attendee.email && (
+                            <p className="text-sm text-white/60 truncate mb-1">{attendee.email}</p>
+                          )}
+                          {attendee.phone && (
+                            <p className="text-xs text-white/50 truncate">{attendee.phone}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          <button
+                            onClick={() => startEdit(attendee)}
+                            className="px-3 py-1.5 text-xs bg-white/10 border border-white/20 rounded-lg hover:bg-white/15 text-white/90"
+                          >
+                            Edit
+                          </button>
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect()
+                                setContextAnchor({ left: rect.left, right: rect.right, bottom: rect.bottom, top: rect.top })
+                                setExpandedAttendee(expandedAttendee === attendee.id ? null : attendee.id)
+                              }}
+                              className="px-2 py-1.5 bg-white/10 border border-white/20 rounded-lg hover:bg-white/15 text-white/90"
+                              aria-label="More options"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                              </svg>
+                            </button>
+                            {expandedAttendee === attendee.id && contextAnchor && (
+                              <RowMenu
+                                anchorRect={{ left: contextAnchor.left, right: contextAnchor.right, bottom: contextAnchor.bottom!, top: contextAnchor.top! } as DOMRect}
+                                onClose={() => { setExpandedAttendee(null); setContextMenuPos(null) }}
+                                email={attendee.email}
+                                phone={attendee.phone}
+                                onDelete={() => deleteAttendee(attendee.id)}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : attendeesExpanded && (!data?.attendees || data.attendees.length === 0) ? (
+              <div className="text-center py-8 text-white/50">
+                No RSVPs yet. Share the guest link to start receiving responses!
+              </div>
+            ) : !attendeesExpanded && data?.attendees && data.attendees.length > 0 ? (
+              <div className="text-center py-6 text-white/70">
+                <p className="mb-2">
+                  {data.attendees.length} {data.attendees.length === 1 ? 'RSVP' : 'RSVPs'} 
+                  {' • '}
+                  {data.attendees.filter(a => a.attending).length} attending
+                  {data.attendees.filter(a => !a.attending).length > 0 && (
+                    <> • {data.attendees.filter(a => !a.attending).length} not attending</>
+                  )}
+                </p>
+                <button
+                  onClick={() => setAttendeesExpanded(true)}
+                  className="modern-button px-4 py-2 text-sm mt-2"
+                >
+                  View Full List
+                </button>
               </div>
             ) : (
               <div className="text-center py-8 text-white/50">

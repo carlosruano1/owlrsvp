@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { canUseCustomBranding } from '@/lib/tierEnforcement'
 
 // Get event by admin token
 export async function GET(
@@ -108,6 +109,27 @@ export async function PATCH(
       updates.event_location = body.event_location || null
     }
     
+    // Check if user has custom branding feature for branding-related updates
+    const sessionCookie = request.cookies.get('admin_session')?.value
+    const canBrand = await canUseCustomBranding(sessionCookie)
+    
+    // Check if trying to update branding features without permission
+    const brandingFields = [
+      body.company_name !== undefined,
+      body.company_logo_url !== undefined,
+      body.page_background_color !== undefined,
+      body.spotlight_color !== undefined,
+      body.font_color !== undefined
+    ].some(Boolean)
+    
+    if (brandingFields && !canBrand) {
+      return NextResponse.json({ 
+        error: 'Custom branding is only available on Basic, Pro, and Enterprise plans. Please upgrade to customize your event appearance.',
+        requiresUpgrade: true,
+        upgradeUrl: '/?upgrade=true&reason=branding#pricing'
+      }, { status: 403 })
+    }
+    
     if (body.company_name !== undefined) {
       updates.company_name = body.company_name || null
     }
@@ -142,6 +164,11 @@ export async function PATCH(
     } catch (e) {
       console.log('Advanced color fields not available in database schema yet')
       // These fields will be ignored if they don't exist in the database
+    }
+    
+    // Handle required RSVP fields (JSON field)
+    if (body.required_rsvp_fields !== undefined) {
+      updates.required_rsvp_fields = body.required_rsvp_fields || null
     }
     
     // Only update if there are changes

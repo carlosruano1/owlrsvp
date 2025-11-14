@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { stripe, createCheckoutSession } from '@/lib/stripe'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { priceId, successUrl, cancelUrl } = await request.json()
     
@@ -28,25 +28,36 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get the current user
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    // Get admin session from cookies
+    const sessionToken = request.cookies.get('admin_session')?.value
+    if (!sessionToken) {
       return NextResponse.json(
-        { error: { message: 'Unauthorized' } },
+        { error: { message: 'Unauthorized - Please log in' } },
+        { status: 401 }
+      )
+    }
+
+    // Validate session
+    const { data: sessionData, error: sessionError } = await supabase
+      .rpc('validate_admin_session', { p_token: sessionToken })
+      
+    if (sessionError || !sessionData || sessionData.length === 0) {
+      return NextResponse.json(
+        { error: { message: 'Invalid session - Please log in again' } },
         { status: 401 }
       )
     }
     
-    const user = session.user
+    const userId = sessionData[0].user_id
     
-    // Check if user already has a Stripe customer ID
+    // Get user data from admin_users table
     const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('stripe_customer_id')
-      .eq('id', user.id)
+      .from('admin_users')
+      .select('id, email, username, stripe_customer_id')
+      .eq('id', userId)
       .single()
     
-    if (userError && userError.code !== 'PGRST116') {
+    if (userError || !userData) {
       console.error('Error fetching user data:', userError)
       return NextResponse.json(
         { error: { message: 'Error fetching user data' } },
@@ -54,24 +65,25 @@ export async function POST(request: Request) {
       )
     }
     
-    let customerId = userData?.stripe_customer_id
+    let customerId = userData.stripe_customer_id
     
     // If no customer ID exists, create a new customer in Stripe
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: user.email,
+        email: userData.email || undefined,
         metadata: {
-          userId: user.id,
+          userId: userData.id,
+          username: userData.username || '',
         },
       })
       
       customerId = customer.id
       
-      // Save the customer ID to the user record
+      // Save the customer ID to the admin_users record
       await supabaseAdmin
-        .from('users')
+        .from('admin_users')
         .update({ stripe_customer_id: customerId })
-        .eq('id', user.id)
+        .eq('id', userData.id)
     }
     
     // Create a checkout session

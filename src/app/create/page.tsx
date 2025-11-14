@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
 import Image from 'next/image'
-import { canCreateEvent } from '@/lib/plans'
+import { canCreateEvent, hasFeature } from '@/lib/plans'
 
 export default function CreateEvent() {
   const [title, setTitle] = useState('')
@@ -51,6 +51,7 @@ export default function CreateEvent() {
   const [error, setError] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
   const [userPlan, setUserPlan] = useState<{tier: string, eventsCreated: number | null} | null>(null)
+  const [canBrand, setCanBrand] = useState(false)
   const router = useRouter()
 
   // Check if user is logged in as admin and get their plan info
@@ -66,13 +67,9 @@ export default function CreateEvent() {
             eventsCreated: data.user.events_created_count || 0
           }
           setUserPlan(planData)
+          setCanBrand(hasFeature('allowsCustomBranding', planData.tier))
           
-          // Check if user can create another event
-          if (!canCreateEvent(planData.eventsCreated, planData.tier)) {
-            // Redirect to pricing page with upgrade message
-            router.push('/pricing?upgrade=true&reason=event_limit')
-            return
-          }
+          // Don't redirect - just let them see the form with locked button
         }
       } catch (err) {
         // Not logged in
@@ -119,6 +116,12 @@ export default function CreateEvent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
+
+    // Check if user can create another event
+    if (userPlan && !canCreateEvent(userPlan.eventsCreated || 0, userPlan.tier)) {
+      setError('You have reached your event limit. Please upgrade to create more events.')
+      return
+    }
 
     setLoading(true)
     setError('')
@@ -343,14 +346,29 @@ export default function CreateEvent() {
                   <label htmlFor="companyName" className="block text-sm font-medium text-white/90">
                     Company Name <span className="text-white/40">(optional)</span>
                   </label>
-                  <input
-                    type="text"
-                    id="companyName"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder={companyExamples[companyExampleIdx]}
-                    className="modern-input w-full px-4 py-4 text-lg"
-                  />
+                    {!canBrand && isAdmin && (
+                      <div className="mb-2 text-xs text-white/50">
+                        <span>Custom branding available on </span>
+                        <Link href="/checkout?plan=basic" className="text-blue-400 hover:text-blue-300 underline">
+                          paid plans
+                        </Link>
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      id="companyName"
+                      value={companyName}
+                      onChange={(e) => {
+                        if (canBrand || !isAdmin) {
+                          setCompanyName(e.target.value)
+                        } else {
+                          router.push('/?upgrade=true&reason=branding#pricing')
+                        }
+                      }}
+                      placeholder={companyExamples[companyExampleIdx]}
+                      className={`modern-input w-full px-4 py-4 text-lg ${!canBrand && isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={!canBrand && isAdmin}
+                    />
                 </div>
                 
                 {/* Event Date & Location */}
@@ -383,9 +401,23 @@ export default function CreateEvent() {
 
                 {/* Logo Upload Section */}
                 <div className="space-y-3">
-                  <label className="block text-sm font-medium text-white/90">
-                    Company Logo <span className="text-white/40">(optional)</span>
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium text-white/90">
+                      Company Logo <span className="text-white/40">(optional)</span>
+                    </label>
+                    {!canBrand && isAdmin && (
+                      <span className="text-xs text-yellow-400">Upgrade required</span>
+                    )}
+                  </div>
+                  
+                    {!canBrand && isAdmin && (
+                      <div className="mb-2 text-xs text-white/50">
+                        <span>Logo upload available on </span>
+                        <Link href="/checkout?plan=basic" className="text-blue-400 hover:text-blue-300 underline">
+                          paid plans
+                        </Link>
+                      </div>
+                    )}
                   
                   {/* Logo Preview */}
                   {logoPreview && (
@@ -422,8 +454,15 @@ export default function CreateEvent() {
                         value={companyLogoUrl}
                         onChange={(e) => setCompanyLogoUrl(e.target.value)}
                         placeholder="Paste logo URL"
-                        className="modern-input w-full px-4 py-3 text-base"
+                        className={`modern-input w-full px-4 py-3 text-base ${!canBrand && isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
                         pattern="https?://.*\.(png|jpg|jpeg|webp|svg)"
+                        disabled={!canBrand && isAdmin}
+                        onClick={(e) => {
+                          if (!canBrand && isAdmin) {
+                            e.preventDefault()
+                            router.push('/?upgrade=true&reason=branding#pricing')
+                          }
+                        }}
                       />
                       
                       {/* Divider */}
@@ -437,9 +476,18 @@ export default function CreateEvent() {
                       <div
                         role="button"
                         aria-label="Logo dropzone"
-                        onDragOver={(e) => { e.preventDefault(); setDragActive(true) }}
+                        onDragOver={(e) => { 
+                          if (!canBrand && isAdmin) return
+                          e.preventDefault(); 
+                          setDragActive(true) 
+                        }}
                         onDragLeave={() => setDragActive(false)}
                         onDrop={(e) => {
+                          if (!canBrand && isAdmin) {
+                            e.preventDefault()
+                            router.push('/?upgrade=true&reason=branding#pricing')
+                            return
+                          }
                           e.preventDefault()
                           setDragActive(false)
                           const f = e.dataTransfer.files?.[0]
@@ -449,11 +497,21 @@ export default function CreateEvent() {
                           setLogoFile(f)
                           setLogoPreview(URL.createObjectURL(f))
                         }}
-                        onClick={() => document.getElementById('companyLogoFileInput')?.click()}
-                        className={`flex items-center justify-center gap-3 rounded-xl border border-dashed p-4 transition-all cursor-pointer ${
-                          dragActive 
-                            ? 'border-white/60 bg-white/10' 
-                            : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
+                        onClick={() => {
+                          if (!canBrand && isAdmin) {
+                            router.push('/?upgrade=true&reason=branding#pricing')
+                            return
+                          }
+                          document.getElementById('companyLogoFileInput')?.click()
+                        }}
+                        className={`flex items-center justify-center gap-3 rounded-xl border border-dashed p-4 transition-all ${
+                          !canBrand && isAdmin 
+                            ? 'opacity-50 cursor-not-allowed border-white/10 bg-white/5' 
+                            : `cursor-pointer ${
+                                dragActive 
+                                  ? 'border-white/60 bg-white/10' 
+                                  : 'border-white/20 bg-white/5 hover:bg-white/10 hover:border-white/30'
+                              }`
                         }`}
                       >
                         <svg className="w-5 h-5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -513,7 +571,21 @@ export default function CreateEvent() {
 
                   {/* Color Customization Section */}
                   <div className="space-y-6">
-                    <h3 className="text-lg font-medium text-white/90 mb-2">Appearance Customization</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium text-white/90 mb-2">Appearance Customization</h3>
+                      {!canBrand && isAdmin && (
+                        <span className="text-xs text-yellow-400">Upgrade required</span>
+                      )}
+                    </div>
+                    
+                    {!canBrand && isAdmin && (
+                      <div className="mb-3 text-xs text-white/50">
+                        <span>Color customization available on </span>
+                        <Link href="/checkout?plan=basic" className="text-blue-400 hover:text-blue-300 underline">
+                          paid plans
+                        </Link>
+                      </div>
+                    )}
                     
                     {/* Theme Color */}
                     <div className="space-y-3">
@@ -529,18 +601,32 @@ export default function CreateEvent() {
                           />
                           <button
                             type="button"
-                            onClick={() => setShowColorPicker(!showColorPicker)}
-                            className="w-11 h-11 rounded-xl border-2 border-white/10 shadow-lg shadow-black/20 transition-all hover:scale-105"
+                            onClick={() => {
+                              if (!canBrand && isAdmin) {
+                                router.push('/?upgrade=true&reason=branding#pricing')
+                                return
+                              }
+                              setShowColorPicker(!showColorPicker)
+                            }}
+                            className={`w-11 h-11 rounded-xl border-2 border-white/10 shadow-lg shadow-black/20 transition-all ${!canBrand && isAdmin ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
                             style={{ backgroundColor }}
                             aria-label="Select theme color"
+                            disabled={!canBrand && isAdmin}
                           />
                         </div>
                         <input
                           type="text"
                           value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="modern-input flex-1 px-4 py-3 font-mono text-sm uppercase"
+                          onChange={(e) => {
+                            if (canBrand || !isAdmin) {
+                              setBackgroundColor(e.target.value)
+                            } else {
+                              router.push('/?upgrade=true&reason=branding#pricing')
+                            }
+                          }}
+                          className={`modern-input flex-1 px-4 py-3 font-mono text-sm uppercase ${!canBrand && isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
                           maxLength={7}
+                          disabled={!canBrand && isAdmin}
                         />
                         
                         {/* Color preview */}
@@ -835,8 +921,8 @@ export default function CreateEvent() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading || !title.trim() || !!(userPlan && userPlan.tier === 'free' && (userPlan.eventsCreated || 0) >= 1)}
-                className="flex items-center justify-center gap-2 w-full py-3 px-6 rounded-xl bg-white text-black font-medium transition-all hover:bg-white/90 disabled:opacity-50 disabled:hover:bg-white"
+                disabled={loading || !title.trim() || !!(userPlan && !canCreateEvent(userPlan.eventsCreated || 0, userPlan.tier))}
+                className="flex items-center justify-center gap-2 w-full py-3 px-6 rounded-xl bg-white text-black font-medium transition-all hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white relative"
               >
                 {loading ? (
                   <>
@@ -847,9 +933,44 @@ export default function CreateEvent() {
                     <span>Creating Event...</span>
                   </>
                 ) : (
-                  'Create Event'
+                  <>
+                    {userPlan && !canCreateEvent(userPlan.eventsCreated || 0, userPlan.tier) && (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    )}
+                    Create Event
+                  </>
                 )}
               </button>
+
+              {/* Subtle Upgrade Prompt */}
+              {userPlan && !canCreateEvent(userPlan.eventsCreated || 0, userPlan.tier) && (
+                <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1">
+                      <p className="text-white/90 text-sm mb-1">
+                        {userPlan.tier === 'free' 
+                          ? `You've reached your limit of 1 event on the Free plan.`
+                          : `You've reached your event limit for the ${userPlan.tier.charAt(0).toUpperCase() + userPlan.tier.slice(1)} plan.`
+                        }
+                      </p>
+                      <p className="text-white/60 text-xs mb-3">
+                        Upgrade to create more events and unlock additional features.
+                      </p>
+                      <Link 
+                        href="/?upgrade=true&reason=event_limit#pricing"
+                        className="inline-flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors"
+                      >
+                        <span>View upgrade options</span>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
             </form>
           </div>
         </div>
