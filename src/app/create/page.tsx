@@ -1,13 +1,16 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
 import Image from 'next/image'
 import { canCreateEvent, hasFeature } from '@/lib/plans'
 
-export default function CreateEvent() {
+// Mark page as dynamic since it uses searchParams
+export const dynamic = 'force-dynamic'
+
+function CreateEventContent() {
   const [title, setTitle] = useState('')
   const [allowPlusGuests, setAllowPlusGuests] = useState(false)
   const [backgroundColor, setBackgroundColor] = useState('#007AFF')
@@ -1007,5 +1010,17 @@ export default function CreateEvent() {
 
       <Footer showDonate={false} />
     </div>
+  )
+}
+
+export default function CreateEvent() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        <div className="text-white/60">Loading...</div>
+      </div>
+    }>
+      <CreateEventContent />
+    </Suspense>
   )
 }
