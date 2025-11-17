@@ -136,11 +136,11 @@ export const PLAN_DETAILS = {
   [PLANS.ENTERPRISE]: {
     name: 'Enterprise',
     price: 99,
-    guestLimit: 5000,
+    guestLimit: Infinity, // Unlimited
     features: [
       'Unlimited events',
       'All Pro features',
-      'Up to 5,000 guests',
+      'Unlimited guests',
     ],
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID || 'price_1SSRKqBw9m7IQubAK6MFOF1T',
   },
@@ -148,6 +148,14 @@ export const PLAN_DETAILS = {
 
 // Guest overflow pricing (per guest beyond plan limit)
 export const OVERFLOW_PRICE_PER_GUEST = 0.05;
+
+// Helper to format guest limit for display
+export function formatGuestLimit(limit: number): string {
+  if (limit === Infinity || limit >= 999999) {
+    return 'Unlimited';
+  }
+  return limit.toLocaleString();
+}
 
 // Helper to create a checkout session
 export const createCheckoutSession = async ({

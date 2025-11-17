@@ -68,22 +68,56 @@ export async function POST(request: NextRequest) {
           userId = sessionData[0].user_id;
           console.log('Creating event for authenticated user:', userId);
           
-          // Fetch user subscription tier and events count
+          // Fetch user subscription tier and subscription period
           const { data: userData, error: userError } = await supabase
             .from('admin_users')
-            .select('subscription_tier, events_created_count')
+            .select('subscription_tier, subscription_period_start, subscription_period_end')
             .eq('id', userId)
             .single();
             
           if (!userError && userData) {
             userTier = userData.subscription_tier || 'free';
-            eventsCreated = userData.events_created_count || 0;
-            console.log(`User tier: ${userTier}, Events created: ${eventsCreated}`);
+            
+            // For free tier: count total events (lifetime limit)
+            // For paid tiers: count events created in current billing period (monthly reset)
+            if (userTier === 'free') {
+              // Count total events for free tier
+              const { count: totalEvents } = await supabase
+                .from('events')
+                .select('id', { count: 'exact', head: true })
+                .eq('created_by_admin_id', userId)
+                .eq('archived', false);
+              
+              eventsCreated = totalEvents || 0;
+            } else {
+              // For paid tiers, count events created in current billing period
+              // Use subscription_period_start if available, otherwise use start of current month
+              let periodStart: Date;
+              if (userData.subscription_period_start) {
+                periodStart = new Date(userData.subscription_period_start);
+              } else {
+                // Fallback to start of current month
+                const now = new Date();
+                periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+              }
+              
+              const { count: periodEvents } = await supabase
+                .from('events')
+                .select('id', { count: 'exact', head: true })
+                .eq('created_by_admin_id', userId)
+                .eq('archived', false)
+                .gte('created_at', periodStart.toISOString());
+              
+              eventsCreated = periodEvents || 0;
+            }
+            
+            console.log(`User tier: ${userTier}, Events created this period: ${eventsCreated}`);
             
             // Check if user can create more events based on their plan
             if (!canCreateEvent(eventsCreated, userTier)) {
+              const periodText = userTier === 'free' ? 'total' : 'this month';
               return NextResponse.json({ 
-                error: `You've reached the maximum number of events allowed in your ${userTier} plan. Please upgrade to create more events.`,
+                error: `You've reached the maximum number of events allowed in your ${userTier} plan (${periodText}). Please upgrade to create more events.`,
                 plan_limits: getPlanLimits(userTier)
               }, { status: 403 });
             }
@@ -96,6 +130,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Create a base event object with required fields
+    const now = new Date().toISOString();
     const eventData: any = {
       title: body.title,
       allow_plus_guests: body.allow_plus_guests,
@@ -104,7 +139,9 @@ export async function POST(request: NextRequest) {
       company_name: body.company_name ?? null,
       company_logo_url: body.company_logo_url ?? null,
       open_invite: body.open_invite ?? true,
-      auth_mode: body.auth_mode || 'open'
+      auth_mode: body.auth_mode || 'open',
+      archived: false, // New events are never archived
+      original_created_at: now // Track original creation date to prevent gaming
     };
     
     // Only add optional fields if they exist in the schema

@@ -31,8 +31,8 @@ export default function Footer({ showDonate = false }: FooterProps) {
           <Link href="/#pricing" className="text-sm text-white/70 hover:text-white transition-colors">
             Pricing
           </Link>
-          <Link href="/about" className="text-sm text-white/70 hover:text-white transition-colors">
-            About
+          <Link href="/contact" className="text-sm text-white/70 hover:text-white transition-colors">
+            Contact
           </Link>
           <Link href="/support" className="text-sm text-white/70 hover:text-white transition-colors">
             Support

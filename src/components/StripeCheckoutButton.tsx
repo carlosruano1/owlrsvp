@@ -19,6 +19,16 @@ export default function StripeCheckoutButton({
   const [isProcessing, setIsProcessing] = useState(false)
 
   const handleCheckout = async () => {
+    // Validate priceId
+    if (!priceId || priceId.trim() === '') {
+      const error = new Error('Invalid plan configuration. Please contact support.')
+      if (onError) {
+        onError(error)
+      } else {
+        alert(error.message)
+      }
+      return
+    }
     try {
       setIsProcessing(true)
 
@@ -35,16 +45,25 @@ export default function StripeCheckoutButton({
         }),
       })
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: { message: 'Failed to create checkout session' } }))
+        throw new Error(errorData.error?.message || `Server error: ${response.status}`)
+      }
+
       const { sessionId, error } = await response.json()
 
       if (error) {
         throw new Error(error.message || 'Failed to create checkout session')
       }
 
+      if (!sessionId) {
+        throw new Error('No session ID returned from server')
+      }
+
       // Redirect to Stripe Checkout
       const stripe = await getStripe()
       if (!stripe) {
-        throw new Error('Failed to load Stripe')
+        throw new Error('Failed to load Stripe. Please check your Stripe configuration.')
       }
 
       const { error: stripeError } = await stripe.redirectToCheckout({ sessionId })
@@ -54,7 +73,13 @@ export default function StripeCheckoutButton({
       }
     } catch (err) {
       console.error('Stripe checkout error:', err)
-      // Silently handle errors - don't show to user
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
+      if (onError) {
+        onError(new Error(errorMessage))
+      } else {
+        // Fallback: show alert if no error handler provided
+        alert(`Checkout error: ${errorMessage}`)
+      }
     } finally {
       setIsProcessing(false)
     }

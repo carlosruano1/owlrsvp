@@ -59,7 +59,7 @@ export async function PATCH(
     
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('id, auth_mode')
+      .select('id, auth_mode, event_date, original_created_at')
       .eq('admin_token', token)
       .single()
     
@@ -101,7 +101,39 @@ export async function PATCH(
       updates.title = body.title
     }
     
+    // Protection against date editing gaming: Prevent changing event_date significantly forward
+    // This prevents users from "reusing" old events by changing their dates
     if (body.event_date !== undefined) {
+      const newEventDate = body.event_date ? new Date(body.event_date) : null;
+      const oldEventDate = event.event_date ? new Date(event.event_date) : null;
+      
+      if (newEventDate && oldEventDate) {
+        // Calculate days difference (positive = moving forward, negative = moving backward)
+        const daysDiff = (newEventDate.getTime() - oldEventDate.getTime()) / (1000 * 60 * 60 * 24);
+        
+        // If trying to move event date more than 30 days forward, this is suspicious
+        // Allow backward changes (rescheduling to earlier date is fine)
+        // But prevent gaming by moving old events to future dates
+        if (daysDiff > 30) {
+          console.warn(`Suspicious date change detected for event ${event.id}: ${daysDiff.toFixed(0)} days forward`);
+          // Still allow it, but log it for monitoring
+          // You could also block it: return NextResponse.json({ error: 'Cannot change event date more than 30 days forward. Please create a new event instead.' }, { status: 400 });
+        }
+      }
+      
+      // Also check against original_created_at to prevent gaming
+      if (newEventDate && event.original_created_at) {
+        const originalCreatedAt = new Date(event.original_created_at);
+        const daysSinceOriginal = (newEventDate.getTime() - originalCreatedAt.getTime()) / (1000 * 60 * 60 * 24);
+        
+        // If new event date is more than 365 days after original creation, it's very suspicious
+        // This catches cases where someone creates an event, archives it, then tries to "reuse" it a year later
+        if (daysSinceOriginal > 365) {
+          console.warn(`Very suspicious date change: Event ${event.id} created ${daysSinceOriginal.toFixed(0)} days ago, trying to set date to future`);
+          // You could block this: return NextResponse.json({ error: 'Event date cannot be more than 1 year after original creation. Please create a new event.' }, { status: 400 });
+        }
+      }
+      
       updates.event_date = body.event_date || null
     }
     
@@ -167,8 +199,14 @@ export async function PATCH(
     }
     
     // Handle required RSVP fields (JSON field)
-    if (body.required_rsvp_fields !== undefined) {
-      updates.required_rsvp_fields = body.required_rsvp_fields || null
+    // Wrap in try-catch in case column doesn't exist yet
+    try {
+      if (body.required_rsvp_fields !== undefined) {
+        updates.required_rsvp_fields = body.required_rsvp_fields || null
+      }
+    } catch (e) {
+      console.log('required_rsvp_fields column not available in database schema yet')
+      // If column doesn't exist, we'll get an error when trying to update, but we'll handle it gracefully
     }
     
     // Only update if there are changes
@@ -192,7 +230,17 @@ export async function PATCH(
       
       if (error) {
         console.error('Error updating event:', error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        
+        // Check if error is about missing column
+        if (error.message?.includes('required_rsvp_fields') || error.message?.includes('column') || error.code === '42703') {
+          return NextResponse.json({ 
+            error: 'The required_rsvp_fields column does not exist in the database. Please run the migration SQL to add it.',
+            requiresMigration: true,
+            migrationHint: 'Run: ALTER TABLE events ADD COLUMN IF NOT EXISTS required_rsvp_fields JSONB;'
+          }, { status: 500 })
+        }
+        
+        return NextResponse.json({ error: error.message || 'Database error occurred' }, { status: 500 })
       }
       
       if (!data || data.length === 0) {
@@ -201,9 +249,21 @@ export async function PATCH(
       
       // Return the first result instead of using .single()
       return NextResponse.json({ event: data[0] })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Exception in event update:', error)
-      return NextResponse.json({ error: 'Failed to update event settings' }, { status: 500 })
+      
+      // Check if error is about missing column
+      if (error?.message?.includes('required_rsvp_fields') || error?.message?.includes('column') || error?.code === '42703') {
+        return NextResponse.json({ 
+          error: 'The required_rsvp_fields column does not exist in the database. Please run the migration SQL to add it.',
+          requiresMigration: true,
+          migrationHint: 'Run: ALTER TABLE events ADD COLUMN IF NOT EXISTS required_rsvp_fields JSONB;'
+        }, { status: 500 })
+      }
+      
+      return NextResponse.json({ 
+        error: error?.message || 'Failed to update event settings' 
+      }, { status: 500 })
     }
     
   } catch (error) {

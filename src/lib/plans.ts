@@ -41,7 +41,7 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
   },
   enterprise: {
     maxEvents: 999999, // Effectively unlimited
-    maxAttendeesPerEvent: 5000,
+    maxAttendeesPerEvent: Infinity, // Unlimited
     maxTotalAttendees: undefined, // No total limit
     allowsMultipleEvents: true,
     allowsCustomBranding: true,
@@ -98,6 +98,6 @@ export function getLimitMessage(subscriptionTier: string = 'free'): string {
   } else if (subscriptionTier === 'pro') {
     return `Pro plan: Up to ${limits.maxEvents} events with ${limits.maxAttendeesPerEvent} attendees each. $0.05 per guest over limit.`;
   } else {
-    return `Enterprise plan: Unlimited events with ${limits.maxAttendeesPerEvent} attendees each. $0.05 per guest over limit.`;
+    return `Enterprise plan: Unlimited events with unlimited attendees each.`;
   }
 }

@@ -220,6 +220,201 @@ export async function GET(request: NextRequest) {
       message: `Most responses come in around ${mostActiveHour}:00. Consider sending reminders at this time.`
     });
 
+    // ===== TRENDS DATA: Fetch previous events for comparison =====
+    let trendsData = null;
+    try {
+      // Get all events by this user (excluding current event)
+      // First try by created_by_admin_id, then by event_access
+      let userEvents = null;
+      let eventsError = null;
+      
+      // Try to get events by created_by_admin_id
+      const { data: ownedEvents, error: ownedError } = await supabase
+        .from('events')
+        .select('id, title, created_at, event_date')
+        .eq('created_by_admin_id', userId)
+        .neq('id', eventId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (!ownedError && ownedEvents) {
+        userEvents = ownedEvents;
+      } else {
+        // Try to get events through event_access
+        const { data: accessRecords, error: accessError } = await supabase
+          .from('event_access')
+          .select('event_id')
+          .eq('admin_user_id', userId);
+
+        if (!accessError && accessRecords && accessRecords.length > 0) {
+          const eventIds = accessRecords.map(r => r.event_id).filter(id => id !== eventId);
+          if (eventIds.length > 0) {
+            const { data: accessEvents, error: accessEventsError } = await supabase
+              .from('events')
+              .select('id, title, created_at, event_date')
+              .in('id', eventIds)
+              .order('created_at', { ascending: false })
+              .limit(10);
+            
+            if (!accessEventsError && accessEvents) {
+              userEvents = accessEvents;
+            } else {
+              eventsError = accessEventsError;
+            }
+          }
+        } else {
+          eventsError = accessError;
+        }
+      }
+
+      if (!eventsError && userEvents && userEvents.length > 0) {
+        // Get attendees for each previous event
+        const eventIds = userEvents.map(e => e.id);
+        const { data: allAttendees, error: allAttendeesError } = await supabase
+          .from('attendees')
+          .select('event_id, attending, guest_count, created_at, updated_at')
+          .in('event_id', eventIds);
+
+        if (!allAttendeesError && allAttendees) {
+          // Calculate stats for each previous event
+          const previousEventsStats = userEvents.map(prevEvent => {
+            const prevAttendees = allAttendees.filter(a => a.event_id === prevEvent.id);
+            const prevTotalInvited = prevAttendees.length;
+            const prevTotalAttending = prevAttendees.filter(a => a.attending).length;
+            const prevTotalGuests = prevAttendees.reduce((sum, a) => sum + (a.attending ? a.guest_count : 0), 0);
+            const prevTotalAttendance = prevTotalAttending + prevTotalGuests;
+            const prevResponseRate = prevTotalInvited > 0 
+              ? ((prevAttendees.filter(a => a.attending || !a.attending).length) / prevTotalInvited) * 100 
+              : 0;
+
+            // Calculate average response time (days before event)
+            let prevAvgResponseTime = null;
+            if (prevEvent.event_date) {
+              const prevEventDate = new Date(prevEvent.event_date);
+              const prevResponseTimes = prevAttendees
+                .map(a => {
+                  const responseDate = new Date(a.updated_at);
+                  return Math.floor((prevEventDate.getTime() - responseDate.getTime()) / (1000 * 60 * 60 * 24));
+                })
+                .filter(t => t >= 0); // Only count responses before event
+              
+              if (prevResponseTimes.length > 0) {
+                const sum = prevResponseTimes.reduce((a, b) => a + b, 0);
+                prevAvgResponseTime = Math.round(sum / prevResponseTimes.length);
+              }
+            }
+
+            return {
+              eventId: prevEvent.id,
+              title: prevEvent.title,
+              created_at: prevEvent.created_at,
+              event_date: prevEvent.event_date || null,
+              totalInvited: prevTotalInvited,
+              totalAttending: prevTotalAttending,
+              totalGuests: prevTotalGuests,
+              totalAttendance: prevTotalAttendance,
+              responseRate: prevResponseRate,
+              avgResponseTime: prevAvgResponseTime
+            };
+          });
+
+          // Calculate growth metrics
+          const currentTotalAttendance = totalAttending + totalGuests;
+          const previousEventsAvgAttendance = previousEventsStats.length > 0
+            ? previousEventsStats.reduce((sum, e) => sum + e.totalAttendance, 0) / previousEventsStats.length
+            : 0;
+          
+          const attendanceGrowth = previousEventsAvgAttendance > 0
+            ? ((currentTotalAttendance - previousEventsAvgAttendance) / previousEventsAvgAttendance) * 100
+            : 0;
+
+          const previousEventsAvgResponseRate = previousEventsStats.length > 0
+            ? previousEventsStats.reduce((sum, e) => sum + e.responseRate, 0) / previousEventsStats.length
+            : 0;
+
+          const responseRateGrowth = previousEventsAvgResponseRate > 0
+            ? ((responseRate - previousEventsAvgResponseRate) / previousEventsAvgResponseRate) * 100
+            : 0;
+
+          // Calculate response velocity (responses per day since event creation)
+          const eventCreatedAt = new Date(event.created_at);
+          const now = new Date();
+          const daysSinceCreation = Math.max(1, Math.floor((now.getTime() - eventCreatedAt.getTime()) / (1000 * 60 * 60 * 24)));
+          const currentResponseVelocity = totalInvited > 0 ? (totalInvited / daysSinceCreation) : 0;
+
+          // Calculate velocity for previous events
+          const previousEventsVelocity = previousEventsStats.map(prevEvent => {
+            const prevCreatedAt = new Date(prevEvent.created_at);
+            const prevDaysSinceCreation = Math.max(1, Math.floor((now.getTime() - prevCreatedAt.getTime()) / (1000 * 60 * 60 * 24)));
+            return prevEvent.totalInvited > 0 ? (prevEvent.totalInvited / prevDaysSinceCreation) : 0;
+          });
+
+          const avgPreviousVelocity = previousEventsVelocity.length > 0
+            ? previousEventsVelocity.reduce((sum, v) => sum + v, 0) / previousEventsVelocity.length
+            : 0;
+
+          const velocityGrowth = avgPreviousVelocity > 0
+            ? ((currentResponseVelocity - avgPreviousVelocity) / avgPreviousVelocity) * 100
+            : 0;
+
+          // Build trends data
+          // Include all previous events (not just top 5) for comparison dropdown
+          trendsData = {
+            previousEvents: previousEventsStats.slice(0, 5).map(e => ({
+              eventId: e.eventId,
+              title: e.title,
+              totalAttendance: e.totalAttendance,
+              responseRate: e.responseRate,
+              totalInvited: e.totalInvited,
+              created_at: e.created_at
+            })),
+            // Full list of previous events for comparison dropdown
+            allPreviousEvents: previousEventsStats.map(e => ({
+              eventId: e.eventId,
+              title: e.title,
+              event_date: e.event_date,
+              created_at: e.created_at,
+              totalAttendance: e.totalAttendance,
+              responseRate: e.responseRate
+            })),
+            growth: {
+              attendanceGrowth: attendanceGrowth.toFixed(1),
+              responseRateGrowth: responseRateGrowth.toFixed(1),
+              velocityGrowth: velocityGrowth.toFixed(1),
+              currentAttendance: currentTotalAttendance,
+              avgPreviousAttendance: Math.round(previousEventsAvgAttendance),
+              currentResponseRate: responseRate,
+              avgPreviousResponseRate: previousEventsAvgResponseRate.toFixed(1),
+              currentVelocity: currentResponseVelocity.toFixed(1),
+              avgPreviousVelocity: avgPreviousVelocity.toFixed(1)
+            },
+            historicalData: previousEventsStats.map(e => ({
+              date: e.created_at,
+              attendance: e.totalAttendance,
+              responseRate: e.responseRate,
+              title: e.title
+            })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          };
+
+          // Add growth insights
+          if (attendanceGrowth > 20) {
+            insights.push({
+              type: 'success',
+              message: `🎉 Amazing! Your attendance is ${attendanceGrowth.toFixed(0)}% higher than your average. Keep it up!`
+            });
+          } else if (attendanceGrowth < -10) {
+            insights.push({
+              type: 'warning',
+              message: `Your attendance is ${Math.abs(attendanceGrowth).toFixed(0)}% below your average. Consider sending more reminders.`
+            });
+          }
+        }
+      }
+    } catch (trendsError) {
+      console.error('Error calculating trends:', trendsError);
+      // Don't fail the whole request if trends fail
+    }
+
     // Return analytics data
     return NextResponse.json({
       eventId,
@@ -241,6 +436,7 @@ export async function GET(request: NextRequest) {
         predictedAttendance,
         averageResponseTime
       },
+      trends: trendsData,
       insights
     });
 

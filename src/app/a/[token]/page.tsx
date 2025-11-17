@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams } from 'next/navigation'
 import { Event, Attendee } from '@/lib/types'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import QRCode from 'qrcode'
 import Footer from '@/components/Footer'
 import Image from 'next/image'
@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { ThemeProvider, useTheme } from '@/components/ThemeProvider'
 import ThemeColorPicker from '@/components/ThemeColorPicker'
 import PdfUploader from '@/components/PdfUploader'
+import { copyImageUsingSelection, supportsClipboardImageCopy } from '@/lib/clipboard'
 
 interface AdminData {
   event: Event
@@ -191,6 +192,8 @@ function AdminDashboardContent() {
   const copyQrToClipboard = async () => {
     try {
       if (!qrCodeUrl) return
+      let copyCompleted = false
+      const clipboardSupported = supportsClipboardImageCopy()
       
       // Helper function to convert image URL to blob via canvas
       // This ensures proper image format and handles both data URLs and regular URLs
@@ -239,69 +242,59 @@ function AdminDashboardContent() {
         })
       }
       
-      // Method 1: Use ClipboardItem API (works on iOS 13.4+ and modern browsers)
-      try {
-        const blob = await imageUrlToBlob(qrCodeUrl)
-        
-        // Check if ClipboardItem is available (iOS 13.4+ supports this)
-        // @ts-ignore: ClipboardItem may not be in TypeScript types
-        if (typeof ClipboardItem !== 'undefined') {
-          // @ts-ignore: ClipboardItem is available in browsers
-          const clipboardItem = new ClipboardItem({ 
-            'image/png': blob 
-          })
+      if (clipboardSupported) {
+        // Method 1: Use ClipboardItem API (works on modern browsers)
+        try {
+          const blob = await imageUrlToBlob(qrCodeUrl)
+          // @ts-ignore ClipboardItem is available in supported browsers
+          const clipboardItem = new ClipboardItem({ 'image/png': blob })
           
-          // Ensure clipboard.write is available
           if (navigator.clipboard && navigator.clipboard.write) {
             await navigator.clipboard.write([clipboardItem])
-            setCopyQrSuccess(true)
-            setTimeout(() => setCopyQrSuccess(false), 2000)
-            return
+            copyCompleted = true
+          }
+        } catch (clipboardError) {
+          console.log('ClipboardItem API failed, trying alternative fetch:', clipboardError)
+        }
+        
+        // Method 2: Alternative approach - fetch and use blob directly
+        // Sometimes this works better on iOS
+        if (!copyCompleted) {
+          try {
+            const response = await fetch(qrCodeUrl)
+            if (!response.ok) throw new Error('Failed to fetch image')
+            let blob = await response.blob()
+            
+            // Ensure it's a PNG blob
+            if (!blob.type || !blob.type.startsWith('image/')) {
+              blob = await imageUrlToBlob(qrCodeUrl)
+            }
+            
+            // @ts-ignore ClipboardItem is available in supported browsers
+            const clipboardItem = new ClipboardItem({ 'image/png': blob })
+            await navigator.clipboard?.write?.([clipboardItem])
+            copyCompleted = true
+          } catch (altError) {
+            console.log('Alternative ClipboardItem method failed:', altError)
           }
         }
-      } catch (clipboardError) {
-        // ClipboardItem API failed, try alternative method
-        console.log('ClipboardItem API failed, trying alternative:', clipboardError)
       }
-      
-      // Method 2: Alternative approach - fetch and use blob directly
-      // Sometimes this works better on iOS
-      try {
-        let blob: Blob
-        
-        if (qrCodeUrl.startsWith('data:')) {
-          // For data URLs, convert via canvas (already handled above, but try direct fetch)
-          const response = await fetch(qrCodeUrl)
-          blob = await response.blob()
-        } else {
-          // For regular URLs, fetch directly
-          const response = await fetch(qrCodeUrl)
-          if (!response.ok) throw new Error('Failed to fetch image')
-          blob = await response.blob()
+
+      if (!copyCompleted) {
+        try {
+          await copyImageUsingSelection(qrCodeUrl)
+          copyCompleted = true
+        } catch (legacyError) {
+          console.error('Legacy selection copy failed:', legacyError)
         }
-        
-        // Ensure it's a PNG blob
-        if (!blob.type || !blob.type.startsWith('image/')) {
-          // Convert to proper image blob via canvas
-          blob = await imageUrlToBlob(qrCodeUrl)
-        }
-        
-        // Try ClipboardItem again with the fetched blob
-        // @ts-ignore: ClipboardItem may not be in TypeScript types
-        if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
-          // @ts-ignore: ClipboardItem is available in browsers
-          const clipboardItem = new ClipboardItem({ 
-            'image/png': blob 
-          })
-          await navigator.clipboard.write([clipboardItem])
-          setCopyQrSuccess(true)
-          setTimeout(() => setCopyQrSuccess(false), 2000)
-          return
-        }
-      } catch (altError) {
-        console.log('Alternative method failed:', altError)
       }
-      
+
+      if (copyCompleted) {
+        setCopyQrSuccess(true)
+        setTimeout(() => setCopyQrSuccess(false), 2000)
+        return
+      }
+
       // If all methods fail, show helpful message
       alert('Copy failed on this device. Please use the download button instead.')
       console.error('All copy methods failed')
@@ -357,40 +350,233 @@ function AdminDashboardContent() {
     window.open(`/api/admin/${adminToken}/csv`, '_blank')
   }
 
-  const downloadTemplate = () => {
-    const wsData = [[
-      'first_name','last_name','email','phone','address','attending'
-    ]]
-    const ws = XLSX.utils.aoa_to_sheet(wsData)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Template')
-    XLSX.writeFile(wb, 'owlrsvp_guest_template.xlsx')
+  const downloadTemplate = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('Template')
+      
+      // Add header row
+      worksheet.addRow(['first_name', 'last_name', 'email', 'phone', 'address', 'attending'])
+      
+      // Style header row
+      worksheet.getRow(1).font = { bold: true }
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE0E0E0' }
+      }
+      
+      // Auto-size columns
+      worksheet.columns.forEach(column => {
+        column.width = 15
+      })
+      
+      // Generate file
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'owlrsvp_guest_template.xlsx'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading template:', error)
+      alert('Failed to download template. Please try again.')
+    }
   }
 
   const importXlsx = async (file: File) => {
-    const buf = await file.arrayBuffer()
-    const wb = XLSX.read(buf)
-    const sheet = wb.Sheets[wb.SheetNames[0]]
-    const rows: Record<string, string | number>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' })
-    // Normalize and import
-    for (const row of rows) {
-      const payload: Partial<Attendee> = {
-        first_name: String(row.first_name || row.First || row['First Name'] || '').trim(),
-        last_name: String(row.last_name || row.Last || row['Last Name'] || '').trim(),
-        email: String(row.email || row.Email || '').trim() || undefined,
-        phone: String(row.phone || row.Phone || '').trim() || undefined,
-        address: String(row.address || row.Address || '').trim() || undefined,
-        attending: String(row.attending || row.Attending || '').toLowerCase().startsWith('y') ? true : false,
-        guest_count: 0
+    try {
+      // Validation: File size limit (5MB)
+      const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+      if (file.size > MAX_FILE_SIZE) {
+        alert('File too large. Maximum size is 5MB.')
+        return
       }
-      if (!payload.first_name || !payload.last_name) continue
-      const res = await fetch(`/api/admin/${adminToken}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      if (res.ok) {
-        const json = await res.json()
-        setData(d => d ? ({ ...d, attendees: [json.attendee, ...d.attendees] }) : d)
+
+      // Validation: File type
+      const validTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+        'application/vnd.ms-excel', // .xls
+        'application/octet-stream' // Some browsers don't set MIME type correctly
+      ]
+      const validExtensions = ['.xlsx', '.xls']
+      const fileName = file.name.toLowerCase()
+      const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext))
+      
+      if (!validTypes.includes(file.type) && !hasValidExtension) {
+        alert('Invalid file type. Please upload an Excel file (.xlsx or .xls).')
+        return
       }
+
+      // Read file
+      const buffer = await file.arrayBuffer()
+      const workbook = new ExcelJS.Workbook()
+      
+      // Parse with timeout protection (10 seconds)
+      const parsePromise = workbook.xlsx.load(buffer)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('File parsing timeout')), 10000)
+      )
+      
+      await Promise.race([parsePromise, timeoutPromise])
+
+      // Validation: Check if workbook has sheets
+      if (workbook.worksheets.length === 0) {
+        alert('Excel file is empty or invalid.')
+        return
+      }
+
+      // Get first sheet
+      const worksheet = workbook.worksheets[0]
+
+      // Validation: Row limit (10,000 rows max)
+      const MAX_ROWS = 10000
+      if (worksheet.rowCount > MAX_ROWS) {
+        alert(`File has too many rows (${worksheet.rowCount}). Maximum is ${MAX_ROWS} rows.`)
+        return
+      }
+
+      // Validation: Column limit (50 columns max)
+      const MAX_COLUMNS = 50
+      if (worksheet.columnCount > MAX_COLUMNS) {
+        alert(`File has too many columns (${worksheet.columnCount}). Maximum is ${MAX_COLUMNS} columns.`)
+        return
+      }
+
+      // Process rows
+      let importedCount = 0
+      let skippedCount = 0
+      const errors: string[] = []
+
+      // Get header row (first row) and create header map
+      const headerRow = worksheet.getRow(1)
+      const headerMap: Record<number, string> = {} // Maps column number to header name (lowercase)
+      headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+        const headerValue = String(cell.value || '').trim().toLowerCase()
+        headerMap[colNumber] = headerValue
+      })
+
+      // Process data rows (skip header)
+      for (let rowNum = 2; rowNum <= worksheet.rowCount; rowNum++) {
+        const row = worksheet.getRow(rowNum)
+        
+        // Skip completely empty rows
+        if (row.cellCount === 0) continue
+
+        // Extract row data with sanitization - key by column number
+        const rowData: Record<number, string> = {}
+        row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+          let value = String(cell.value || '').trim()
+          
+          // Sanitize: Remove control characters and limit length
+          value = value.replace(/[\x00-\x1F\x7F]/g, '') // Remove control chars
+          value = value.substring(0, 500) // Limit field length
+          
+          rowData[colNumber] = value
+        })
+
+        // Normalize field names (case-insensitive matching)
+        const getFieldValue = (fieldNames: string[]): string => {
+          for (const fieldName of fieldNames) {
+            const lowerFieldName = fieldName.toLowerCase()
+            // Find column number that matches this header name
+            for (const [colNum, header] of Object.entries(headerMap)) {
+              const colNumber = parseInt(colNum)
+              if (header && header.toLowerCase() === lowerFieldName) {
+                return rowData[colNumber] || ''
+              }
+            }
+          }
+          return ''
+        }
+
+        // Build payload with sanitization
+        const firstName = getFieldValue(['first_name', 'first name', 'firstname', 'first', 'fname']).trim()
+        const lastName = getFieldValue(['last_name', 'last name', 'lastname', 'last', 'lname']).trim()
+
+        // Validation: Require first and last name
+        if (!firstName || !lastName) {
+          skippedCount++
+          continue
+        }
+
+        // Sanitize email
+        let email = getFieldValue(['email', 'e-mail', 'email address', 'e_mail']).trim().toLowerCase()
+        
+        // Basic email validation
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          email = '' // Invalid email, set to empty
+        }
+
+        // Sanitize phone (remove non-digit characters except +, -, (, ))
+        let phone = getFieldValue(['phone', 'phone number', 'telephone', 'tel', 'mobile']).trim()
+        phone = phone.replace(/[^\d+()-]/g, '').substring(0, 20)
+
+        // Sanitize address
+        const address = getFieldValue(['address', 'street', 'street address']).trim().substring(0, 200)
+
+        // Parse attending status
+        const attendingStr = getFieldValue(['attending', 'rsvp', 'will attend', 'coming', 'yes/no']).toLowerCase()
+        const attending = attendingStr.startsWith('y') || attendingStr === 'yes' || attendingStr === 'true' || attendingStr === '1'
+
+        const payload: Partial<Attendee> = {
+          first_name: firstName,
+          last_name: lastName,
+          email: email || undefined,
+          phone: phone || undefined,
+          address: address || undefined,
+          attending: attending,
+          guest_count: 0
+        }
+
+        // Import attendee
+        try {
+          const res = await fetch(`/api/admin/${adminToken}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          
+          if (res.ok) {
+            const json = await res.json()
+            setData(d => d ? ({ ...d, attendees: [json.attendee, ...d.attendees] }) : d)
+            importedCount++
+          } else {
+            const errorText = await res.text()
+            errors.push(`Row ${rowNum}: ${errorText.substring(0, 50)}`)
+            skippedCount++
+          }
+        } catch (err) {
+          errors.push(`Row ${rowNum}: ${err instanceof Error ? err.message : 'Unknown error'}`)
+          skippedCount++
+        }
+
+        // Rate limiting: Add small delay every 10 rows to prevent overwhelming the server
+        if (rowNum % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+        }
+      }
+
+      // Show results
+      let message = `Import complete: ${importedCount} attendees imported.`
+      if (skippedCount > 0) {
+        message += ` ${skippedCount} rows skipped.`
+      }
+      if (errors.length > 0 && errors.length <= 5) {
+        message += `\n\nErrors:\n${errors.join('\n')}`
+      } else if (errors.length > 5) {
+        message += `\n\n${errors.length} errors occurred. Check console for details.`
+        console.error('Import errors:', errors)
+      }
+      alert(message)
+    } catch (error) {
+      console.error('Error importing Excel file:', error)
+      alert(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}. Please check the file format and try again.`)
     }
-    alert('Import complete')
   }
 
   const startEdit = (attendee: Attendee) => {
@@ -474,6 +660,14 @@ function AdminDashboardContent() {
       
       // First check if the event exists
       const checkResponse = await fetch(`/api/admin/${adminToken}/event`)
+      
+      // Check if response is JSON before parsing
+      const contentType = checkResponse.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await checkResponse.text()
+        throw new Error(`Server returned non-JSON response: ${checkResponse.status} ${checkResponse.statusText}`)
+      }
+      
       const checkResult = await checkResponse.json()
       
       if (!checkResponse.ok) {
@@ -490,10 +684,25 @@ function AdminDashboardContent() {
         body: JSON.stringify(settings)
       })
       
+      // Check if response is JSON before parsing
+      const responseContentType = response.headers.get('content-type')
+      if (!responseContentType || !responseContentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response received:', text.substring(0, 200))
+        throw new Error(`Server returned non-JSON response: ${response.status} ${response.statusText}. This usually means the API endpoint doesn't exist or there's a server error.`)
+      }
+      
       const result = await response.json()
       console.log('Update response:', response.status, result)
       
       if (!response.ok) {
+        // Check if migration is needed
+        if (result.requiresMigration) {
+          const migrationMessage = result.migrationHint 
+            ? `${result.error}\n\nSQL to run:\n${result.migrationHint}`
+            : result.error
+          throw new Error(migrationMessage)
+        }
         throw new Error(result.error || 'Failed to update event settings')
       }
       
@@ -518,7 +727,8 @@ function AdminDashboardContent() {
       }, 500)
     } catch (error) {
       console.error('Error updating settings:', error)
-      alert(error instanceof Error ? error.message : 'Failed to update event settings')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update event settings'
+      alert(errorMessage)
     } finally {
       setSettingsSaving(false)
     }
@@ -2165,6 +2375,12 @@ function AdminDashboardContent() {
                       <tr className="border-b border-white/20">
                         <th className="text-left py-3 px-4 font-medium text-white/80">Name</th>
                         <th className="text-left py-3 px-4 font-medium text-white/80">Email</th>
+                        {data?.event?.required_rsvp_fields?.phone && (
+                          <th className="text-left py-3 px-4 font-medium text-white/80">Phone</th>
+                        )}
+                        {data?.event?.required_rsvp_fields?.address && (
+                          <th className="text-left py-3 px-4 font-medium text-white/80">Address</th>
+                        )}
                         <th className="text-left py-3 px-4 font-medium text-white/80">Status</th>
                         <th className="text-center py-3 px-4 font-medium text-white/80">Guests</th>
                         <th className="text-center py-3 px-4 font-medium text-white/80">Actions</th>
@@ -2206,6 +2422,28 @@ function AdminDashboardContent() {
                             placeholder="Email"
                           />
                         </td>
+                        {data?.event?.required_rsvp_fields?.phone && (
+                          <td className="py-3 px-4" data-label="Phone">
+                            <input
+                              type="tel"
+                              value={editForm.phone || ''}
+                              onChange={(e) => updateEditForm('phone', e.target.value)}
+                              className="modern-input w-full px-3 py-2"
+                              placeholder="Phone"
+                            />
+                          </td>
+                        )}
+                        {data?.event?.required_rsvp_fields?.address && (
+                          <td className="py-3 px-4" data-label="Address">
+                            <input
+                              type="text"
+                              value={editForm.address || ''}
+                              onChange={(e) => updateEditForm('address', e.target.value)}
+                              className="modern-input w-full px-3 py-2"
+                              placeholder="Address"
+                            />
+                          </td>
+                        )}
                         <td className="py-3 px-4" data-label="Status">
                           <select
                             value={editForm.attending ? 'yes' : 'no'}
@@ -2252,6 +2490,16 @@ function AdminDashboardContent() {
                         <td className="py-3 px-4 text-white/70" data-label="Email">
                           {attendee.email || '-'}
                         </td>
+                        {data?.event?.required_rsvp_fields?.phone && (
+                          <td className="py-3 px-4 text-white/70" data-label="Phone">
+                            {attendee.phone || '-'}
+                          </td>
+                        )}
+                        {data?.event?.required_rsvp_fields?.address && (
+                          <td className="py-3 px-4 text-white/70" data-label="Address">
+                            {attendee.address || '-'}
+                          </td>
+                        )}
                         <td className="py-3 px-4" data-label="Status">
                           <button
                             onClick={() => toggleAttendance(attendee)}
@@ -2351,6 +2599,24 @@ function AdminDashboardContent() {
                           className="modern-input w-full px-3 py-2 text-sm"
                           placeholder="Email"
                         />
+                        {data?.event?.required_rsvp_fields?.phone && (
+                          <input
+                            type="tel"
+                            value={editForm.phone || ''}
+                            onChange={(e) => updateEditForm('phone', e.target.value)}
+                            className="modern-input w-full px-3 py-2 text-sm"
+                            placeholder="Phone"
+                          />
+                        )}
+                        {data?.event?.required_rsvp_fields?.address && (
+                          <input
+                            type="text"
+                            value={editForm.address || ''}
+                            onChange={(e) => updateEditForm('address', e.target.value)}
+                            className="modern-input w-full px-3 py-2 text-sm"
+                            placeholder="Address"
+                          />
+                        )}
                         <select
                           value={editForm.attending ? 'yes' : 'no'}
                           onChange={(e) => updateEditForm('attending', e.target.value === 'yes')}
@@ -2417,8 +2683,11 @@ function AdminDashboardContent() {
                           {attendee.email && (
                             <p className="text-sm text-white/60 truncate mb-1">{attendee.email}</p>
                           )}
-                          {attendee.phone && (
-                            <p className="text-xs text-white/50 truncate">{attendee.phone}</p>
+                          {data?.event?.required_rsvp_fields?.phone && (
+                            <p className="text-sm text-white/60 truncate mb-1">{attendee.phone || '-'}</p>
+                          )}
+                          {data?.event?.required_rsvp_fields?.address && (
+                            <p className="text-xs text-white/50 truncate">{attendee.address || '-'}</p>
                           )}
                         </div>
                         <div className="flex gap-1 shrink-0">

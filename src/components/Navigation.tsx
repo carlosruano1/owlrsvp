@@ -9,8 +9,7 @@ import { useRouter } from 'next/navigation'
 const NAV_LINKS = [
   { href: '/#features', label: 'Features' },
   { href: '/#pricing', label: 'Pricing' },
-  { href: '/#how-it-works', label: 'How It Works' },
-  { href: '/about', label: 'About' }
+  { href: '/#how-it-works', label: 'How It Works' }
 ]
 
 interface User {

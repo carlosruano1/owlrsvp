@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
+import { PLANS, PLAN_DETAILS, formatGuestLimit } from '@/lib/stripe'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
 import StripeCheckoutButton from '@/components/StripeCheckoutButton'
@@ -12,6 +12,7 @@ function CheckoutContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // Get plan from URL params
   const planParam = searchParams?.get('plan')?.toLowerCase() || 'basic'
@@ -107,7 +108,7 @@ function CheckoutContent() {
                     <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    <span className="text-white/80">Up to {plan.guestLimit.toLocaleString()} guests per event</span>
+                    <span className="text-white/80">Up to {formatGuestLimit(plan.guestLimit)} guests per event</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -140,13 +141,48 @@ function CheckoutContent() {
                   </p>
                 </div>
                 
+                {/* Error Message */}
+                {error && (
+                  <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-red-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      <div className="flex-1">
+                        <p className="text-red-300 font-medium">Checkout Error</p>
+                        <p className="text-red-200 text-sm mt-1">{error}</p>
+                      </div>
+                      <button
+                        onClick={() => setError(null)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Stripe Checkout Button */}
                 <div className="mb-6">
-                  <StripeCheckoutButton
-                    priceId={plan.stripePriceId || ''}
-                    planName={plan.name}
-                    isLoading={isLoading}
-                  />
+                  {!plan.stripePriceId ? (
+                    <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
+                      <p className="text-yellow-300">
+                        This plan is not available for purchase. Please contact support.
+                      </p>
+                    </div>
+                  ) : (
+                    <StripeCheckoutButton
+                      priceId={plan.stripePriceId}
+                      planName={plan.name}
+                      isLoading={isLoading}
+                      onError={(err) => {
+                        setError(err.message)
+                        setIsLoading(false)
+                      }}
+                    />
+                  )}
                 </div>
               </>
             )}

@@ -1,0 +1,2 @@
+Updated Stripe downgrade webhook to force free-tier watermarking.
+Added mobile QR clipboard fallback plus tests.

@@ -9,6 +9,10 @@ import ResponseOverTime from '@/components/charts/ResponseOverTime'
 import ResponseStatus from '@/components/charts/ResponseStatus'
 import ResponseTimeHeatmap from '@/components/charts/ResponseTimeHeatmap'
 import GuestInsights from '@/components/charts/GuestInsights'
+import EventComparisonChart from '@/components/charts/EventComparisonChart'
+import GrowthTrendChart from '@/components/charts/GrowthTrendChart'
+import ResponseVelocityChart from '@/components/charts/ResponseVelocityChart'
+import EventComparisonDetail from '@/components/charts/EventComparisonDetail'
 
 interface EventAnalytics {
   eventId: string;
@@ -30,6 +34,41 @@ interface EventAnalytics {
     predictedAttendance: number;
     averageResponseTime: number | null;
   };
+  trends?: {
+    previousEvents: Array<{
+      eventId: string;
+      title: string;
+      totalAttendance: number;
+      responseRate: number;
+      totalInvited: number;
+      created_at: string;
+    }>;
+    allPreviousEvents?: Array<{
+      eventId: string;
+      title: string;
+      event_date: string | null;
+      created_at: string;
+      totalAttendance: number;
+      responseRate: number;
+    }>;
+    growth: {
+      attendanceGrowth: string;
+      responseRateGrowth: string;
+      velocityGrowth: string;
+      currentAttendance: number;
+      avgPreviousAttendance: number;
+      currentResponseRate: number;
+      avgPreviousResponseRate: string;
+      currentVelocity: string;
+      avgPreviousVelocity: string;
+    };
+    historicalData: Array<{
+      date: string;
+      attendance: number;
+      responseRate: number;
+      title: string;
+    }>;
+  } | null;
   insights: Array<{
     type: 'success' | 'warning' | 'info' | 'urgent';
     message: string;
@@ -42,6 +81,9 @@ export default function EventAnalyticsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [analytics, setAnalytics] = useState<EventAnalytics | null>(null)
+  const [compareEventId, setCompareEventId] = useState<string | null>(null)
+  const [compareData, setCompareData] = useState<any>(null)
+  const [loadingCompare, setLoadingCompare] = useState(false)
   
   const eventId = params.id as string
 
@@ -59,7 +101,9 @@ export default function EventAnalyticsPage() {
             // Check if it's an upgrade requirement
             const errorData = await response.json().catch(() => ({}))
             if (errorData.requiresUpgrade) {
-              router.push(errorData.upgradeUrl || '/?upgrade=true&reason=analytics#pricing')
+              // Don't redirect - show upgrade message on page instead
+              setError('Advanced analytics is only available on Pro and Enterprise plans. Please upgrade to access this feature.')
+              setLoading(false)
               return
             }
             router.push('/admin/login')
@@ -82,6 +126,30 @@ export default function EventAnalyticsPage() {
     }
   }, [eventId, router])
 
+  // Fetch comparison data when compareEventId changes
+  useEffect(() => {
+    const fetchCompareData = async () => {
+      if (!compareEventId || !analytics) return;
+
+      try {
+        setLoadingCompare(true)
+        const response = await fetch(`/api/admin/events/${compareEventId}/compare`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch comparison data')
+        }
+        const data = await response.json()
+        setCompareData(data)
+      } catch (err) {
+        console.error('Failed to fetch comparison:', err)
+        setCompareData(null)
+      } finally {
+        setLoadingCompare(false)
+      }
+    }
+
+    fetchCompareData()
+  }, [compareEventId, analytics])
+
   if (loading) {
     return (
       <div className="min-h-screen relative overflow-hidden">
@@ -95,19 +163,44 @@ export default function EventAnalyticsPage() {
   }
 
   if (error || !analytics) {
+    const isUpgradeRequired = error?.includes('Pro and Enterprise') || error?.includes('upgrade')
+    
     return (
       <div className="min-h-screen relative overflow-hidden">
         <div className="animated-bg" />
         <div className="spotlight" />
         <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6">
-          <div className="text-red-400 text-xl mb-4">Failed to load analytics</div>
-          <div className="text-white/70 mb-8">{error || 'Event not found'}</div>
-          <Link 
-            href="/admin/events"
-            className="px-6 py-3 bg-white text-black font-semibold rounded-xl hover:bg-white/90 transition-all"
-          >
-            Back to Events
-          </Link>
+          {isUpgradeRequired ? (
+            <>
+              <div className="text-yellow-400 text-xl mb-4">Advanced Analytics Unavailable</div>
+              <div className="text-white/70 mb-6 max-w-md text-center">{error}</div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link 
+                  href="/checkout?plan=pro"
+                  className="px-6 py-3 bg-yellow-500 text-black font-semibold rounded-xl hover:bg-yellow-400 transition-all"
+                >
+                  Upgrade to Pro ($29/mo)
+                </Link>
+                <Link 
+                  href="/admin/events"
+                  className="px-6 py-3 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition-all"
+                >
+                  Back to Events
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-red-400 text-xl mb-4">Failed to load analytics</div>
+              <div className="text-white/70 mb-8">{error || 'Event not found'}</div>
+              <Link 
+                href="/admin/events"
+                className="px-6 py-3 bg-white text-black font-semibold rounded-xl hover:bg-white/90 transition-all"
+              >
+                Back to Events
+              </Link>
+            </>
+          )}
         </div>
       </div>
     )
@@ -199,6 +292,17 @@ export default function EventAnalyticsPage() {
                 }
               >
                 Guest Insights
+              </Tab>
+              <Tab 
+                className={({ selected }) =>
+                  `w-full rounded-lg py-3 px-4 text-sm font-medium leading-5 transition-colors
+                  ${selected 
+                    ? 'bg-white/10 text-white shadow' 
+                    : 'text-white/60 hover:bg-white/5 hover:text-white'
+                  }`
+                }
+              >
+                Trends
               </Tab>
             </Tab.List>
             <Tab.Panels className="mt-6">
@@ -344,6 +448,189 @@ export default function EventAnalyticsPage() {
                   predictedAttendance={analytics.analytics.predictedAttendance}
                   insights={analytics.insights}
                 />
+              </Tab.Panel>
+              
+              {/* Trends Tab */}
+              <Tab.Panel className="rounded-xl glass-card p-4 md:p-6">
+                <h2 className="text-xl font-semibold text-white mb-6">Trends & Growth Analysis</h2>
+                
+                {analytics.trends ? (
+                  <div className="space-y-6">
+                    {/* Growth Metrics Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="glass-card rounded-xl p-4">
+                        <div className="text-sm text-white/60 mb-2">Attendance Growth</div>
+                        <div className={`text-3xl font-bold ${
+                          parseFloat(analytics.trends.growth.attendanceGrowth) > 0 
+                            ? 'text-green-400' 
+                            : parseFloat(analytics.trends.growth.attendanceGrowth) < 0
+                            ? 'text-red-400'
+                            : 'text-white'
+                        }`}>
+                          {parseFloat(analytics.trends.growth.attendanceGrowth) > 0 ? '+' : ''}
+                          {analytics.trends.growth.attendanceGrowth}%
+                        </div>
+                        <div className="text-xs text-white/50 mt-1">
+                          vs. avg: {analytics.trends.growth.avgPreviousAttendance} → {analytics.trends.growth.currentAttendance}
+                        </div>
+                      </div>
+                      
+                      <div className="glass-card rounded-xl p-4">
+                        <div className="text-sm text-white/60 mb-2">Response Rate Growth</div>
+                        <div className={`text-3xl font-bold ${
+                          parseFloat(analytics.trends.growth.responseRateGrowth) > 0 
+                            ? 'text-green-400' 
+                            : parseFloat(analytics.trends.growth.responseRateGrowth) < 0
+                            ? 'text-red-400'
+                            : 'text-white'
+                        }`}>
+                          {parseFloat(analytics.trends.growth.responseRateGrowth) > 0 ? '+' : ''}
+                          {analytics.trends.growth.responseRateGrowth}%
+                        </div>
+                        <div className="text-xs text-white/50 mt-1">
+                          vs. avg: {analytics.trends.growth.avgPreviousResponseRate}% → {analytics.analytics.responseRate}%
+                        </div>
+                      </div>
+                      
+                      <div className="glass-card rounded-xl p-4">
+                        <div className="text-sm text-white/60 mb-2">Response Velocity</div>
+                        <div className={`text-3xl font-bold ${
+                          parseFloat(analytics.trends.growth.velocityGrowth) > 0 
+                            ? 'text-green-400' 
+                            : parseFloat(analytics.trends.growth.velocityGrowth) < 0
+                            ? 'text-red-400'
+                            : 'text-white'
+                        }`}>
+                          {parseFloat(analytics.trends.growth.velocityGrowth) > 0 ? '+' : ''}
+                          {analytics.trends.growth.velocityGrowth}%
+                        </div>
+                        <div className="text-xs text-white/50 mt-1">
+                          {analytics.trends.growth.currentVelocity} vs. {analytics.trends.growth.avgPreviousVelocity} responses/day
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Event Comparison Chart */}
+                    <div className="glass-card rounded-xl p-4 md:p-6">
+                      <h3 className="text-lg font-medium text-white mb-4">Event Comparison</h3>
+                      <p className="text-sm text-white/60 mb-4">
+                        Compare this event's performance against your previous events
+                      </p>
+                      <EventComparisonChart
+                        currentEventTitle={analytics.eventTitle}
+                        currentAttendance={analytics.trends.growth.currentAttendance}
+                        currentResponseRate={parseFloat(analytics.analytics.responseRate)}
+                        previousEvents={analytics.trends.previousEvents.map(e => ({
+                          eventId: e.eventId,
+                          title: e.title,
+                          totalAttendance: e.totalAttendance,
+                          responseRate: e.responseRate
+                        }))}
+                      />
+                    </div>
+
+                    {/* Growth Trend Chart */}
+                    <div className="glass-card rounded-xl p-4 md:p-6">
+                      <h3 className="text-lg font-medium text-white mb-4">Historical Growth Trends</h3>
+                      <p className="text-sm text-white/60 mb-4">
+                        Track your attendance and response rate over time
+                      </p>
+                      <GrowthTrendChart
+                        historicalData={analytics.trends.historicalData}
+                        currentAttendance={analytics.trends.growth.currentAttendance}
+                        currentResponseRate={parseFloat(analytics.analytics.responseRate)}
+                      />
+                    </div>
+
+                    {/* Response Velocity Chart */}
+                    <div className="glass-card rounded-xl p-4 md:p-6">
+                      <h3 className="text-lg font-medium text-white mb-4">Response Velocity</h3>
+                      <p className="text-sm text-white/60 mb-4">
+                        How quickly people are responding compared to your average
+                      </p>
+                      <ResponseVelocityChart
+                        currentEventTitle={analytics.eventTitle}
+                        currentVelocity={parseFloat(analytics.trends.growth.currentVelocity)}
+                        previousEvents={analytics.trends.previousEvents}
+                        avgPreviousVelocity={parseFloat(analytics.trends.growth.avgPreviousVelocity)}
+                      />
+                    </div>
+
+                    {/* Compare To Specific Event */}
+                    <div className="glass-card rounded-xl p-4 md:p-6">
+                      <h3 className="text-lg font-medium text-white mb-4">Compare To Specific Event</h3>
+                      <p className="text-sm text-white/60 mb-4">
+                        Select a past event to see detailed side-by-side comparison (e.g., same venue from last year)
+                      </p>
+                      
+                      {analytics.trends.allPreviousEvents && analytics.trends.allPreviousEvents.length > 0 ? (
+                        <>
+                          <div className="mb-4">
+                            <select
+                              value={compareEventId || ''}
+                              onChange={(e) => {
+                                setCompareEventId(e.target.value || null)
+                                setCompareData(null)
+                              }}
+                              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                            >
+                              <option value="">Select an event to compare...</option>
+                              {analytics.trends.allPreviousEvents.map(event => (
+                                <option key={event.eventId} value={event.eventId} className="bg-gray-900">
+                                  {event.title} {event.event_date ? `(${new Date(event.event_date).toLocaleDateString()})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {loadingCompare && (
+                            <div className="text-center py-8 text-white/60">
+                              Loading comparison data...
+                            </div>
+                          )}
+
+                          {compareData && !loadingCompare && (
+                            <EventComparisonDetail
+                              currentEvent={{
+                                title: analytics.eventTitle,
+                                metrics: {
+                                  totalInvited: analytics.analytics.totalInvited,
+                                  totalAttending: analytics.analytics.totalAttending,
+                                  totalDeclined: analytics.analytics.totalDeclined,
+                                  totalGuests: analytics.analytics.totalGuests,
+                                  totalAttendance: analytics.trends.growth.currentAttendance,
+                                  responseRate: analytics.analytics.responseRate,
+                                  responseVelocity: analytics.trends.growth.currentVelocity,
+                                  averageResponseTime: analytics.analytics.averageResponseTime
+                                }
+                              }}
+                              compareEvent={{
+                                title: compareData.eventTitle,
+                                eventDate: compareData.eventDate,
+                                metrics: compareData.metrics
+                              }}
+                            />
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-center py-8 text-white/60">
+                          <p>No previous events available for comparison</p>
+                          <p className="text-sm mt-2">Create more events to enable detailed comparisons</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-white/60 mb-4">
+                      <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <p className="text-lg mb-2">No trends data available yet</p>
+                      <p className="text-sm">Create more events to see comparison trends and growth metrics</p>
+                    </div>
+                  </div>
+                )}
               </Tab.Panel>
             </Tab.Panels>
           </Tab.Group>

@@ -8,6 +8,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database connection not available' }, { status: 500 });
     }
 
+    const status = request.nextUrl.searchParams.get('status') || 'active';
+    const includeArchived = status === 'archived';
+
     // Get session token from cookies
     const request_cookies = request.cookies;
     const sessionToken = request_cookies.get('admin_session')?.value;
@@ -33,7 +36,8 @@ export async function GET(request: NextRequest) {
     const userId = data[0].user_id;
     console.log('Fetching events for admin user ID:', userId);
     
-    // Fetch events owned by this user
+    // Fetch events owned by this user (excluding archived events from active list)
+    // Note: Archived events still count toward limits, but are hidden from active view
     const { data: events, error } = await supabase
       .from('events')
       .select(`
@@ -41,9 +45,12 @@ export async function GET(request: NextRequest) {
         title, 
         created_at,
         admin_token,
-        created_by_admin_id
+        created_by_admin_id,
+        archived,
+        original_created_at
       `)
       .eq('created_by_admin_id', userId)
+      .eq('archived', includeArchived) // Only show non-archived events in active list
       .order('created_at', { ascending: false });
 
     // Generate admin tokens for events that don't have them
@@ -103,9 +110,12 @@ export async function GET(request: NextRequest) {
             title, 
             created_at,
             admin_token,
-            created_by_admin_id
+            created_by_admin_id,
+            archived,
+            original_created_at
           `)
           .in('id', eventIds)
+          .eq('archived', includeArchived) // Only show non-archived events
           .order('created_at', { ascending: false });
           
         if (!eventsError && accessEvents && accessEvents.length > 0) {
@@ -158,9 +168,12 @@ export async function GET(request: NextRequest) {
             created_at,
             admin_token,
             created_by_admin_id,
-            contact_email
+            contact_email,
+            archived,
+            original_created_at
           `)
           .eq('contact_email', adminData.email)
+          .eq('archived', includeArchived) // Only show non-archived events
           .order('created_at', { ascending: false });
           
         if (!emailError && emailEvents && emailEvents.length > 0) {
@@ -228,7 +241,10 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    return NextResponse.json({ events: eventsWithAttendeeCounts });
+    return NextResponse.json({ 
+      events: eventsWithAttendeeCounts,
+      status: includeArchived ? 'archived' : 'active'
+    });
   } catch (error) {
     console.error('Error in GET /api/admin/events:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

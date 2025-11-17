@@ -7,6 +7,7 @@ import CalendarIntegration from '@/components/CalendarIntegration'
 import Footer from '@/components/Footer'
 import PdfViewer from '@/components/PdfViewer'
 import Watermark from '@/components/Watermark'
+import DiscreteAd from '@/components/DiscreteAd'
 import Image from 'next/image'
 import { ThemeProvider, ThemeColors, useTheme } from '@/components/ThemeProvider'
 import { formatDateLong, formatTime12h } from '@/lib/dateUtils'
@@ -88,11 +89,12 @@ function EventRSVPContent() {
         }
 
         console.log('Event data received:', data.event);
+        console.log('Creator tier:', data.creatorTier || 'free');
         setEvent(data.event)
-        // Track creator tier for watermark display
-        if (data.creatorTier) {
-          setCreatorTier(data.creatorTier)
-        }
+        // Track creator tier for watermark display - default to 'free' if not provided
+        const tier = data.creatorTier || 'free'
+        setCreatorTier(tier)
+        console.log('Watermark will show:', tier === 'free')
         // Get colors from event data
         const themeColors: Partial<ThemeColors> = {
           primary: data.event.background_color || '#007AFF',
@@ -282,7 +284,7 @@ function EventRSVPContent() {
     <div className="min-h-screen relative overflow-hidden">
       <div className="animated-bg" />
       <div className="spotlight" />
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
+      <div className={`relative z-10 min-h-screen flex items-center justify-center p-4 ${creatorTier === 'free' ? 'pb-24' : ''}`}>
         <div className="w-full max-w-xl">
           <div className="text-center mb-8">
             {/* Company block - Enhanced with larger logo and better styling */}
@@ -564,6 +566,9 @@ function EventRSVPContent() {
                 {submitting ? 'Submitting...' : 'Submit RSVP'}
               </button>
             </form>
+            
+            {/* Discrete ad for free tier events - placed after form */}
+            <DiscreteAd show={creatorTier === 'free'} />
           </div>
         </div>
       </div>

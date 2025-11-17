@@ -5,6 +5,7 @@ import { headers } from 'next/headers'
 import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase'
 import { PLANS } from '@/lib/stripe'
+import { buildFreeTierUpdate } from '@/lib/stripeWebhookUtils'
 
 // Helper to determine subscription tier from price ID
 const getPlanFromPriceId = (priceId: string): string => {
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
             subscription_tier: planTier,
             stripe_subscription_id: subscription.id,
             subscription_status: subscription.status,
+            subscription_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
             subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
           })
           .eq('id', userData.id)
@@ -99,7 +101,7 @@ export async function POST(request: Request) {
           
           // Find the user with this Stripe customer ID
           const { data: userData, error: userError } = await supabaseAdmin
-            .from('users')
+            .from('admin_users')
             .select('id')
             .eq('stripe_customer_id', customerId)
             .single()
@@ -112,11 +114,12 @@ export async function POST(request: Request) {
           // Get subscription details
           const subscription = await stripe.subscriptions.retrieve(invoice.subscription) as any
           
-          // Update subscription period end
+          // Update subscription period (monthly reset happens here - new billing period starts)
           await supabaseAdmin
-            .from('users')
+            .from('admin_users')
             .update({
               subscription_status: subscription.status,
+              subscription_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
               subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
             })
             .eq('id', userData.id)
@@ -157,6 +160,7 @@ export async function POST(request: Request) {
           .update({
             subscription_tier: planTier,
             subscription_status: subscription.status,
+            subscription_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
             subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
           })
           .eq('id', userData.id)
@@ -187,13 +191,10 @@ export async function POST(request: Request) {
         }
         
         // Update user's subscription information to free tier
+        const downgradePayload = buildFreeTierUpdate(subscription.current_period_end)
         await supabaseAdmin
-          .from('users')
-          .update({
-            subscription_tier: PLANS.FREE,
-            subscription_status: 'canceled',
-            subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          })
+          .from('admin_users')
+          .update(downgradePayload)
           .eq('id', userData.id)
         
         break
