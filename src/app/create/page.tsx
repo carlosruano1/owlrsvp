@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
 import Image from 'next/image'
@@ -47,12 +47,15 @@ export default function CreateEvent() {
   // Access mode is now only available in admin page
   const authMode = 'open'
   const [eventDate, setEventDate] = useState('')
+  const [eventEndTime, setEventEndTime] = useState('')
   const [eventLocation, setEventLocation] = useState('')
   const [error, setError] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
   const [userPlan, setUserPlan] = useState<{tier: string, eventsCreated: number | null} | null>(null)
   const [canBrand, setCanBrand] = useState(false)
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   // Check if user is logged in as admin and get their plan info
   useEffect(() => {
@@ -76,7 +79,18 @@ export default function CreateEvent() {
       }
     }
     checkAdmin()
-  }, [router])
+    
+    // Check for account creation success message
+    if (searchParams.get('accountCreated') === 'true') {
+      setShowSuccessMessage(true)
+      // Clear the URL parameter
+      const newSearchParams = new URLSearchParams(searchParams.toString())
+      newSearchParams.delete('accountCreated')
+      router.replace(`/create${newSearchParams.toString() ? `?${newSearchParams.toString()}` : ''}`, { scroll: false })
+      // Hide message after 5 seconds
+      setTimeout(() => setShowSuccessMessage(false), 5000)
+    }
+  }, [router, searchParams])
 
   const titleExamples = useMemo(() => [
     'Name of the Event',
@@ -170,18 +184,24 @@ export default function CreateEvent() {
 
       try {
         // Prepare the request body
-        const requestBody = {
+        // Only include color customization for paid accounts
+        const requestBody: any = {
           title: title.trim(),
           allow_plus_guests: allowPlusGuests,
-          background_color: backgroundColor,
-          page_background_color: backgroundPageColor,
-          spotlight_color: spotlightColor,
-          font_color: fontColor,
-          company_name: companyName.trim() || undefined,
-          company_logo_url: finalLogoUrl || undefined,
+          background_color: backgroundColor, // Default color always included
           auth_mode: 'open', // Default to open access mode
           event_date: eventDate || undefined,
+          event_end_time: eventEndTime || undefined,
           event_location: eventLocation || undefined
+        }
+        
+        // Only add advanced color customization for paid accounts
+        if (canBrand && isAdmin) {
+          requestBody.page_background_color = backgroundPageColor
+          requestBody.spotlight_color = spotlightColor
+          requestBody.font_color = fontColor
+          requestBody.company_name = companyName.trim() || undefined
+          requestBody.company_logo_url = finalLogoUrl || undefined
         }
         
         // Log the request for debugging
@@ -322,6 +342,11 @@ export default function CreateEvent() {
 
           {/* Form Card */}
           <div className="glass-card rounded-3xl p-8 shadow-2xl">
+            {showSuccessMessage && (
+              <div className="mb-6 p-4 bg-green-500/20 border border-green-500/30 text-green-100 px-4 py-3 rounded-xl backdrop-blur-sm text-sm">
+                ✅ Account created successfully! You can now create your first event.
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-12">
               {/* Essential Details */}
               <div className="space-y-6">
@@ -374,7 +399,7 @@ export default function CreateEvent() {
                 {/* Event Date & Location */}
                 <div className="space-y-3">
                   <label htmlFor="eventDate" className="block text-sm font-medium text-white/90">
-                    Event Date <span className="text-white/40">(optional)</span>
+                    Event Start Date & Time <span className="text-white/40">(optional)</span>
                   </label>
                   <input
                     type="datetime-local"
@@ -382,6 +407,20 @@ export default function CreateEvent() {
                     value={eventDate}
                     onChange={(e) => setEventDate(e.target.value)}
                     className="modern-input w-full px-4 py-4 text-lg"
+                  />
+                </div>
+                
+                <div className="space-y-3">
+                  <label htmlFor="eventEndTime" className="block text-sm font-medium text-white/90">
+                    Event End Date & Time <span className="text-white/40">(optional)</span>
+                  </label>
+                  <input
+                    type="datetime-local"
+                    id="eventEndTime"
+                    value={eventEndTime}
+                    onChange={(e) => setEventEndTime(e.target.value)}
+                    className="modern-input w-full px-4 py-4 text-lg"
+                    min={eventDate || undefined}
                   />
                 </div>
                 
@@ -569,23 +608,12 @@ export default function CreateEvent() {
                     </div>
                   </div>
 
-                  {/* Color Customization Section */}
+                  {/* Color Customization Section - Only show for paid accounts */}
+                  {canBrand && isAdmin && (
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-medium text-white/90 mb-2">Appearance Customization</h3>
-                      {!canBrand && isAdmin && (
-                        <span className="text-xs text-yellow-400">Upgrade required</span>
-                      )}
                     </div>
-                    
-                    {!canBrand && isAdmin && (
-                      <div className="mb-3 text-xs text-white/50">
-                        <span>Color customization available on </span>
-                        <Link href="/checkout?plan=basic" className="text-blue-400 hover:text-blue-300 underline">
-                          paid plans
-                        </Link>
-                      </div>
-                    )}
                     
                     {/* Theme Color */}
                     <div className="space-y-3">
@@ -908,6 +936,7 @@ export default function CreateEvent() {
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
 

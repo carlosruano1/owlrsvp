@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { canUseCustomBranding } from '@/lib/tierEnforcement'
+import { canUseCustomBranding, getUserTierFromSession } from '@/lib/tierEnforcement'
 
 // Get event by admin token
 export async function GET(
@@ -137,6 +137,10 @@ export async function PATCH(
       updates.event_date = body.event_date || null
     }
     
+    if (body.event_end_time !== undefined) {
+      updates.event_end_time = body.event_end_time || null
+    }
+    
     if (body.event_location !== undefined) {
       updates.event_location = body.event_location || null
     }
@@ -199,14 +203,25 @@ export async function PATCH(
     }
     
     // Handle required RSVP fields (JSON field)
-    // Wrap in try-catch in case column doesn't exist yet
-    try {
-      if (body.required_rsvp_fields !== undefined) {
-        updates.required_rsvp_fields = body.required_rsvp_fields || null
+    // Only allow for basic+ tier accounts
+    if (body.required_rsvp_fields !== undefined) {
+      // Check user tier
+      const userTier = await getUserTierFromSession(sessionCookie)
+      if (userTier === 'free') {
+        return NextResponse.json({ 
+          error: 'Additional RSVP fields (email, phone, address, guests) are only available on Basic tier and above. Please upgrade to use this feature.',
+          requiresUpgrade: true,
+          upgradeUrl: '/?upgrade=true&reason=rsvp_fields#pricing'
+        }, { status: 403 })
       }
-    } catch (e) {
-      console.log('required_rsvp_fields column not available in database schema yet')
-      // If column doesn't exist, we'll get an error when trying to update, but we'll handle it gracefully
+      
+      // Wrap in try-catch in case column doesn't exist yet
+      try {
+        updates.required_rsvp_fields = body.required_rsvp_fields || null
+      } catch (e) {
+        console.log('required_rsvp_fields column not available in database schema yet')
+        // If column doesn't exist, we'll get an error when trying to update, but we'll handle it gracefully
+      }
     }
     
     // Only update if there are changes

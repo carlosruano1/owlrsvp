@@ -9,7 +9,6 @@ import Navigation from '@/components/Navigation'
 import Image from 'next/image'
 import FeatureCarousel from '@/components/FeatureCarousel'
 import EnvelopeInvitation from '@/components/EnvelopeInvitation'
-import PricingComparison from '@/components/PricingComparison'
 import { useScrollReveal, useParallax } from '@/hooks/useScrollReveal'
 import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
 
@@ -465,9 +464,6 @@ function HomeContent() {
             </div>
           </div>
         </div>
-
-        {/* Pricing Comparison Section */}
-        <PricingComparison />
 
         {/* Upgrade Message */}
         {upgradeMessage && showUpgradeMessage && (

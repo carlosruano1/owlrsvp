@@ -62,12 +62,14 @@ function AdminDashboardContent() {
   const [eventDetailsForm, setEventDetailsForm] = useState<{
     title: string;
     event_date: string;
+    event_end_time: string;
     event_location: string;
     company_name: string;
     company_logo_url: string;
   }>({
     title: '',
     event_date: '',
+    event_end_time: '',
     event_location: '',
     company_name: '',
     company_logo_url: ''
@@ -856,6 +858,7 @@ function AdminDashboardContent() {
         setEventDetailsForm({
           title: result.event.title || '',
           event_date: formatDateForInput(result.event.event_date),
+          event_end_time: formatDateForInput(result.event.event_end_time),
           event_location: result.event.event_location || '',
           company_name: result.event.company_name || '',
           company_logo_url: result.event.company_logo_url || ''
@@ -1604,6 +1607,7 @@ function AdminDashboardContent() {
                     const updateData: any = {
                       title: eventDetailsForm.title,
                       event_date: eventDetailsForm.event_date ? formatDateForDatabase(eventDetailsForm.event_date) : undefined,
+                      event_end_time: eventDetailsForm.event_end_time ? formatDateForDatabase(eventDetailsForm.event_end_time) : undefined,
                       event_location: eventDetailsForm.event_location || undefined,
                     };
                     
@@ -1642,13 +1646,27 @@ function AdminDashboardContent() {
                   {/* Event Date */}
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
-                      Event Date
+                      Event Start Date & Time
                     </label>
                     <input
                       type="datetime-local"
                       value={eventDetailsForm.event_date}
                       onChange={(e) => setEventDetailsForm({...eventDetailsForm, event_date: e.target.value})}
                       className="modern-input w-full px-4 py-3"
+                    />
+                  </div>
+                  
+                  {/* Event End Time */}
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">
+                      Event End Date & Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={eventDetailsForm.event_end_time}
+                      onChange={(e) => setEventDetailsForm({...eventDetailsForm, event_end_time: e.target.value})}
+                      className="modern-input w-full px-4 py-3"
+                      min={eventDetailsForm.event_date || undefined}
                     />
                   </div>
                   
@@ -1897,6 +1915,7 @@ function AdminDashboardContent() {
                           setEventDetailsForm({
                             title: data.event.title || '',
                             event_date: formatDateForInput(data.event.event_date),
+                            event_end_time: formatDateForInput(data.event.event_end_time),
                             event_location: data.event.event_location || '',
                             company_name: data.event.company_name || '',
                             company_logo_url: data.event.company_logo_url || ''

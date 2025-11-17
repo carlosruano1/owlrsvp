@@ -17,6 +17,7 @@ export interface Event {
   contact_email?: string | null
   contact_phone?: string | null
   event_date?: string | null
+  event_end_time?: string | null
   event_location?: string | null
   required_rsvp_fields?: {
     email?: boolean
@@ -59,6 +60,7 @@ export interface CreateEventData {
   contact_email?: string
   contact_phone?: string
   event_date?: string
+  event_end_time?: string
   event_location?: string
   required_rsvp_fields?: {
     email?: boolean

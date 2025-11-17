@@ -10,7 +10,7 @@ import Watermark from '@/components/Watermark'
 import DiscreteAd from '@/components/DiscreteAd'
 import Image from 'next/image'
 import { ThemeProvider, ThemeColors, useTheme } from '@/components/ThemeProvider'
-import { formatDateLong, formatTime12h } from '@/lib/dateUtils'
+import { formatDateLong, formatTime12h, parseDateTimeLocal } from '@/lib/dateUtils'
  
 
 // Use shared utils
@@ -20,6 +20,17 @@ const formatDateWithOriginalTimezone = (dateString: string | null | undefined): 
 
 const formatTimeWithOriginalTimezone = (dateString: string | null | undefined): string => {
   return formatTime12h(dateString);
+}
+
+// Check if two dates are on the same day
+const isSameDay = (date1: string | null | undefined, date2: string | null | undefined): boolean => {
+  if (!date1 || !date2) return false;
+  const parsed1 = parseDateTimeLocal(date1);
+  const parsed2 = parseDateTimeLocal(date2);
+  if (!parsed1 || !parsed2) return false;
+  return parsed1.year === parsed2.year && 
+         parsed1.month === parsed2.month && 
+         parsed1.day === parsed2.day;
 }
 
 export default function EventRSVP() {
@@ -138,22 +149,24 @@ function EventRSVPContent() {
     e.preventDefault()
     if (!firstName.trim() || !lastName.trim() || attending === null) return
 
-    // Validate required fields based on event settings
-    if (event?.required_rsvp_fields?.email && !email.trim()) {
-      setError('Email is required')
-      return
-    }
-    if (event?.required_rsvp_fields?.phone && !phone.trim()) {
-      setError('Phone number is required')
-      return
-    }
-    if (event?.required_rsvp_fields?.address && !address.trim()) {
-      setError('Address is required')
-      return
-    }
-    if (event?.required_rsvp_fields?.guests && attending && guestCount === 0) {
-      setError('Number of guests is required')
-      return
+    // Validate required fields based on event settings (only for basic+ tier)
+    if (creatorTier !== 'free') {
+      if (event?.required_rsvp_fields?.email && !email.trim()) {
+        setError('Email is required')
+        return
+      }
+      if (event?.required_rsvp_fields?.phone && !phone.trim()) {
+        setError('Phone number is required')
+        return
+      }
+      if (event?.required_rsvp_fields?.address && !address.trim()) {
+        setError('Address is required')
+        return
+      }
+      if (event?.required_rsvp_fields?.guests && attending && guestCount === 0) {
+        setError('Number of guests is required')
+        return
+      }
     }
 
     setSubmitting(true)
@@ -267,6 +280,7 @@ function EventRSVPContent() {
                 <CalendarIntegration
                   eventTitle={event.title || ''}
                   eventDate={event.event_date || undefined}
+                  eventEndTime={event.event_end_time || undefined}
                   eventLocation={event.event_location || undefined}
                   eventDescription={`RSVP for ${event.title}${event.event_location ? ` at ${event.event_location}` : ''}`}
                   eventLink={`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/e/${event.id}`}
@@ -317,20 +331,71 @@ function EventRSVPContent() {
             {/* Event date and time display */}
             {event?.event_date && (
               <div className="text-xl apple-subtitle mt-2">
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    {formatDateWithOriginalTimezone(event.event_date)}
+                {event?.event_end_time && isSameDay(event.event_date, event.event_end_time) ? (
+                  // Same day: show date once, then start and end times
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      {formatDateWithOriginalTimezone(event.event_date)}
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-white/90">Start:</span>
+                        <span className="ml-1">{formatTimeWithOriginalTimezone(event.event_date)}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-white/90">End:</span>
+                        <span className="ml-1">{formatTimeWithOriginalTimezone(event.event_end_time)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {formatTimeWithOriginalTimezone(event.event_date)}
+                ) : (
+                  // Different days or no end time: show full date/time for each
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    {/* Start Date & Time */}
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        {formatDateWithOriginalTimezone(event.event_date)}
+                      </div>
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-white/90">Start:</span>
+                        <span className="ml-1">{formatTimeWithOriginalTimezone(event.event_date)}</span>
+                      </div>
+                    </div>
+                    {/* End Date & Time */}
+                    {event?.event_end_time && (
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
+                        <div className="flex items-center">
+                          <svg className="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          {formatDateWithOriginalTimezone(event.event_end_time)}
+                        </div>
+                        <div className="flex items-center">
+                          <svg className="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-white/90">End:</span>
+                          <span className="ml-1">{formatTimeWithOriginalTimezone(event.event_end_time)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
             )}
             
@@ -433,8 +498,8 @@ function EventRSVPContent() {
                 </div>
               </div>
 
-              {/* Email field - show if required or if event has required_rsvp_fields config */}
-              {(event?.required_rsvp_fields?.email || !event?.required_rsvp_fields) && (
+              {/* Email field - only show for basic+ tier accounts */}
+              {creatorTier !== 'free' && (
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-2">
                     Email {event?.required_rsvp_fields?.email && <span className="text-red-400">*</span>}
@@ -451,8 +516,8 @@ function EventRSVPContent() {
                 </div>
               )}
 
-              {/* Phone field - show only if required */}
-              {event?.required_rsvp_fields?.phone && (
+              {/* Phone field - only show for basic+ tier accounts */}
+              {creatorTier !== 'free' && event?.required_rsvp_fields?.phone && (
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-white/80 mb-2">
                     Phone Number <span className="text-red-400">*</span>
@@ -469,8 +534,8 @@ function EventRSVPContent() {
                 </div>
               )}
 
-              {/* Address field - show only if required */}
-              {event?.required_rsvp_fields?.address && (
+              {/* Address field - only show for basic+ tier accounts */}
+              {creatorTier !== 'free' && event?.required_rsvp_fields?.address && (
                 <div>
                   <label htmlFor="address" className="block text-sm font-medium text-white/80 mb-2">
                     Address <span className="text-red-400">*</span>
@@ -509,8 +574,8 @@ function EventRSVPContent() {
                 </div>
               </div>
 
-              {/* Guests field - show if allow_plus_guests is true OR if required_rsvp_fields.guests is true */}
-              {((event?.allow_plus_guests && attending) || (event?.required_rsvp_fields?.guests && attending)) && (
+              {/* Guests field - only show for basic+ tier accounts, and if allow_plus_guests is true OR if required_rsvp_fields.guests is true */}
+              {creatorTier !== 'free' && ((event?.allow_plus_guests && attending) || (event?.required_rsvp_fields?.guests && attending)) && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-white/80">
@@ -556,10 +621,10 @@ function EventRSVPContent() {
                   !firstName.trim() || 
                   !lastName.trim() || 
                   attending === null ||
-                  (event?.required_rsvp_fields?.email && !email.trim()) ||
-                  (event?.required_rsvp_fields?.phone && !phone.trim()) ||
-                  (event?.required_rsvp_fields?.address && !address.trim()) ||
-                  (event?.required_rsvp_fields?.guests && attending && guestCount === 0)
+                  (creatorTier !== 'free' && event?.required_rsvp_fields?.email && !email.trim()) ||
+                  (creatorTier !== 'free' && event?.required_rsvp_fields?.phone && !phone.trim()) ||
+                  (creatorTier !== 'free' && event?.required_rsvp_fields?.address && !address.trim()) ||
+                  (creatorTier !== 'free' && event?.required_rsvp_fields?.guests && attending && guestCount === 0)
                 }
                 className="modern-button w-full py-3 px-4 text-lg"
               >

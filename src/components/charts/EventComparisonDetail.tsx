@@ -226,3 +226,4 @@ const EventComparisonDetail: React.FC<EventComparisonDetailProps> = ({
 export default EventComparisonDetail;
 
 
+

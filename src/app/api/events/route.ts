@@ -160,8 +160,17 @@ export async function POST(request: NextRequest) {
         if (body.spotlight_color) eventData.spotlight_color = body.spotlight_color;
         if (body.font_color) eventData.font_color = body.font_color;
         if (body.event_date) eventData.event_date = body.event_date;
+        if (body.event_end_time) eventData.event_end_time = body.event_end_time;
         if (body.event_location) eventData.event_location = body.event_location;
-        if (body.required_rsvp_fields) eventData.required_rsvp_fields = body.required_rsvp_fields;
+        // Only allow required_rsvp_fields for basic+ tier accounts
+        if (body.required_rsvp_fields) {
+          if (userTier === 'free') {
+            return NextResponse.json({ 
+              error: 'Additional RSVP fields (email, phone, address, guests) are only available on Basic tier and above. Please upgrade to use this feature.',
+            }, { status: 403 });
+          }
+          eventData.required_rsvp_fields = body.required_rsvp_fields;
+        }
         if (userId) eventData.created_by_admin_id = userId;
       } else {
         console.log('Could not verify table structure, using minimal fields only');

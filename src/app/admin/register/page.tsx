@@ -109,7 +109,8 @@ export default function AdminRegister() {
         setVerificationStep(true)
         setLoading(false)
       } else {
-        setSuccess(true)
+        // Account created successfully - redirect to create event page
+        router.push('/create?accountCreated=true')
       }
     } catch (err) {
       console.error('Registration error:', err);
@@ -140,8 +141,8 @@ export default function AdminRegister() {
         throw new Error(data.error || 'Verification failed')
       }
 
-      // Verification successful
-      setSuccess(true)
+      // Verification successful - redirect to create event page
+      router.push('/create?accountCreated=true')
     } catch (err) {
       console.error('Verification error:', err);
       setError(err instanceof Error ? err.message : 'Verification failed. Please try again.')

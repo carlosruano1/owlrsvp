@@ -54,7 +54,8 @@ export async function GET(
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    // Check if event creator is on free tier (for watermark display)
+    // Check if event creator is on free tier (for ads display)
+    // Only check the account tier, not event features
     let creatorTier = 'free'
     if (finalEvent.created_by_admin_id && supabaseAdmin) {
       try {
@@ -68,17 +69,11 @@ export async function GET(
           creatorTier = creatorData.subscription_tier || 'free'
         }
       } catch (err) {
-        // If we can't get creator tier, default to free (show watermark)
+        // If we can't get creator tier, default to free (show ads)
         console.log('Could not fetch creator tier, defaulting to free')
       }
     }
-
-    // If event has no custom branding features, it's likely free tier
-    if (!finalEvent.company_logo_url && !finalEvent.company_name && 
-        !finalEvent.page_background_color && !finalEvent.spotlight_color && 
-        !finalEvent.font_color) {
-      creatorTier = 'free'
-    }
+    // If event has no creator (anonymous event), default to free tier for ads
 
     console.log('Found event by ID:', finalEvent.id, 'Creator tier:', creatorTier);
     return NextResponse.json({ 

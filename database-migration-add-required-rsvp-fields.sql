@@ -13,3 +13,4 @@ COMMENT ON COLUMN events.required_rsvp_fields IS 'JSON object specifying which R
 CREATE INDEX IF NOT EXISTS idx_events_required_rsvp_fields ON events USING GIN (required_rsvp_fields);
 
 
+

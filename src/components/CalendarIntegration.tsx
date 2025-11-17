@@ -1,11 +1,12 @@
 'use client'
 
 import React, { useState } from 'react'
-import { getCalendarFloatingRange } from '@/lib/dateUtils'
+import { getCalendarFloatingRange, parseDateTimeLocal } from '@/lib/dateUtils'
 
 interface CalendarIntegrationProps {
   eventTitle: string
   eventDate?: string
+  eventEndTime?: string
   eventLocation?: string
   eventDescription?: string
   eventLink?: string
@@ -15,6 +16,7 @@ interface CalendarIntegrationProps {
 export default function CalendarIntegration({
   eventTitle,
   eventDate,
+  eventEndTime,
   eventLocation,
   eventDescription,
   eventLink,
@@ -23,8 +25,23 @@ export default function CalendarIntegration({
   const [showCalendarOptions, setShowCalendarOptions] = useState(false)
 
   // Use floating local times derived from the raw datetime-local string
-  const formatDateForCalendar = (dateString?: string | null) => {
-    const range = getCalendarFloatingRange(dateString, 120); // 2 hours
+  const formatDateForCalendar = (startDate?: string | null, endDate?: string | null) => {
+    if (!startDate) return null;
+    
+    // If end date is provided, use it directly
+    if (endDate) {
+      const startParsed = parseDateTimeLocal(startDate);
+      const endParsed = parseDateTimeLocal(endDate);
+      if (!startParsed || !endParsed) return null;
+      
+      const pad = (n: number, width = 2) => String(n).padStart(width, '0');
+      const start = `${pad(startParsed.year, 4)}${pad(startParsed.month)}${pad(startParsed.day)}T${pad(startParsed.hours)}${pad(startParsed.minutes)}${pad(startParsed.seconds)}`;
+      const end = `${pad(endParsed.year, 4)}${pad(endParsed.month)}${pad(endParsed.day)}T${pad(endParsed.hours)}${pad(endParsed.minutes)}${pad(endParsed.seconds)}`;
+      return { start, end };
+    }
+    
+    // Otherwise, calculate end time from start + default duration (2 hours)
+    const range = getCalendarFloatingRange(startDate, 120);
     if (!range) return null;
     return {
       start: range.start,
@@ -32,7 +49,7 @@ export default function CalendarIntegration({
     };
   }
 
-  const calendarData = formatDateForCalendar(eventDate)
+  const calendarData = formatDateForCalendar(eventDate, eventEndTime)
 
   // Generate .ics file content
   const generateICS = () => {
