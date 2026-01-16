@@ -2,17 +2,19 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ScrollToTop from "@/components/ScrollToTop";
+import { WebSiteSchema, SoftwareApplicationSchema } from "@/components/StructuredData";
 
 const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
-  display: 'swap'
+  display: 'swap',
+  weight: ['300', '400', '500'], // Lighter weights for cleaner, modern look
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://owlrsvp.com'),
-  title: "OwlRSVP - Beautiful Event RSVP Management | Create Custom Event Pages",
-  description: "Create stunning RSVP pages in seconds. Perfect for corporate events, parties, conferences with custom branding, QR codes, and guest management. No signup required.",
+  title: "Online RSVP | Event RSVP Website | OwlRSVP",
+  description: "Create online RSVP pages in seconds. Professional event RSVP website with custom branding, QR codes, and real-time tracking. No signup required for guests. Start free.",
   keywords: "event management, RSVP, event planning, guest list, corporate events, QR code, custom branding, event page",
   authors: [{ name: "OwlRSVP Team" }],
   creator: "OwlRSVP",
@@ -82,6 +84,14 @@ export default function RootLayout({
         className={`${inter.variable} antialiased`}
         suppressHydrationWarning
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(WebSiteSchema()) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(SoftwareApplicationSchema()) }}
+        />
         {children}
         <ScrollToTop />
       </body>

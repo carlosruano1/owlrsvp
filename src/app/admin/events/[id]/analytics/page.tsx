@@ -172,18 +172,18 @@ export default function EventAnalyticsPage() {
         <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6">
           {isUpgradeRequired ? (
             <>
-              <div className="text-yellow-400 text-xl mb-4">Advanced Analytics Unavailable</div>
+              <div className="text-cyan-300 text-xl mb-4">Advanced Analytics Unavailable</div>
               <div className="text-white/70 mb-6 max-w-md text-center">{error}</div>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link 
                   href="/checkout?plan=pro"
-                  className="px-6 py-3 bg-yellow-500 text-black font-semibold rounded-xl hover:bg-yellow-400 transition-all"
+                  className="px-6 py-3 bg-cyan-500 text-black font-normal rounded-xl hover:bg-cyan-400 transition-all"
                 >
                   Upgrade to Pro ($29/mo)
                 </Link>
                 <Link 
                   href="/admin/events"
-                  className="px-6 py-3 bg-white/10 text-white font-semibold rounded-xl hover:bg-white/20 transition-all"
+                  className="px-6 py-3 bg-white/10 text-white font-normal rounded-xl hover:bg-white/20 transition-all"
                 >
                   Back to Events
                 </Link>
@@ -195,7 +195,7 @@ export default function EventAnalyticsPage() {
               <div className="text-white/70 mb-8">{error || 'Event not found'}</div>
               <Link 
                 href="/admin/events"
-                className="px-6 py-3 bg-white text-black font-semibold rounded-xl hover:bg-white/90 transition-all"
+                className="px-6 py-3 bg-white text-black font-normal rounded-xl hover:bg-white/90 transition-all"
               >
                 Back to Events
               </Link>
@@ -221,8 +221,8 @@ export default function EventAnalyticsPage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="animated-bg" />
-      <div className="spotlight" />
+      <div className="absolute inset-0 bind8-bg" />
+      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header */}
@@ -237,7 +237,7 @@ export default function EventAnalyticsPage() {
                 </svg>
                 Back to Events
               </Link>
-              <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">{analytics.eventTitle}</h1>
+              <h1 className="text-3xl md:text-4xl font-light text-white mb-1">{analytics.eventTitle}</h1>
               <p className="text-white/70">{eventDate}</p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -308,7 +308,7 @@ export default function EventAnalyticsPage() {
             <Tab.Panels className="mt-6">
               {/* Overview Tab */}
               <Tab.Panel className="rounded-xl glass-card p-4 md:p-6">
-                <h2 className="text-xl font-semibold text-white mb-6">Event Overview</h2>
+                <h2 className="text-xl font-normal text-white mb-6">Event Overview</h2>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Response Status Chart */}
@@ -333,25 +333,25 @@ export default function EventAnalyticsPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <div className="text-sm text-white/60 mb-1">Total Invited</div>
-                        <div className="text-2xl font-bold text-blue-400">
+                        <div className="text-2xl font-light text-cyan-400">
                           {analytics.analytics.totalInvited}
                         </div>
                       </div>
                       <div>
                         <div className="text-sm text-white/60 mb-1">Total Attending</div>
-                        <div className="text-2xl font-bold text-green-400">
+                        <div className="text-2xl font-light text-teal-400">
                           {analytics.analytics.totalAttending}
                         </div>
                       </div>
                       <div>
                         <div className="text-sm text-white/60 mb-1">Response Rate</div>
-                        <div className="text-2xl font-bold text-purple-400">
+                        <div className="text-2xl font-light text-blue-400">
                           {analytics.analytics.responseRate}%
                         </div>
                       </div>
                       <div>
                         <div className="text-sm text-white/60 mb-1">Additional Guests</div>
-                        <div className="text-2xl font-bold text-yellow-400">
+                        <div className="text-2xl font-light text-cyan-300">
                           {analytics.analytics.totalGuests - analytics.analytics.totalAttending}
                         </div>
                       </div>
@@ -368,7 +368,7 @@ export default function EventAnalyticsPage() {
               
               {/* Response Analysis Tab */}
               <Tab.Panel className="rounded-xl glass-card p-4 md:p-6">
-                <h2 className="text-xl font-semibold text-white mb-6">Response Analysis</h2>
+                <h2 className="text-xl font-normal text-white mb-6">Response Analysis</h2>
                 
                 <div className="grid grid-cols-1 gap-6">
                   {/* Response Time Details */}
@@ -387,7 +387,7 @@ export default function EventAnalyticsPage() {
                           </div>
                         </div>
                         <div className="bg-green-500/20 px-4 py-2 rounded-lg">
-                          <div className="text-sm text-green-400 font-medium">
+                          <div className="text-sm text-teal-400 font-medium">
                             Recommended reminder time
                           </div>
                         </div>
@@ -413,15 +413,15 @@ export default function EventAnalyticsPage() {
                       <div className="font-medium text-white flex items-center gap-2">
                         {analytics.analytics.responseRate}% of invited guests have responded
                         {parseInt(analytics.analytics.responseRate) > 75 ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-green-400">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-500/20 text-teal-400">
                             Excellent
                           </span>
                         ) : parseInt(analytics.analytics.responseRate) > 50 ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-400">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-cyan-400">
                             Good
                           </span>
                         ) : parseInt(analytics.analytics.responseRate) > 25 ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-400">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-500/20 text-cyan-300">
                             Fair
                           </span>
                         ) : (
@@ -437,7 +437,7 @@ export default function EventAnalyticsPage() {
               
               {/* Guest Insights Tab */}
               <Tab.Panel className="rounded-xl glass-card p-4 md:p-6">
-                <h2 className="text-xl font-semibold text-white mb-6">Guest Insights</h2>
+                <h2 className="text-xl font-normal text-white mb-6">Guest Insights</h2>
                 
                 <GuestInsights 
                   totalAttending={analytics.analytics.totalAttending}
@@ -452,7 +452,7 @@ export default function EventAnalyticsPage() {
               
               {/* Trends Tab */}
               <Tab.Panel className="rounded-xl glass-card p-4 md:p-6">
-                <h2 className="text-xl font-semibold text-white mb-6">Trends & Growth Analysis</h2>
+                <h2 className="text-xl font-normal text-white mb-6">Trends & Growth Analysis</h2>
                 
                 {analytics.trends ? (
                   <div className="space-y-6">
@@ -460,9 +460,9 @@ export default function EventAnalyticsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                       <div className="glass-card rounded-xl p-4">
                         <div className="text-sm text-white/60 mb-2">Attendance Growth</div>
-                        <div className={`text-3xl font-bold ${
+                        <div className={`text-3xl font-light ${
                           parseFloat(analytics.trends.growth.attendanceGrowth) > 0 
-                            ? 'text-green-400' 
+                            ? 'text-teal-400' 
                             : parseFloat(analytics.trends.growth.attendanceGrowth) < 0
                             ? 'text-red-400'
                             : 'text-white'
@@ -477,9 +477,9 @@ export default function EventAnalyticsPage() {
                       
                       <div className="glass-card rounded-xl p-4">
                         <div className="text-sm text-white/60 mb-2">Response Rate Growth</div>
-                        <div className={`text-3xl font-bold ${
+                        <div className={`text-3xl font-light ${
                           parseFloat(analytics.trends.growth.responseRateGrowth) > 0 
-                            ? 'text-green-400' 
+                            ? 'text-teal-400' 
                             : parseFloat(analytics.trends.growth.responseRateGrowth) < 0
                             ? 'text-red-400'
                             : 'text-white'
@@ -494,9 +494,9 @@ export default function EventAnalyticsPage() {
                       
                       <div className="glass-card rounded-xl p-4">
                         <div className="text-sm text-white/60 mb-2">Response Velocity</div>
-                        <div className={`text-3xl font-bold ${
+                        <div className={`text-3xl font-light ${
                           parseFloat(analytics.trends.growth.velocityGrowth) > 0 
-                            ? 'text-green-400' 
+                            ? 'text-teal-400' 
                             : parseFloat(analytics.trends.growth.velocityGrowth) < 0
                             ? 'text-red-400'
                             : 'text-white'

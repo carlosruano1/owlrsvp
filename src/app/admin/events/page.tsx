@@ -132,8 +132,8 @@ export default function AdminEvents() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="animated-bg" />
-      <div className="spotlight" />
+      <div className="absolute inset-0 bind8-bg" />
+      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header */}
@@ -145,7 +145,7 @@ export default function AdminEvents() {
                 </svg>
                 Back to Settings
               </Link>
-              <h1 className="text-4xl font-bold mb-2">My Events</h1>
+              <h1 className="text-4xl font-light mb-2">My Events</h1>
               <p className="text-white/70">Manage and analyze your events</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 shrink-0">
@@ -157,7 +157,7 @@ export default function AdminEvents() {
               </button>
               <Link
                 href="/create"
-                className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors text-center"
+                className="px-5 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-normal rounded-xl transition-colors text-center"
               >
                 Create New Event
               </Link>
@@ -184,10 +184,10 @@ export default function AdminEvents() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-white/10">
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-white/70">Event Name</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-white/70">Attendees</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-white/70">Created</th>
-                        <th className="px-6 py-4 text-right text-sm font-semibold text-white/70">Actions</th>
+                        <th className="px-6 py-4 text-left text-sm font-normal text-white/70">Event Name</th>
+                        <th className="px-6 py-4 text-left text-sm font-normal text-white/70">Attendees</th>
+                        <th className="px-6 py-4 text-left text-sm font-normal text-white/70">Created</th>
+                        <th className="px-6 py-4 text-right text-sm font-normal text-white/70">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -403,7 +403,7 @@ export default function AdminEvents() {
                 ) : (
                   <Link
                     href="/create"
-                    className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl inline-block transition-colors"
+                    className="px-5 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-medium rounded-xl inline-block transition-colors"
                   >
                     Create New Event
                   </Link>

@@ -9,8 +9,10 @@ import Navigation from '@/components/Navigation'
 import Image from 'next/image'
 import FeatureCarousel from '@/components/FeatureCarousel'
 import EnvelopeInvitation from '@/components/EnvelopeInvitation'
+import FAQAccordion from '@/components/FAQAccordion'
 import { useScrollReveal, useParallax } from '@/hooks/useScrollReveal'
 import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
+import { TOP_10_FAQS } from '@/lib/faqData'
 
 function HomeContent() {
   const router = useRouter()
@@ -28,6 +30,7 @@ function HomeContent() {
   const howItWorksReveal = useScrollReveal()
   const howItWorksRef = useRef<HTMLDivElement>(null)
   const envelopeRef = useRef<HTMLDivElement>(null)
+  const faqReveal = useScrollReveal()
   const ctaReveal = useScrollReveal()
   
   // We're not using the mouse parallax effect anymore
@@ -184,8 +187,9 @@ function HomeContent() {
 
   return (
     <div className="min-h-screen relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-amber-400 opacity-80" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/40 via-blue-900/30 to-gray-900/90" />
+      {/* Blurry blue/green atmospheric background */}
+      <div className="absolute inset-0 bind8-bg" />
+      <div className="absolute inset-0 bind8-glow" />
       
       {/* Navigation */}
       <Navigation />
@@ -200,24 +204,11 @@ function HomeContent() {
               className="transform transition-all duration-700 animate-reveal text-left"
               ref={heroReveal.ref}
             >
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-3 leading-tight tracking-tight">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 animate-gradient-x">
-                  Event
-                </span>
-                {" "}
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-amber-500 to-orange-500 animate-gradient-x">
-                  management
-                </span>
-                <br />
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-indigo-500 to-blue-600 animate-gradient-x">
-                  infrastructure
-                </span>
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-light mb-3 leading-tight tracking-tight text-white">
+                Online RSVP Made Simple
               </h1>
-              <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight tracking-tight">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-white">to</span>{" "}
-                <span ref={growRef} className="inline-block bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-white will-change-transform">grow</span>{" "}
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-white">your</span>{" "}
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 animate-gradient-x">attendance</span>
+              <h2 className="text-5xl md:text-6xl lg:text-7xl font-light mb-6 leading-tight tracking-tight text-white">
+                Create event RSVP websites in <span ref={growRef} className="inline-block will-change-transform">seconds</span>
               </h2>
             </div>
 
@@ -259,10 +250,10 @@ function HomeContent() {
             <div className="animate-reveal max-w-xl">
               <Link
                 href="/create"
-                className="group relative inline-flex items-center justify-center px-8 py-4 bg-white text-black font-semibold rounded-lg transition-all hover:scale-105 shadow-xl text-lg"
+                className="group relative inline-flex items-center justify-center px-8 py-4 bg-white text-black font-medium rounded-lg transition-all hover:scale-105 shadow-xl text-lg"
               >
                 <span className="relative z-10">Create Your Event</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg opacity-0 group-hover:opacity-10 transition-opacity"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-lg opacity-0 group-hover:opacity-10 transition-opacity"></div>
                 <svg className="w-5 h-5 ml-2 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
@@ -276,7 +267,7 @@ function HomeContent() {
               {/* Phone Frame with Glow Effect */}
               <div className="absolute inset-0 bg-black rounded-[40px] shadow-2xl z-10">
                 {/* Animated glow effect around the phone */}
-                <div className="absolute -inset-3 bg-gradient-to-r from-blue-600/30 via-purple-600/30 to-pink-600/30 rounded-[50px] blur-xl z-0 opacity-70" style={{animation: "screen-glow 4s ease-in-out infinite"}}></div>
+                <div className="absolute -inset-3 bg-gradient-to-r from-cyan-600/20 via-teal-600/20 to-blue-600/20 rounded-[50px] blur-xl z-0 opacity-70" style={{animation: "screen-glow 4s ease-in-out infinite"}}></div>
               </div>
               
               {/* Phone Inner Frame */}
@@ -310,7 +301,7 @@ function HomeContent() {
                 
                 {/* Dynamic Screen Glow */}
                 <div 
-                  className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/5 to-transparent z-20 pointer-events-none opacity-70"
+                  className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-transparent z-20 pointer-events-none opacity-70"
                   style={{animation: "pulse 4s ease-in-out infinite alternate"}}
                 ></div>
               </div>
@@ -343,13 +334,13 @@ function HomeContent() {
         <div className="py-16 px-6 relative overflow-hidden hidden md:block">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-12 animate-reveal" ref={featuresReveal.ref}>
-              <h3 className="inline-block px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white/90 rounded-full text-sm font-medium mb-4 animate-pulse">
+              <h3 className="inline-block px-4 py-2 bg-white/10 backdrop-blur-sm text-white/90 rounded-full text-sm font-medium mb-4">
                 Powerful Dashboard
               </h3>
-              <h2 className="text-5xl md:text-6xl font-extrabold text-white mb-4 tracking-tight">
-                Manage your events with ease
+              <h2 className="text-5xl md:text-6xl font-light text-white mb-4 tracking-tight">
+                RSVP Management Software Made Simple
               </h2>
-              <p className="text-lg text-white/70 max-w-2xl mx-auto">
+              <p className="text-lg text-white/80 max-w-2xl mx-auto">
                 Track RSVPs, export guest lists, and get insights into your event's performance
                 with our intuitive dashboard.
               </p>
@@ -359,7 +350,7 @@ function HomeContent() {
               {/* Desktop Frame with Animation */}
               <div className="bg-gray-900 rounded-t-xl shadow-2xl p-4 max-w-5xl mx-auto transform transition-all duration-700 hover:scale-[1.02]">
                 {/* Animated Glow Effect */}
-                <div className="absolute -inset-4 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 rounded-xl blur-xl opacity-70 -z-10" 
+                <div className="absolute -inset-4 bg-gradient-to-r from-cyan-600/15 via-teal-600/15 to-blue-600/15 rounded-xl blur-xl opacity-70 -z-10" 
                      style={{animation: "screen-glow 4s ease-in-out infinite alternate"}}></div>
                 
                 {/* Browser Controls with Animation */}
@@ -391,11 +382,11 @@ function HomeContent() {
               
               {/* Animated Decorative Elements */}
               <div 
-                className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full filter blur-3xl opacity-20"
+                className="absolute -bottom-10 -left-10 w-40 h-40 bg-gradient-to-r from-cyan-500/30 to-teal-500/30 rounded-full filter blur-3xl opacity-20"
                 style={{animation: "pulse 6s ease-in-out infinite alternate"}}
               ></div>
               <div 
-                className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-r from-amber-500 to-pink-500 rounded-full filter blur-3xl opacity-20"
+                className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-r from-blue-500/30 to-cyan-500/30 rounded-full filter blur-3xl opacity-20"
                 style={{animation: "pulse 8s ease-in-out infinite alternate-reverse"}}
               ></div>
               
@@ -418,47 +409,47 @@ function HomeContent() {
           >
             <div className="text-center mb-10 animate-reveal" ref={featuresReveal.ref}>
               <div className="apple-kicker">FEATURES</div>
-              <h2 className="apple-section-title">Built for modern events</h2>
+              <h2 className="apple-section-title">Online RSVP Features for Modern Events</h2>
               <p className="apple-subtitle mt-3 text-white/80">Fast to set up. Effortless to manage. Delightful for guests.</p>
             </div>
             <div className="section-cards">
               <div className="feature-card apple-feature p-8 text-center transition-all duration-300">
                 <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-6">
-                  <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-4">Lightning Fast</h3>
+                <h3 className="text-xl font-normal text-white mb-4">Lightning Fast</h3>
                 <p className="text-white/80 text-lg">Create and customize your RSVP page in under 60 seconds. No complex setup required.</p>
               </div>
               
               <div className="feature-card apple-feature p-8 text-center transition-all duration-300">
                 <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-6">
-                  <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-4">Beautiful Design</h3>
+                <h3 className="text-xl font-normal text-white mb-4">Beautiful Design</h3>
                 <p className="text-white/80 text-lg">Stunning, modern interface that your guests will love. Customize colors and branding to match your style.</p>
               </div>
               
               <div className="feature-card apple-feature p-8 text-center transition-all duration-300">
                 <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-6">
-                  <svg className="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-4">Easy Management</h3>
+                <h3 className="text-xl font-normal text-white mb-4">Easy Management</h3>
                 <p className="text-white/80 text-lg">Track responses, export data, and manage your guest list with our intuitive admin dashboard.</p>
               </div>
               
               <div className="feature-card apple-feature p-8 text-center transition-all duration-300">
                 <div className="w-16 h-16 bg-white/5 rounded-xl flex items-center justify-center mx-auto mb-6">
-                  <svg className="w-8 h-8 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
-                <h3 className="text-xl font-semibold text-white mb-4">Secure Access</h3>
+                <h3 className="text-xl font-normal text-white mb-4">Secure Access</h3>
                 <p className="text-white/80 text-lg">Team access controls, magic links, and secure admin portal to protect your event data.</p>
               </div>
             </div>
@@ -469,7 +460,7 @@ function HomeContent() {
         {upgradeMessage && showUpgradeMessage && (
           <div className="px-6 mb-8">
             <div className="max-w-4xl mx-auto">
-              <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/30 rounded-xl p-6 text-center relative">
+              <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-6 text-center relative">
                 <button
                   onClick={() => setShowUpgradeMessage(false)}
                   className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors"
@@ -480,10 +471,10 @@ function HomeContent() {
                   </svg>
                 </button>
                 <div className="flex items-center justify-center gap-3 mb-2">
-                  <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <h2 className="text-xl font-semibold text-white">Upgrade Required</h2>
+                  <h2 className="text-xl font-normal text-white">Upgrade Required</h2>
                 </div>
                 <p className="text-white/80 text-lg">{upgradeMessage}</p>
               </div>
@@ -497,7 +488,7 @@ function HomeContent() {
             className={`page-section-content animate-reveal stagger-reveal relative z-20 ${pricingReveal.isRevealed ? 'revealed' : ''}`}
             ref={pricingReveal.ref}
           >
-            <h2 className="text-4xl font-bold text-center mb-6 text-gradient">Simple, Transparent Pricing</h2>
+            <h2 className="text-4xl font-light text-center mb-6 text-white">Simple, Transparent Pricing</h2>
             <p className="text-xl text-white/80 text-center mb-16 max-w-2xl mx-auto">
               Choose the plan that fits your needs. All plans include our beautiful RSVP pages and core features.
             </p>
@@ -507,9 +498,9 @@ function HomeContent() {
               {/* Free Plan */}
               <div className="glass-card rounded-2xl p-6 relative transition-all duration-300 hover:transform hover:scale-105 flex flex-col">
                 <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold text-white mb-2">{PLAN_DETAILS[PLANS.FREE].name}</h3>
+                  <h3 className="text-xl font-normal text-white mb-2">{PLAN_DETAILS[PLANS.FREE].name}</h3>
                   <div className="flex items-center justify-center gap-1">
-                    <span className="text-3xl font-bold text-white">${PLAN_DETAILS[PLANS.FREE].price.toFixed(2)}</span>
+                    <span className="text-3xl font-light text-white">${PLAN_DETAILS[PLANS.FREE].price.toFixed(2)}</span>
                   </div>
                   <p className="text-white/70 text-sm mt-2">Up to {PLAN_DETAILS[PLANS.FREE].guestLimit === Infinity ? 'Unlimited' : PLAN_DETAILS[PLANS.FREE].guestLimit.toLocaleString()} guests per event</p>
                 </div>
@@ -536,16 +527,16 @@ function HomeContent() {
               </div>
               
               {/* Basic Plan - Featured/Larger */}
-              <div className="glass-card rounded-2xl p-8 relative transition-all duration-300 hover:transform hover:scale-105 border-2 border-blue-400/50 flex flex-col transform scale-105 md:scale-110">
+              <div className="glass-card rounded-2xl p-8 relative transition-all duration-300 hover:transform hover:scale-105 border-2 border-cyan-400/50 flex flex-col transform scale-105 md:scale-110">
                 <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                  <div className="bg-blue-500 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg whitespace-nowrap">
+                  <div className="bg-cyan-500 text-white text-xs font-medium px-4 py-1.5 rounded-full shadow-lg whitespace-nowrap">
                     POPULAR
                   </div>
                 </div>
                 <div className="text-center mb-6">
-                  <h3 className="text-2xl font-bold text-white mb-2">{PLAN_DETAILS[PLANS.BASIC].name}</h3>
+                  <h3 className="text-2xl font-light text-white mb-2">{PLAN_DETAILS[PLANS.BASIC].name}</h3>
                   <div className="flex items-center justify-center gap-1">
-                    <span className="text-4xl font-bold text-white">${PLAN_DETAILS[PLANS.BASIC].price.toFixed(2)}</span>
+                    <span className="text-4xl font-light text-white">${PLAN_DETAILS[PLANS.BASIC].price.toFixed(2)}</span>
                     <span className="text-white/60">/mo</span>
                   </div>
                   <p className="text-white/70 text-sm mt-2">Up to {PLAN_DETAILS[PLANS.BASIC].guestLimit === Infinity ? 'Unlimited' : PLAN_DETAILS[PLANS.BASIC].guestLimit.toLocaleString()} guests per event</p>
@@ -572,7 +563,7 @@ function HomeContent() {
                 
                 <button
                   onClick={() => router.push('/checkout?plan=basic')}
-                  className="w-full py-4 rounded-lg font-semibold transition-all bg-blue-500 text-white hover:bg-blue-600 cursor-pointer mt-auto text-lg"
+                  className="w-full py-4 rounded-lg font-medium transition-all bg-cyan-500 text-white hover:bg-cyan-600 cursor-pointer mt-auto text-lg"
                 >
                   Subscribe
                 </button>
@@ -581,9 +572,9 @@ function HomeContent() {
               {/* Pro Plan */}
               <div className="glass-card rounded-2xl p-6 relative transition-all duration-300 hover:transform hover:scale-105 flex flex-col">
                 <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold text-white mb-2">{PLAN_DETAILS[PLANS.PRO].name}</h3>
+                  <h3 className="text-xl font-normal text-white mb-2">{PLAN_DETAILS[PLANS.PRO].name}</h3>
                   <div className="flex items-center justify-center gap-1">
-                    <span className="text-3xl font-bold text-white">${PLAN_DETAILS[PLANS.PRO].price.toFixed(2)}</span>
+                    <span className="text-3xl font-light text-white">${PLAN_DETAILS[PLANS.PRO].price.toFixed(2)}</span>
                     <span className="text-white/60">/mo</span>
                   </div>
                   <p className="text-white/70 text-sm mt-2">Up to {PLAN_DETAILS[PLANS.PRO].guestLimit === Infinity ? 'Unlimited' : PLAN_DETAILS[PLANS.PRO].guestLimit.toLocaleString()} guests per event</p>
@@ -624,7 +615,7 @@ function HomeContent() {
                 For enterprise pricing,{' '}
                 <Link 
                   href="/contact?subject=Enterprise%20Plan%20Inquiry"
-                  className="text-blue-400 hover:text-blue-300 underline transition-colors"
+                  className="text-cyan-400 hover:text-cyan-300 underline transition-colors"
                 >
                   contact our team
                 </Link>
@@ -634,7 +625,7 @@ function HomeContent() {
             <div className="text-center mt-8">
               <Link
                 href="/create"
-                className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
+                className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
               >
                 Start creating your event
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -656,37 +647,37 @@ function HomeContent() {
             className={`page-section-content animate-reveal stagger-reveal ${howItWorksReveal.isRevealed ? 'revealed' : ''}`}
             ref={howItWorksReveal.ref}
           >
-            <h2 className="text-5xl md:text-6xl font-bold text-center mb-20 text-gradient">How It Works</h2>
+            <h2 className="text-5xl md:text-6xl font-light text-center mb-20 text-white">How It Works</h2>
             <div className="max-w-7xl mx-auto">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                 {/* Steps */}
                 <div className="space-y-16">
                   <div className="how-step flex items-start gap-8 transition-all duration-300">
-                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/30 border border-blue-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
-                      <span className="text-4xl font-bold text-blue-400">1</span>
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-cyan-600/30 border border-cyan-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                      <span className="text-4xl font-light text-cyan-400">1</span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-3xl md:text-4xl font-bold mb-4 text-white">Create Your Event</h3>
+                      <h3 className="text-3xl md:text-4xl font-light mb-4 text-white">Create Your Event</h3>
                       <p className="text-xl text-white/90 leading-relaxed">Enter your event details, customize colors, and upload your company logo. No account required to get started.</p>
                     </div>
                   </div>
                   
                   <div className="how-step flex items-start gap-8 transition-all duration-300">
-                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-pink-500/20 to-pink-600/30 border border-pink-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
-                      <span className="text-4xl font-bold text-pink-400">2</span>
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-teal-500/20 to-teal-600/30 border border-teal-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                      <span className="text-4xl font-light text-teal-400">2</span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-3xl md:text-4xl font-bold mb-4 text-white">Share With Guests</h3>
+                      <h3 className="text-3xl md:text-4xl font-light mb-4 text-white">Share With Guests</h3>
                       <p className="text-xl text-white/90 leading-relaxed">Send your custom RSVP link via email, social media, or embed the QR code in your invitations.</p>
                     </div>
                   </div>
                   
                   <div className="how-step flex items-start gap-8 transition-all duration-300">
-                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-green-500/20 to-green-600/30 border border-green-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
-                      <span className="text-4xl font-bold text-green-400">3</span>
+                    <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/30 border border-blue-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
+                      <span className="text-4xl font-light text-blue-400">3</span>
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-3xl md:text-4xl font-bold mb-4 text-white">Track Responses</h3>
+                      <h3 className="text-3xl md:text-4xl font-light mb-4 text-white">Track Responses</h3>
                       <p className="text-xl text-white/90 leading-relaxed">Monitor RSVPs in real-time through your admin dashboard. Export the guest list anytime.</p>
                     </div>
                   </div>
@@ -696,7 +687,7 @@ function HomeContent() {
                 <div className="how-image transition-all duration-300 hidden lg:block">
                   <div className="relative">
                     {/* Elegant frame with multiple layers */}
-                    <div className="absolute -inset-4 bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-xl"></div>
+                    <div className="absolute -inset-4 bg-gradient-to-br from-cyan-500/20 via-teal-500/20 to-blue-500/20 rounded-3xl blur-xl"></div>
                     <div className="absolute -inset-2 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl backdrop-blur-sm border border-white/20"></div>
                     <div className="relative bg-black/40 p-6 rounded-2xl backdrop-blur-md border border-white/10">
                       <div className="aspect-[4/5] rounded-xl overflow-hidden">
@@ -725,6 +716,39 @@ function HomeContent() {
           </div>
         </div>
 
+        {/* FAQ Section */}
+        <div id="faq" className="page-section subtle-grid dark-overlay">
+          <div 
+            className={`page-section-content animate-reveal ${faqReveal.isRevealed ? 'revealed' : ''}`}
+            ref={faqReveal.ref}
+          >
+            <div className="text-center mb-12">
+              <div className="inline-block px-4 py-2 bg-white/10 backdrop-blur-sm text-white/90 rounded-full text-sm font-medium mb-4">
+                FAQ
+              </div>
+              <h2 className="text-4xl md:text-5xl font-light mb-6 text-white">
+                Frequently Asked Questions
+              </h2>
+              <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">
+                Quick answers to the most common questions about OwlRSVP.
+              </p>
+              <Link
+                href="/faq"
+                className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
+              >
+                View all FAQs
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+            
+            <div className="max-w-4xl mx-auto">
+              <FAQAccordion faqs={TOP_10_FAQS} defaultOpen={-1} />
+            </div>
+          </div>
+        </div>
+
         {/* Final CTA */}
         <div className="py-32 px-6 subtle-grid dark-overlay">
           <div 
@@ -732,32 +756,28 @@ function HomeContent() {
             ref={ctaReveal.ref}
           >
             <div className="mb-12">
-              <span className="inline-block px-4 py-2 bg-green-500/20 text-green-300 rounded-full text-sm font-medium mb-4 animate-pulse">Simple Pricing</span>
-              <h2 className="text-5xl font-bold mb-8 relative">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-teal-500 animate-gradient-x">
-                  Ready to Create Your Event?
-                </span>
-                {/* Subtle glow for improved visibility */}
-                <span className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-teal-500/20 blur-lg -z-10 opacity-30"></span>
+              <span className="inline-block px-4 py-2 bg-white/10 backdrop-blur-sm text-white/90 rounded-full text-sm font-medium mb-4">Simple Pricing</span>
+              <h2 className="text-5xl font-light mb-8 text-white">
+                Ready to Create Your Event?
               </h2>
               <p className="text-xl text-white/80 mb-6">
                 Create beautiful RSVP pages and start managing your events today.
               </p>
-              <p className="text-xl font-medium mb-6">
-                <span className="text-emerald-400">Plans starting at just $9/month</span>
+              <p className="text-xl font-medium mb-6 text-white">
+                Plans starting at just $9/month
               </p>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Link
                 href="/create"
-                className="inline-block px-10 py-5 bg-emerald-500 text-white font-semibold rounded-xl hover:bg-emerald-600 transition-all shadow-xl text-lg"
+                className="inline-block px-10 py-5 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition-all shadow-xl text-lg"
               >
                 Create Your RSVP Page Now
               </Link>
               <Link
                 href="/#pricing"
-                className="inline-block px-10 py-5 bg-white/10 border border-emerald-500/50 text-white font-semibold rounded-xl hover:bg-emerald-500/10 transition-all text-lg"
+                className="inline-block px-10 py-5 bg-white/10 border border-white/30 text-white font-medium rounded-xl hover:bg-white/20 transition-all text-lg backdrop-blur-sm"
               >
                 View Pricing
               </Link>
@@ -775,8 +795,8 @@ export default function Home() {
   return (
     <Suspense fallback={
       <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
+        <div className="absolute inset-0 bind8-bg" />
+        <div className="absolute inset-0 bind8-glow" />
         <div className="relative z-10 min-h-screen flex items-center justify-center">
           <div className="text-white">Loading...</div>
         </div>

@@ -56,8 +56,8 @@ function CheckoutContent() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-amber-400 opacity-80" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/40 via-blue-900/30 to-gray-900/90" />
+      <div className="absolute inset-0 bind8-bg" />
+      <div className="absolute inset-0 bind8-glow" />
       
       {/* Navigation */}
       <Navigation />
@@ -65,11 +65,11 @@ function CheckoutContent() {
       <div className="relative z-10 min-h-screen pt-28 px-6">
         <div className="max-w-2xl mx-auto">
           <div className="glass-card rounded-2xl p-8">
-            <h1 className="text-3xl font-bold text-white mb-6">Checkout</h1>
+            <h1 className="text-3xl font-light text-white mb-6">Checkout</h1>
             
             {/* Order Summary */}
             <div className="mb-8">
-              <h2 className="text-xl font-semibold text-white mb-4">Order Summary</h2>
+              <h2 className="text-xl font-light text-white mb-4">Order Summary</h2>
               
               <div className="bg-black/30 rounded-xl p-6 mb-6">
                 <div className="flex justify-between items-center mb-4">
@@ -78,14 +78,14 @@ function CheckoutContent() {
                     <p className="text-white/70">Monthly billing</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-semibold text-white">${displayPrice.toFixed(2)}/mo</p>
+                    <p className="text-lg font-light text-white">${displayPrice.toFixed(2)}/mo</p>
                   </div>
                 </div>
                 
                 <div className="border-t border-white/10 pt-4">
                   <div className="flex justify-between items-center">
                     <p className="text-white font-medium">Total</p>
-                    <p className="text-white font-bold">
+                    <p className="text-white font-light">
                       ${billingAmount.toFixed(2)}/month
                     </p>
                   </div>
@@ -94,11 +94,11 @@ function CheckoutContent() {
               
               {/* Plan Features */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-white mb-3">Included in your plan:</h3>
+                <h3 className="text-lg font-light text-white mb-3">Included in your plan:</h3>
                 <ul className="space-y-2">
                   {plan.features.map((feature, index) => (
                     <li key={index} className="flex items-start gap-2">
-                      <svg className="w-5 h-5 text-green-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                       <span className="text-white/80">{feature}</span>
@@ -122,24 +122,24 @@ function CheckoutContent() {
             
             {/* User Status */}
             {!isLoggedIn ? (
-              <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+              <div className="bg-cyan-500/20 border border-cyan-500/30 rounded-lg p-4 mb-6">
                 <p className="text-white">
                   You'll need to create an account or sign in before completing your purchase.
                 </p>
                 <button
                   onClick={handleCheckoutWithAuth}
-                  className="mt-3 w-full py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition-all"
+                  className="mt-3 w-full py-3 bg-cyan-500 text-white font-medium rounded-lg hover:bg-cyan-600 transition-all"
                 >
                   Continue to Sign Up / Login
                 </button>
               </div>
             ) : (
               <>
-                <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4 mb-6">
-                  <p className="text-white">
-                    You're signed in as <span className="font-semibold">{userEmail}</span>
-                  </p>
-                </div>
+              <div className="bg-teal-500/20 border border-teal-500/30 rounded-lg p-4 mb-6">
+                <p className="text-white">
+                  You're signed in as <span className="font-normal">{userEmail}</span>
+                </p>
+              </div>
                 
                 {/* Error Message */}
                 {error && (
@@ -167,8 +167,8 @@ function CheckoutContent() {
                 {/* Stripe Checkout Button */}
                 <div className="mb-6">
                   {!plan.stripePriceId ? (
-                    <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4">
-                      <p className="text-yellow-300">
+                    <div className="bg-cyan-500/20 border border-cyan-500/30 rounded-lg p-4">
+                      <p className="text-cyan-300">
                         This plan is not available for purchase. Please contact support.
                       </p>
                     </div>
@@ -203,7 +203,8 @@ export default function Checkout() {
   return (
     <Suspense fallback={
       <div className="min-h-screen relative overflow-hidden flex items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-amber-400 opacity-80" />
+        <div className="absolute inset-0 bind8-bg" />
+        <div className="absolute inset-0 bind8-glow" />
         <div className="relative z-10 text-white text-xl">Loading...</div>
       </div>
     }>

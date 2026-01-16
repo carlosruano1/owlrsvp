@@ -173,7 +173,7 @@ export default function AdminRegister() {
         <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
           <div className="w-full max-w-md glass-card rounded-3xl p-8 shadow-2xl text-center text-white">
             <div className="text-6xl mb-4">📧</div>
-            <h1 className="text-2xl font-semibold mb-4">Check Your Email</h1>
+            <h1 className="text-2xl font-light mb-4">Check Your Email</h1>
             <p className="text-white/80 mb-6">
               We've sent a verification link to <strong>{formData.email}</strong>. 
               Please click the link to activate your account.
@@ -189,7 +189,7 @@ export default function AdminRegister() {
             </p>
             <Link 
               href="/admin/login"
-              className="inline-block px-6 py-3 bg-white text-black font-semibold rounded-xl hover:bg-white/90 transition-all"
+              className="inline-block px-6 py-3 bg-white text-black font-light rounded-xl hover:bg-white/90 transition-all"
             >
               Back to Login
             </Link>
@@ -202,13 +202,13 @@ export default function AdminRegister() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="animated-bg" />
-      <div className="spotlight" />
+      <div className="absolute inset-0 bind8-bg" />
+      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="text-center mb-8 text-white text-glow">
-            <h1 className="text-4xl font-semibold mb-2 tracking-tight">Create Account</h1>
+            <h1 className="text-4xl font-light mb-2 tracking-tight">Create Account</h1>
             <p className="text-white/80 text-lg font-light">Join OwlRSVP as an admin</p>
           </div>
 

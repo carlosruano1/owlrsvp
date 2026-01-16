@@ -92,7 +92,15 @@ export default function SupportPage() {
           </div>
 
           <section className="rounded-2xl bg-white/5 border border-white/10 p-6">
-            <h2 className="text-2xl font-semibold mb-4">FAQ</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-semibold">Quick FAQ</h2>
+              <Link
+                href="/faq"
+                className="text-sm text-cyan-400 hover:text-cyan-300 underline"
+              >
+                View all FAQs →
+              </Link>
+            </div>
             <div className="space-y-3">
               {faqs.map((faq, index) => (
                 <article key={faq.question} className="rounded-xl bg-black/20">

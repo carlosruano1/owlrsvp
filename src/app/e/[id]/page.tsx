@@ -266,7 +266,7 @@ function EventRSVPContent() {
         <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
           <div className="w-full max-w-md glass-card rounded-3xl p-8 shadow-2xl text-center text-white">
             <div className="text-6xl mb-4">✅</div>
-            <h1 className="text-2xl font-semibold mb-2">RSVP Confirmed</h1>
+            <h1 className="text-2xl font-light mb-2">RSVP Confirmed</h1>
             <p className="text-white/80 mb-4">Thank you for responding to <span className="font-medium">{event?.title}</span></p>
             <p className="text-white/70 text-sm">
               {attending ? 
@@ -296,8 +296,8 @@ function EventRSVPContent() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="animated-bg" />
-      <div className="spotlight" />
+      <div className="absolute inset-0 bind8-bg" />
+      <div className="absolute inset-0 bind8-glow" />
       <div className={`relative z-10 min-h-screen flex items-center justify-center p-4 ${creatorTier === 'free' ? 'pb-24' : ''}`}>
         <div className="w-full max-w-xl">
           <div className="text-center mb-8">
@@ -591,7 +591,7 @@ function EventRSVPContent() {
                     >
                       -
                     </button>
-                    <div className="px-5 py-2 rounded-xl bg-white text-black font-semibold">{guestCount}</div>
+                    <div className="px-5 py-2 rounded-xl bg-white text-black font-medium">{guestCount}</div>
                     <button 
                       type="button" 
                       onClick={() => setGuestCount(Math.min(149, guestCount + 1))} 

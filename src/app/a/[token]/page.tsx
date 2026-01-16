@@ -973,24 +973,24 @@ function AdminDashboardContent() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="animated-bg" />
-      <div className="spotlight" />
+      <div className="absolute inset-0 bind8-bg" />
+      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header */}
           <div className="text-center mb-8 text-white text-glow">
-            <h1 className="text-4xl font-bold mb-2">{data?.event.title}</h1>
-            <p className="text-white/80 text-lg">Admin Dashboard</p>
+            <h1 className="text-4xl font-light mb-2">{data?.event.title}</h1>
+            <p className="text-white/80 text-lg font-light">Admin Dashboard</p>
           </div>
 
           {/* Account Creation CTA for guest users */}
           {!isAdmin && (
-            <div className="glass-card rounded-2xl p-6 sm:p-8 text-white mb-6 border-2 border-yellow-400/50 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-yellow-400/20 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+            <div className="glass-card rounded-2xl p-6 sm:p-8 text-white mb-6 border-2 border-cyan-400/50 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-cyan-400/20 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
               <div className="relative z-10">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold mb-2 text-yellow-300">Save Your Progress</h2>
+                    <h2 className="text-2xl font-light mb-2 text-cyan-300">Save Your Progress</h2>
                     <p className="text-white/80 mb-4">Create a free account to manage all your events in one place, access advanced features, and ensure you never lose your event settings.</p>
                     <ul className="list-disc list-inside text-white/70 space-y-1 mb-6 sm:mb-0">
                       <li>Manage multiple events from one dashboard</li>
@@ -1002,7 +1002,7 @@ function AdminDashboardContent() {
                   <div className="flex flex-col gap-3 sm:min-w-[200px]">
                     <Link 
                       href="/admin/register" 
-                      className="px-6 py-3 bg-yellow-400 text-black font-semibold rounded-xl hover:bg-yellow-300 transition-all text-center shadow-lg shadow-yellow-400/20"
+                      className="px-6 py-3 bg-cyan-500 text-white font-medium rounded-xl hover:bg-cyan-600 transition-all text-center shadow-lg shadow-cyan-500/20"
                     >
                       Create Free Account
                     </Link>
@@ -1031,7 +1031,7 @@ function AdminDashboardContent() {
                   )}
                 </div>
                 <div>
-                  <div className="text-white font-semibold text-lg">
+                  <div className="text-white font-normal text-lg">
                     {data?.event.company_name || 'Your Company'}
                   </div>
                   <div className="text-white/60 text-sm">Admin Dashboard</div>
@@ -1043,7 +1043,7 @@ function AdminDashboardContent() {
           {/* Stats Cards */}
           <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className="text-2xl font-bold">Attendance Overview</h2>
+              <h2 className="text-2xl font-light">Attendance Overview</h2>
               <div className="flex items-center gap-2">
                 <button 
                   onClick={() => setShowDetailedStats(!showDetailedStats)}
@@ -1104,7 +1104,7 @@ function AdminDashboardContent() {
               <div className="relative overflow-hidden rounded-xl bg-white/5 border border-white/10 p-5">
                 <div className="absolute bottom-0 left-0 h-1.5 bg-green-400" style={{ width: `${data?.attendees?.filter(a => a.attending).length ? (data.attendees.filter(a => a.attending).length / (data.stats.totalResponses || 1) * 100) : 0}%` }} />
                 <div className="flex flex-col h-full">
-                  <div className="text-3xl font-bold text-green-400 mb-1">
+                  <div className="text-3xl font-light text-teal-400 mb-1">
                     {data?.attendees?.filter(a => a.attending).length || 0}
                   </div>
                   <div className="text-white/80 mb-2">Confirmed RSVPs</div>
@@ -1119,7 +1119,7 @@ function AdminDashboardContent() {
               <div className="relative overflow-hidden rounded-xl bg-white/5 border border-white/10 p-5">
                 <div className="absolute bottom-0 left-0 h-1.5 bg-red-400" style={{ width: `${data?.stats.totalNotAttending ? (data.stats.totalNotAttending / (data.stats.totalResponses || 1) * 100) : 0}%` }} />
                 <div className="flex flex-col h-full">
-                  <div className="text-3xl font-bold text-red-400 mb-1">
+                  <div className="text-3xl font-light text-cyan-400 mb-1">
                     {data?.stats.totalNotAttending || 0}
                   </div>
                   <div className="text-white/80 mb-2">Not Attending</div>
@@ -1136,7 +1136,7 @@ function AdminDashboardContent() {
                   <div className="absolute bottom-0 left-0 h-1.5 bg-blue-400" style={{ width: `${data?.stats.totalResponses ? (data.stats.totalResponses / data.attendees.length * 100) : 0}%` }} />
                 )}
                 <div className="flex flex-col h-full">
-                  <div className="text-3xl font-bold text-blue-400 mb-1">
+                  <div className="text-3xl font-light text-blue-400 mb-1">
                     {data?.stats.totalResponses || 0}
                   </div>
                   <div className="text-white/80 mb-2">Total Responses</div>
@@ -1153,7 +1153,7 @@ function AdminDashboardContent() {
               <div className="relative overflow-hidden rounded-xl bg-white/5 border border-white/10 p-5">
                 <div className="absolute bottom-0 left-0 h-1.5 bg-purple-400" style={{ width: '100%' }} />
                 <div className="flex flex-col h-full">
-                  <div className="text-3xl font-bold text-purple-400 mb-1">
+                  <div className="text-3xl font-light text-teal-400 mb-1">
                     {data?.stats.totalAttending || 0}
                   </div>
                   <div className="text-white/80 mb-2">Total People Expected</div>
@@ -1170,7 +1170,7 @@ function AdminDashboardContent() {
             {/* Detailed Statistics Section */}
             {showDetailedStats && (
               <div className="mt-8 border-t border-white/10 pt-6">
-                <h3 className="text-xl font-semibold mb-4">Detailed Guest Statistics</h3>
+                <h3 className="text-xl font-light mb-4">Detailed Guest Statistics</h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Guest Distribution Chart */}
@@ -1422,7 +1422,7 @@ function AdminDashboardContent() {
             <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">QR Code</h2>
+                  <h2 className="text-2xl font-light mb-2">QR Code</h2>
                   <p className="text-white/60">Share this QR code for instant RSVP access</p>
                 </div>
               </div>
@@ -1466,7 +1466,7 @@ function AdminDashboardContent() {
 
                   {/* Copy Link Section */}
                   <div className="pt-4 border-t border-white/10">
-                    <h3 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+                    <h3 className="text-sm font-normal text-white/80 mb-3 flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                       </svg>
@@ -1493,7 +1493,7 @@ function AdminDashboardContent() {
 
                   {/* Social Sharing Section */}
                   <div className="pt-4 border-t border-white/10">
-                    <h3 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+                    <h3 className="text-sm font-normal text-white/80 mb-3 flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.885 12.938 9 12.482 9 12c0-.482-.115-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                       </svg>
@@ -1564,7 +1564,7 @@ function AdminDashboardContent() {
           {/* Event Details */}
           <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className="text-2xl font-bold">Event Details</h2>
+              <h2 className="text-2xl font-light">Event Details</h2>
               <button 
                 onClick={() => setShowEventDetailsForm(!showEventDetailsForm)}
                 className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 text-white/90 transition-all flex items-center gap-2"
@@ -1946,7 +1946,7 @@ function AdminDashboardContent() {
                           </svg>
                           <span className="text-sm font-medium text-white/60">Event Title</span>
                         </div>
-                        <p className="text-lg font-semibold text-white/90">{data?.event.title || 'Not set'}</p>
+                        <p className="text-lg font-normal text-white/90">{data?.event.title || 'Not set'}</p>
                       </div>
                     </div>
                     
@@ -2044,7 +2044,7 @@ function AdminDashboardContent() {
           {/* Event Settings */}
           <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-              <h2 className="text-2xl font-bold">Event Settings</h2>
+              <h2 className="text-2xl font-light">Event Settings</h2>
               <div className="flex flex-wrap gap-2">
                 {canUseBranding ? (
                   <button 
@@ -2282,7 +2282,7 @@ function AdminDashboardContent() {
                 className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => setAttendeesExpanded(!attendeesExpanded)}
               >
-                <h2 className="text-2xl font-bold">RSVPs</h2>
+                <h2 className="text-2xl font-light">RSVPs</h2>
                 {data?.attendees && data.attendees.length > 0 && (
                   <span className="text-sm text-white/60">
                     ({data.attendees.length} {data.attendees.length === 1 ? 'response' : 'responses'})
@@ -2775,7 +2775,7 @@ function AdminDashboardContent() {
           </div>
           {/* Manual Add Guest - Available for all auth modes */}
           <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
-            <h2 className="text-2xl font-bold mb-6">Add Guest Manually</h2>
+            <h2 className="text-2xl font-light mb-6">Add Guest Manually</h2>
             <p className="text-white/70 text-sm mb-4">
               Add guests manually for phone calls, walk-ins, or other situations where they can't RSVP online.
             </p>
@@ -2895,12 +2895,12 @@ function AdminDashboardContent() {
         {/* Final CTA before footer for guest users */}
         {!isAdmin && (
           <div className="max-w-4xl mx-auto mt-12 mb-8 p-4 sm:p-6 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-2xl text-center border border-yellow-500/30">
-            <h3 className="text-xl font-semibold text-white mb-2">Don't lose access to your event!</h3>
+            <h3 className="text-xl font-light text-white mb-2">Don't lose access to your event!</h3>
             <p className="text-white/70 mb-4">Create a free account now to securely manage this event and create unlimited events in the future.</p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link 
                 href="/admin/register" 
-                className="px-6 py-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-semibold rounded-xl hover:from-yellow-300 hover:to-orange-300 transition-all text-center shadow-lg"
+                className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-medium rounded-xl hover:from-cyan-600 hover:to-teal-600 transition-all text-center shadow-lg"
               >
                 Create Free Account
               </Link>

@@ -182,7 +182,7 @@ export default function AdminSettings() {
             <div className="text-white/70 mb-4">Please log in to access the admin dashboard.</div>
             <Link 
               href="/admin/login"
-              className="px-6 py-3 bg-white text-black font-semibold rounded-xl hover:bg-white/90 transition-all"
+              className="px-6 py-3 bg-white text-black font-normal rounded-xl hover:bg-white/90 transition-all"
             >
               Sign In
             </Link>
@@ -194,20 +194,20 @@ export default function AdminSettings() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="animated-bg" />
-      <div className="spotlight" />
+      <div className="absolute inset-0 bind8-bg" />
+      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div className="text-white text-glow">
-              <h1 className="text-4xl font-bold mb-2">Admin Settings</h1>
+              <h1 className="text-4xl font-light mb-2">Admin Settings</h1>
               <p className="text-white/80 text-lg">Welcome back, {user.username}!</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right text-white/80">
                 <div className="text-sm">Subscription</div>
-                <div className="font-semibold capitalize">{user.subscription_tier}</div>
+                <div className="font-normal capitalize">{user.subscription_tier}</div>
                 <div className="text-xs text-white/60 mt-1">
                   Events created: {actualEventCount}
                 </div>
@@ -232,13 +232,13 @@ export default function AdminSettings() {
             <div className="glass-card rounded-2xl p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold text-blue-400 mb-1">
+                  <div className="text-3xl font-light text-cyan-400 mb-1">
                     {actualEventCount}
                   </div>
                   <div className="text-white/80">Events Created</div>
                 </div>
-                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
@@ -248,13 +248,13 @@ export default function AdminSettings() {
             <div className="glass-card rounded-2xl p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-3xl font-bold text-purple-400 mb-1">
+                  <div className="text-3xl font-light text-teal-400 mb-1">
                     {user.max_attendees_per_event || (user.subscription_tier === 'free' ? '50' : '150')}
                   </div>
                   <div className="text-white/80">Max Attendees/Event</div>
                 </div>
                 <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
@@ -264,19 +264,19 @@ export default function AdminSettings() {
 
           {/* Quick Actions */}
           <div className="glass-card rounded-2xl p-8 text-white">
-            <h2 className="text-2xl font-bold mb-6">Quick Actions</h2>
+            <h2 className="text-2xl font-light mb-6">Quick Actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Link
                 href="/create"
                 className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
               >
-                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                 </div>
                 <div>
-                  <div className="font-semibold">Create New Event</div>
+                  <div className="font-normal">Create New Event</div>
                   <div className="text-white/60 text-sm">Start a new RSVP page</div>
                 </div>
               </Link>
@@ -291,7 +291,7 @@ export default function AdminSettings() {
                   </svg>
                 </div>
                 <div>
-                  <div className="font-semibold">Manage Events</div>
+                  <div className="font-normal">Manage Events</div>
                   <div className="text-white/60 text-sm">View and edit your events</div>
                 </div>
               </Link>
@@ -301,12 +301,12 @@ export default function AdminSettings() {
                 onClick={() => router.push('/admin/events')}
               >
                 <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
                 <div>
-                  <div className="font-semibold">Event Analytics</div>
+                  <div className="font-normal">Event Analytics</div>
                   <div className="text-white/60 text-sm">Track RSVPs and insights</div>
                 </div>
               </div>
@@ -315,23 +315,23 @@ export default function AdminSettings() {
 
           {/* Account Info */}
           <div className="glass-card rounded-2xl p-8 text-white">
-            <h2 className="text-2xl font-bold mb-6">Account Information</h2>
+            <h2 className="text-2xl font-light mb-6">Account Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <div className="text-sm text-white/60 mb-1">Username</div>
-                <div className="font-semibold">{user.username}</div>
+                <div className="font-normal">{user.username}</div>
               </div>
               <div>
                 <div className="text-sm text-white/60 mb-1">Email</div>
-                <div className="font-semibold">{user.email}</div>
+                <div className="font-normal">{user.email}</div>
               </div>
               <div>
                 <div className="text-sm text-white/60 mb-1">Subscription Tier</div>
-                <div className="font-semibold capitalize">{user.subscription_tier}</div>
+                <div className="font-normal capitalize">{user.subscription_tier}</div>
               </div>
               <div>
                 <div className="text-sm text-white/60 mb-1">Member Since</div>
-                <div className="font-semibold">
+                <div className="font-normal">
                   {user.created_at 
                     ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
                     : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -343,13 +343,13 @@ export default function AdminSettings() {
 
           {/* Account Security */}
           <div className="glass-card rounded-2xl p-8 text-white">
-            <h2 className="text-2xl font-bold mb-6">Account Security</h2>
+            <h2 className="text-2xl font-light mb-6">Account Security</h2>
             
             {/* Password Change */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold mb-1">Password</h3>
+                  <h3 className="text-lg font-normal mb-1">Password</h3>
                   <p className="text-white/60 text-sm">Change your account password</p>
                 </div>
                 <button
@@ -436,7 +436,7 @@ export default function AdminSettings() {
             <div className="border-t border-white/10 pt-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold mb-1">Two-Factor Authentication</h3>
+                  <h3 className="text-lg font-normal mb-1">Two-Factor Authentication</h3>
                   <p className="text-white/60 text-sm">
                     {totpEnabled 
                       ? 'Authenticator app is enabled for your account'
@@ -469,7 +469,7 @@ export default function AdminSettings() {
                 </div>
               </div>
               {totpEnabled && (
-                <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+                <div className="mt-4 p-4 bg-cyan-500/10 border border-blue-500/20 rounded-xl">
                   <p className="text-white/80 text-sm">
                     <strong>Note:</strong> With TOTP enabled, password resets will require your authenticator code instead of email.
                   </p>
@@ -482,13 +482,13 @@ export default function AdminSettings() {
           {user.subscription_tier === 'free' && (
             <div className="glass-card rounded-2xl p-8 text-white bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
                   <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold mb-2">Upgrade Your Account</h3>
+                  <h3 className="text-xl font-normal mb-2">Upgrade Your Account</h3>
                   <p className="text-white/80 mb-4">
                     You're currently on the free plan with {getPlanLimits(user.subscription_tier).maxEvents} events allowed and a limit of {getPlanLimits(user.subscription_tier).maxAttendeesPerEvent} attendees per event. 
                     Upgrade to unlock more events, custom branding, advanced analytics, and higher attendee limits.
@@ -496,13 +496,13 @@ export default function AdminSettings() {
                   <div className="flex flex-wrap gap-3">
                     <button 
                       onClick={() => router.push('/checkout?plan=basic')}
-                      className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-xl hover:bg-blue-600 transition-all"
+                      className="px-6 py-3 bg-cyan-500 text-white font-normal rounded-xl hover:bg-blue-600 transition-all"
                     >
                       Upgrade to Basic ($9/mo)
                     </button>
                     <button 
                       onClick={() => router.push('/checkout?plan=pro')}
-                      className="px-6 py-3 bg-yellow-500 text-black font-semibold rounded-xl hover:bg-yellow-400 transition-all"
+                      className="px-6 py-3 bg-cyan-500 text-black font-normal rounded-xl hover:bg-yellow-400 transition-all"
                     >
                       Upgrade to Pro ($29/mo)
                     </button>

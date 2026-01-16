@@ -74,13 +74,13 @@ export default function AdminLogin() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="animated-bg" />
-      <div className="spotlight" />
+      <div className="absolute inset-0 bind8-bg" />
+      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="text-center mb-8 text-white text-glow">
-            <h1 className="text-4xl font-semibold mb-2 tracking-tight">Admin Login</h1>
+            <h1 className="text-4xl font-light mb-2 tracking-tight">Admin Login</h1>
             <p className="text-white/80 text-lg font-light">Sign in to your OwlRSVP account</p>
           </div>
 
