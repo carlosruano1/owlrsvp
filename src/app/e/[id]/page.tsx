@@ -88,6 +88,8 @@ function EventRSVPContent() {
   // We don't need this effect anymore as ThemeProvider handles colors
 
   useEffect(() => {
+    if (!eventId) return
+    
     const fetchEvent = async () => {
       try {
         console.log('Fetching event with ID from URL:', eventId);
@@ -105,9 +107,10 @@ function EventRSVPContent() {
 
         // Check for payment success/cancellation in URL params
         const urlParams = new URLSearchParams(window.location.search)
-        if (urlParams.get('payment_success') === 'true') {
+        const fetchedEventId = data.event?.id
+        if (urlParams.get('payment_success') === 'true' && fetchedEventId) {
           // Payment successful - restore form data and auto-submit RSVP
-          const savedData = sessionStorage.getItem(`rsvp_${event.id}`)
+          const savedData = sessionStorage.getItem(`rsvp_${fetchedEventId}`)
           if (savedData) {
             try {
               const formData = JSON.parse(savedData)
@@ -122,7 +125,7 @@ function EventRSVPContent() {
               
               // Auto-submit RSVP
               const payload = {
-                event_id: event.id,
+                event_id: fetchedEventId,
                 first_name: formData.firstName,
                 last_name: formData.lastName,
                 email: formData.email || undefined,
@@ -137,12 +140,12 @@ function EventRSVPContent() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
               }).then(() => {
-                sessionStorage.removeItem(`rsvp_${event.id}`)
+                sessionStorage.removeItem(`rsvp_${fetchedEventId}`)
                 setSubmitted(true)
               }).catch((err) => {
                 console.error('RSVP submission failed:', err)
                 // Still show success since payment worked, but log error
-                sessionStorage.removeItem(`rsvp_${event.id}`)
+                sessionStorage.removeItem(`rsvp_${fetchedEventId}`)
                 setSubmitted(true)
               })
             } catch (err) {
@@ -154,9 +157,9 @@ function EventRSVPContent() {
           }
           // Clean up URL
           window.history.replaceState({}, '', window.location.pathname)
-        } else if (urlParams.get('payment_cancelled') === 'true') {
+        } else if (urlParams.get('payment_cancelled') === 'true' && fetchedEventId) {
           // Restore form data on cancellation
-          const savedData = sessionStorage.getItem(`rsvp_${event.id}`)
+          const savedData = sessionStorage.getItem(`rsvp_${fetchedEventId}`)
           if (savedData) {
             try {
               const formData = JSON.parse(savedData)
@@ -167,7 +170,7 @@ function EventRSVPContent() {
               setAddress(formData.address || '')
               setGuestCount(formData.guestCount || 0)
               setAttending(true)
-              sessionStorage.removeItem(`rsvp_${event.id}`)
+              sessionStorage.removeItem(`rsvp_${fetchedEventId}`)
             } catch (err) {
               console.error('Error restoring form data:', err)
             }
@@ -214,9 +217,7 @@ function EventRSVPContent() {
       }
     }
 
-    if (eventId) {
-      fetchEvent()
-    }
+    fetchEvent()
   }, [eventId])
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -3,6 +3,8 @@ import { stripe, createConnectedAccount, createAccountLink } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase'
 import { validateSession } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const sessionToken = request.cookies.get('admin_session')?.value
