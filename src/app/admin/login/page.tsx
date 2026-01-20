@@ -50,17 +50,6 @@ export default function AdminLogin() {
         body: JSON.stringify(formData)
       })
 
-      // Check if response is JSON before parsing
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text()
-        console.error('Non-JSON response from login API:')
-        console.error('Status:', response.status, response.statusText)
-        console.error('Content-Type:', contentType)
-        console.error('Response body:', text.substring(0, 1000))
-        throw new Error(`Server error (${response.status}): Check browser console for details.`)
-      }
-
       const data = await response.json()
 
       if (!response.ok) {

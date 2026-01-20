@@ -42,10 +42,10 @@ export async function POST(request: NextRequest) {
     const returnUrl = body.returnUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/admin/settings`
 
     // Create billing portal session
-    const portalSession = await createCustomerPortalSession(
-      userData.stripe_customer_id,
+    const portalSession = await createCustomerPortalSession({
+      customerId: userData.stripe_customer_id,
       returnUrl
-    )
+    })
 
     return NextResponse.json({ 
       url: portalSession.url

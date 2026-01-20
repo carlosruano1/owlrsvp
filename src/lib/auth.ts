@@ -254,78 +254,27 @@ export async function authenticateAdmin(
   password: string
 ): Promise<{ success: boolean; user?: AdminUser; session_token?: string; error?: string }> {
   try {
-    console.log('authenticateAdmin called for:', usernameOrEmail)
-    
     if (!supabase) {
-      console.error('Supabase client not initialized')
       return { success: false, error: 'Database not configured' }
     }
 
-    // Find user by username or email - try without quotes first (Supabase PostgREST format)
-    let user = null
-    let userError = null
-    
-    try {
-      // Try querying by username first
-      const { data: userByUsername, error: usernameError } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('username', usernameOrEmail)
-        .eq('is_active', true)
-        .single()
-      
-      if (!usernameError && userByUsername) {
-        user = userByUsername
-      } else {
-        // Try querying by email
-        const { data: userByEmail, error: emailError } = await supabase
-          .from('admin_users')
-          .select('*')
-          .eq('email', usernameOrEmail)
-          .eq('is_active', true)
-          .single()
-        
-        if (!emailError && userByEmail) {
-          user = userByEmail
-        } else {
-          userError = emailError || usernameError
-        }
-      }
-    } catch (queryException) {
-      console.error('Exception during user query:', queryException)
-      userError = queryException as any
-    }
+    // Find user by username or email
+    const { data: user, error: userError } = await supabase
+      .from('admin_users')
+      .select('*')
+      .or(`username.eq.${usernameOrEmail},email.eq.${usernameOrEmail}`)
+      .eq('is_active', true)
+      .single()
 
-    if (userError) {
-      console.error('Error fetching user in authenticateAdmin:', userError)
-      console.error('Error details:', JSON.stringify(userError, null, 2))
-      // Don't reveal if user exists or not for security
+    if (userError || !user) {
       return { success: false, error: 'Invalid credentials' }
     }
-
-    if (!user) {
-      console.log('User not found for:', usernameOrEmail)
-      return { success: false, error: 'Invalid credentials' }
-    }
-
-    console.log('User found:', user.id, user.username)
 
     // Verify password
-    console.log('Verifying password...')
-    let passwordValid = false
-    try {
-      passwordValid = await verifyPassword(password, user.password_hash)
-    } catch (passwordError) {
-      console.error('Error verifying password:', passwordError)
-      return { success: false, error: 'Invalid credentials' }
-    }
-    
+    const passwordValid = await verifyPassword(password, user.password_hash)
     if (!passwordValid) {
-      console.log('Password verification failed')
       return { success: false, error: 'Invalid credentials' }
     }
-    
-    console.log('Password verified successfully')
 
     // Temporarily bypass email verification check for local development
     if (!user.email_verified && process.env.NODE_ENV === 'production') {
@@ -352,55 +301,16 @@ export async function authenticateAdmin(
     }
 
     // Create session
-    let sessionToken: string | null = null
-    try {
-      const { data: sessionData, error: sessionError } = await supabase
-        .rpc('create_admin_session', {
-          p_user_id: user.id,
-          p_ip_address: null, // Will be set by API route
-          p_user_agent: null  // Will be set by API route
-        })
+    const { data: sessionToken, error: sessionError } = await supabase
+      .rpc('create_admin_session', {
+        p_user_id: user.id,
+        p_ip_address: null, // Will be set by API route
+        p_user_agent: null  // Will be set by API route
+      })
 
-      if (sessionError) {
-        console.error('Error creating session:', sessionError)
-        console.error('Session error details:', JSON.stringify(sessionError, null, 2))
-        // If RPC function doesn't exist, create a fallback session token
-        if (sessionError.message?.includes('function') || 
-            sessionError.message?.includes('does not exist') ||
-            sessionError.code === '42883') {
-          console.warn('create_admin_session RPC not found, using fallback token generation')
-          sessionToken = crypto.randomBytes(32).toString('hex')
-        } else {
-          // For other errors, still try fallback in development
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('Session RPC failed in development, using fallback token')
-            sessionToken = crypto.randomBytes(32).toString('hex')
-          } else {
-            return { success: false, error: 'Failed to create session' }
-          }
-        }
-      } else {
-        // Handle different return formats from RPC
-        if (typeof sessionData === 'string') {
-          sessionToken = sessionData
-        } else if (sessionData && typeof sessionData === 'object' && 'token' in sessionData) {
-          sessionToken = (sessionData as any).token
-        } else if (sessionData) {
-          sessionToken = String(sessionData)
-        } else {
-          console.warn('RPC returned null/undefined, using fallback token')
-          sessionToken = crypto.randomBytes(32).toString('hex')
-        }
-      }
-    } catch (rpcError) {
-      console.error('Exception creating session:', rpcError)
-      // Fallback: generate a simple session token if RPC fails
-      if (process.env.NODE_ENV === 'development') {
-        sessionToken = crypto.randomBytes(32).toString('hex')
-        console.warn('Using fallback session token generation in development')
-      } else {
-        throw rpcError
-      }
+    if (sessionError) {
+      console.error('Error creating session:', sessionError)
+      return { success: false, error: 'Failed to create session' }
     }
 
     // Update last login
@@ -412,11 +322,6 @@ export async function authenticateAdmin(
     // Remove sensitive data
     const { password_hash, email_verification_token, ...userData } = user
 
-    if (!sessionToken) {
-      console.error('Session token is null or undefined')
-      return { success: false, error: 'Failed to create session token' }
-    }
-
     return { 
       success: true, 
       user: userData as AdminUser,
@@ -424,7 +329,6 @@ export async function authenticateAdmin(
     }
   } catch (error) {
     console.error('Error in authenticateAdmin:', error)
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     return { success: false, error: 'Internal server error' }
   }
 }

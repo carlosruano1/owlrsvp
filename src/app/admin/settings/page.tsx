@@ -349,7 +349,7 @@ export default function AdminSettings() {
     )
   }
 
-  const tabs: { id: Tab; label: string; icon: JSX.Element }[] = [
+  const tabs: { id: Tab; label: string; icon: React.ReactElement }[] = [
     {
       id: 'account',
       label: 'Account',
