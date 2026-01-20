@@ -6,13 +6,14 @@ import Link from 'next/link'
 import Footer from '@/components/Footer'
 import AdminNavigation from '@/components/AdminNavigation'
 import { getPlanLimits } from '@/lib/plans'
+import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
 
 interface AdminUser {
   id: string
   username: string
   email: string
   email_verified: boolean
-  subscription_tier: 'free' | 'pro' | 'enterprise'
+  subscription_tier: 'free' | 'basic' | 'pro' | 'enterprise'
   subscription_status: 'active' | 'cancelled' | 'past_due'
   max_events: number
   max_attendees_per_event: number
@@ -22,15 +23,26 @@ interface AdminUser {
   totp_enabled?: boolean
 }
 
-interface EventCount {
-  actualCount: number
-}
+type Tab = 'account' | 'security' | 'subscription' | 'danger'
 
 export default function AdminSettings() {
   const [user, setUser] = useState<AdminUser | null>(null)
   const [actualEventCount, setActualEventCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [activeTab, setActiveTab] = useState<Tab>('account')
+  const router = useRouter()
+
+  // Account tab state
+  const [editingEmail, setEditingEmail] = useState(false)
+  const [editingUsername, setEditingUsername] = useState(false)
+  const [emailValue, setEmailValue] = useState('')
+  const [usernameValue, setUsernameValue] = useState('')
+  const [accountLoading, setAccountLoading] = useState(false)
+  const [accountError, setAccountError] = useState('')
+  const [accountSuccess, setAccountSuccess] = useState('')
+
+  // Security tab state
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -42,7 +54,13 @@ export default function AdminSettings() {
   const [passwordSuccess, setPasswordSuccess] = useState('')
   const [totpEnabled, setTotpEnabled] = useState(false)
   const [disablingTOTP, setDisablingTOTP] = useState(false)
-  const router = useRouter()
+
+  // Subscription tab state
+  const [billingPortalLoading, setBillingPortalLoading] = useState(false)
+
+  // Danger zone state
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -55,6 +73,8 @@ export default function AdminSettings() {
         const data = await response.json()
         setUser(data.user)
         setTotpEnabled(data.user?.totp_enabled || false)
+        setEmailValue(data.user?.email || '')
+        setUsernameValue(data.user?.username || '')
         
         // Fetch actual event count
         const eventsResponse = await fetch('/api/admin/events')
@@ -80,6 +100,82 @@ export default function AdminSettings() {
     }
   }
 
+  // Account tab handlers
+  const handleUpdateEmail = async () => {
+    if (!emailValue || emailValue === user?.email) {
+      setEditingEmail(false)
+      return
+    }
+
+    setAccountLoading(true)
+    setAccountError('')
+    setAccountSuccess('')
+
+    try {
+      const response = await fetch('/api/auth/update-profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: emailValue })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update email')
+      }
+
+      setAccountSuccess('Email updated successfully! Please verify your new email address.')
+      if (user) {
+        setUser({ ...user, email: emailValue, email_verified: false })
+      }
+      setEditingEmail(false)
+      setTimeout(() => setAccountSuccess(''), 3000)
+    } catch (err) {
+      setAccountError(err instanceof Error ? err.message : 'Failed to update email')
+    } finally {
+      setAccountLoading(false)
+    }
+  }
+
+  const handleUpdateUsername = async () => {
+    if (!usernameValue || usernameValue === user?.username) {
+      setEditingUsername(false)
+      return
+    }
+
+    setAccountLoading(true)
+    setAccountError('')
+    setAccountSuccess('')
+
+    try {
+      const response = await fetch('/api/auth/update-profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: usernameValue })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update username')
+      }
+
+      setAccountSuccess('Username updated successfully!')
+      if (user) {
+        setUser({ ...user, username: usernameValue })
+      }
+      setEditingUsername(false)
+      setTimeout(() => setAccountSuccess(''), 3000)
+    } catch (err) {
+      setAccountError(err instanceof Error ? err.message : 'Failed to update username')
+    } finally {
+      setAccountLoading(false)
+    }
+  }
+
+  // Security tab handlers
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault()
     setPasswordError('')
@@ -159,6 +255,67 @@ export default function AdminSettings() {
     }
   }
 
+  // Subscription tab handlers
+  const handleBillingPortal = async () => {
+    setBillingPortalLoading(true)
+    try {
+      const response = await fetch('/api/billing/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          returnUrl: `${window.location.origin}/admin/settings`
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to open billing portal')
+      }
+
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to open billing portal')
+      setBillingPortalLoading(false)
+    }
+  }
+
+  // Danger zone handlers
+  const handleDeleteAccount = async () => {
+    if (deleteConfirm !== 'DELETE') {
+      setError('Please type DELETE to confirm')
+      return
+    }
+
+    if (!confirm('Are you absolutely sure? This action cannot be undone. All your events, attendees, and data will be permanently deleted.')) {
+      return
+    }
+
+    setDeleting(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/auth/delete-account', {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete account')
+      }
+
+      router.push('/')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete account')
+      setDeleting(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen relative overflow-hidden">
@@ -171,7 +328,7 @@ export default function AdminSettings() {
     )
   }
 
-  if (error || !user) {
+  if (!user) {
     return (
       <div className="min-h-screen relative overflow-hidden">
         <div className="animated-bg" />
@@ -192,6 +349,45 @@ export default function AdminSettings() {
     )
   }
 
+  const tabs: { id: Tab; label: string; icon: JSX.Element }[] = [
+    {
+      id: 'account',
+      label: 'Account',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      )
+    },
+    {
+      id: 'security',
+      label: 'Security',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      )
+    },
+    {
+      id: 'subscription',
+      label: 'Subscription',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        </svg>
+      )
+    },
+    {
+      id: 'danger',
+      label: 'Danger Zone',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      )
+    }
+  ]
+
   return (
     <div className="min-h-screen relative overflow-hidden">
       <div className="absolute inset-0 bind8-bg" />
@@ -201,8 +397,8 @@ export default function AdminSettings() {
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div className="text-white text-glow">
-              <h1 className="text-4xl font-light mb-2">Admin Settings</h1>
-              <p className="text-white/80 text-lg">Welcome back, {user.username}!</p>
+              <h1 className="text-4xl font-light mb-2">Account Settings</h1>
+              <p className="text-white/80 text-lg">Manage your account and preferences</p>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right text-white/80">
@@ -249,7 +445,7 @@ export default function AdminSettings() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-3xl font-light text-teal-400 mb-1">
-                    {user.max_attendees_per_event || (user.subscription_tier === 'free' ? '50' : '150')}
+                    {user.max_attendees_per_event || (user.subscription_tier === 'free' ? '25' : '200')}
                   </div>
                   <div className="text-white/80">Max Attendees/Event</div>
                 </div>
@@ -262,255 +458,477 @@ export default function AdminSettings() {
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="glass-card rounded-2xl p-8 text-white">
-            <h2 className="text-2xl font-light mb-6">Quick Actions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Link
-                href="/create"
-                className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
-              >
-                <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="font-normal">Create New Event</div>
-                  <div className="text-white/60 text-sm">Start a new RSVP page</div>
-                </div>
-              </Link>
-
-              <Link
-                href="/admin/events"
-                className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
-              >
-                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="font-normal">Manage Events</div>
-                  <div className="text-white/60 text-sm">View and edit your events</div>
-                </div>
-              </Link>
-              
-              <div 
-                className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all cursor-pointer"
-                onClick={() => router.push('/admin/events')}
-              >
-                <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="font-normal">Event Analytics</div>
-                  <div className="text-white/60 text-sm">Track RSVPs and insights</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Account Info */}
-          <div className="glass-card rounded-2xl p-8 text-white">
-            <h2 className="text-2xl font-light mb-6">Account Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <div className="text-sm text-white/60 mb-1">Username</div>
-                <div className="font-normal">{user.username}</div>
-              </div>
-              <div>
-                <div className="text-sm text-white/60 mb-1">Email</div>
-                <div className="font-normal">{user.email}</div>
-              </div>
-              <div>
-                <div className="text-sm text-white/60 mb-1">Subscription Tier</div>
-                <div className="font-normal capitalize">{user.subscription_tier}</div>
-              </div>
-              <div>
-                <div className="text-sm text-white/60 mb-1">Member Since</div>
-                <div className="font-normal">
-                  {user.created_at 
-                    ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                    : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-                  }
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Account Security */}
-          <div className="glass-card rounded-2xl p-8 text-white">
-            <h2 className="text-2xl font-light mb-6">Account Security</h2>
-            
-            {/* Password Change */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-normal mb-1">Password</h3>
-                  <p className="text-white/60 text-sm">Change your account password</p>
-                </div>
+          {/* Tabs */}
+          <div className="glass-card rounded-2xl p-2">
+            <div className="flex flex-wrap gap-2 border-b border-white/10 pb-2 mb-6">
+              {tabs.map((tab) => (
                 <button
-                  onClick={() => {
-                    setPasswordChangeOpen(!passwordChangeOpen)
-                    setPasswordError('')
-                    setPasswordSuccess('')
-                    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
-                  }}
-                  className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white text-sm"
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/60 hover:text-white/80 hover:bg-white/5'
+                  }`}
                 >
-                  {passwordChangeOpen ? 'Cancel' : 'Change Password'}
+                  {tab.icon}
+                  <span>{tab.label}</span>
                 </button>
-              </div>
-
-              {passwordChangeOpen && (
-                <form onSubmit={handlePasswordChange} className="space-y-4 mt-4 p-4 bg-white/5 rounded-xl border border-white/10">
-                  <div>
-                    <label htmlFor="currentPassword" className="block text-sm font-medium text-white/90 mb-2">
-                      Current Password
-                    </label>
-                    <input
-                      type="password"
-                      id="currentPassword"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-                      className="modern-input w-full px-4 py-2"
-                      placeholder="Enter current password"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="newPassword" className="block text-sm font-medium text-white/90 mb-2">
-                      New Password
-                    </label>
-                    <input
-                      type="password"
-                      id="newPassword"
-                      value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                      className="modern-input w-full px-4 py-2"
-                      placeholder="Enter new password (min 8 characters)"
-                      required
-                      minLength={8}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-white/90 mb-2">
-                      Confirm New Password
-                    </label>
-                    <input
-                      type="password"
-                      id="confirmPassword"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                      className="modern-input w-full px-4 py-2"
-                      placeholder="Confirm new password"
-                      required
-                      minLength={8}
-                    />
-                  </div>
-                  {passwordError && (
-                    <div className="bg-red-500/20 border border-red-500/30 text-red-100 px-4 py-2 rounded-xl text-sm">
-                      {passwordError}
-                    </div>
-                  )}
-                  {passwordSuccess && (
-                    <div className="bg-green-500/20 border border-green-500/30 text-green-100 px-4 py-2 rounded-xl text-sm">
-                      {passwordSuccess}
-                    </div>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={passwordLoading}
-                    className="w-full py-2 px-4 rounded-xl bg-white text-black font-medium transition-all hover:bg-white/90 disabled:opacity-50"
-                  >
-                    {passwordLoading ? 'Changing Password...' : 'Update Password'}
-                  </button>
-                </form>
-              )}
+              ))}
             </div>
 
-            {/* TOTP / Two-Factor Authentication */}
-            <div className="border-t border-white/10 pt-6">
-              <div className="flex items-center justify-between mb-4">
+            {/* Error/Success Messages */}
+            {(error || accountError || accountSuccess) && (
+              <div className="mb-6">
+                {error && (
+                  <div className="bg-red-500/20 border border-red-500/30 text-red-100 px-4 py-3 rounded-xl text-sm">
+                    {error}
+                  </div>
+                )}
+                {accountError && (
+                  <div className="bg-red-500/20 border border-red-500/30 text-red-100 px-4 py-3 rounded-xl text-sm">
+                    {accountError}
+                  </div>
+                )}
+                {accountSuccess && (
+                  <div className="bg-green-500/20 border border-green-500/30 text-green-100 px-4 py-3 rounded-xl text-sm">
+                    {accountSuccess}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Account Tab */}
+            {activeTab === 'account' && (
+              <div className="space-y-6 text-white">
                 <div>
-                  <h3 className="text-lg font-normal mb-1">Two-Factor Authentication</h3>
-                  <p className="text-white/60 text-sm">
-                    {totpEnabled 
-                      ? 'Authenticator app is enabled for your account'
-                      : 'Add an extra layer of security with an authenticator app'
-                    }
-                  </p>
+                  <h2 className="text-2xl font-light mb-6">Account Information</h2>
+                  
+                  {/* Email */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-white/90 mb-2">
+                      Email Address
+                    </label>
+                    {editingEmail ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="email"
+                          value={emailValue}
+                          onChange={(e) => setEmailValue(e.target.value)}
+                          className="modern-input flex-1 px-4 py-2"
+                          placeholder="Enter email address"
+                          disabled={accountLoading}
+                        />
+                        <button
+                          onClick={handleUpdateEmail}
+                          disabled={accountLoading || !emailValue || emailValue === user.email}
+                          className="px-4 py-2 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition-all disabled:opacity-50"
+                        >
+                          {accountLoading ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingEmail(false)
+                            setEmailValue(user.email)
+                            setAccountError('')
+                          }}
+                          disabled={accountLoading}
+                          className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                        <span>{user.email}</span>
+                        {!user.email_verified && (
+                          <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">
+                            Unverified
+                          </span>
+                        )}
+                        <button
+                          onClick={() => setEditingEmail(true)}
+                          className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white text-sm"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Username */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-white/90 mb-2">
+                      Username
+                    </label>
+                    {editingUsername ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={usernameValue}
+                          onChange={(e) => setUsernameValue(e.target.value)}
+                          className="modern-input flex-1 px-4 py-2"
+                          placeholder="Enter username"
+                          minLength={3}
+                          maxLength={50}
+                          disabled={accountLoading}
+                        />
+                        <button
+                          onClick={handleUpdateUsername}
+                          disabled={accountLoading || !usernameValue || usernameValue === user.username}
+                          className="px-4 py-2 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition-all disabled:opacity-50"
+                        >
+                          {accountLoading ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingUsername(false)
+                            setUsernameValue(user.username)
+                            setAccountError('')
+                          }}
+                          disabled={accountLoading}
+                          className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                        <span>{user.username}</span>
+                        <button
+                          onClick={() => setEditingUsername(true)}
+                          className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white text-sm"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Member Since */}
+                  <div>
+                    <label className="block text-sm font-medium text-white/90 mb-2">
+                      Member Since
+                    </label>
+                    <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                      {user.created_at 
+                        ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                        : 'N/A'
+                      }
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {totpEnabled ? (
-                    <>
-                      <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg text-sm font-medium">
-                        Enabled
-                      </span>
+              </div>
+            )}
+
+            {/* Security Tab */}
+            {activeTab === 'security' && (
+              <div className="space-y-6 text-white">
+                <div>
+                  <h2 className="text-2xl font-light mb-6">Security Settings</h2>
+                  
+                  {/* Password Change */}
+                  <div className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-normal mb-1">Password</h3>
+                        <p className="text-white/60 text-sm">Change your account password</p>
+                      </div>
                       <button
-                        onClick={handleDisableTOTP}
-                        disabled={disablingTOTP}
-                        className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-xl hover:bg-red-500/30 transition-all text-red-300 text-sm disabled:opacity-50"
+                        onClick={() => {
+                          setPasswordChangeOpen(!passwordChangeOpen)
+                          setPasswordError('')
+                          setPasswordSuccess('')
+                          setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+                        }}
+                        className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white text-sm"
                       >
-                        {disablingTOTP ? 'Disabling...' : 'Disable'}
+                        {passwordChangeOpen ? 'Cancel' : 'Change Password'}
                       </button>
-                    </>
-                  ) : (
-                    <Link
-                      href="/admin/setup-totp"
-                      className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white text-sm"
-                    >
-                      Setup Authenticator
-                    </Link>
-                  )}
-                </div>
-              </div>
-              {totpEnabled && (
-                <div className="mt-4 p-4 bg-cyan-500/10 border border-blue-500/20 rounded-xl">
-                  <p className="text-white/80 text-sm">
-                    <strong>Note:</strong> With TOTP enabled, password resets will require your authenticator code instead of email.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
+                    </div>
 
-          {/* Upgrade Notice for Free Users */}
-          {user.subscription_tier === 'free' && (
-            <div className="glass-card rounded-2xl p-8 text-white bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-xl font-normal mb-2">Upgrade Your Account</h3>
-                  <p className="text-white/80 mb-4">
-                    You're currently on the free plan with {getPlanLimits(user.subscription_tier).maxEvents} events allowed and a limit of {getPlanLimits(user.subscription_tier).maxAttendeesPerEvent} attendees per event. 
-                    Upgrade to unlock more events, custom branding, advanced analytics, and higher attendee limits.
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    <button 
-                      onClick={() => router.push('/checkout?plan=basic')}
-                      className="px-6 py-3 bg-cyan-500 text-white font-normal rounded-xl hover:bg-blue-600 transition-all"
-                    >
-                      Upgrade to Basic ($9/mo)
-                    </button>
-                    <button 
-                      onClick={() => router.push('/checkout?plan=pro')}
-                      className="px-6 py-3 bg-cyan-500 text-black font-normal rounded-xl hover:bg-yellow-400 transition-all"
-                    >
-                      Upgrade to Pro ($29/mo)
-                    </button>
+                    {passwordChangeOpen && (
+                      <form onSubmit={handlePasswordChange} className="space-y-4 mt-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                        <div>
+                          <label htmlFor="currentPassword" className="block text-sm font-medium text-white/90 mb-2">
+                            Current Password
+                          </label>
+                          <input
+                            type="password"
+                            id="currentPassword"
+                            value={passwordForm.currentPassword}
+                            onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                            className="modern-input w-full px-4 py-2"
+                            placeholder="Enter current password"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="newPassword" className="block text-sm font-medium text-white/90 mb-2">
+                            New Password
+                          </label>
+                          <input
+                            type="password"
+                            id="newPassword"
+                            value={passwordForm.newPassword}
+                            onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                            className="modern-input w-full px-4 py-2"
+                            placeholder="Enter new password (min 8 characters)"
+                            required
+                            minLength={8}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="confirmPassword" className="block text-sm font-medium text-white/90 mb-2">
+                            Confirm New Password
+                          </label>
+                          <input
+                            type="password"
+                            id="confirmPassword"
+                            value={passwordForm.confirmPassword}
+                            onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                            className="modern-input w-full px-4 py-2"
+                            placeholder="Confirm new password"
+                            required
+                            minLength={8}
+                          />
+                        </div>
+                        {passwordError && (
+                          <div className="bg-red-500/20 border border-red-500/30 text-red-100 px-4 py-2 rounded-xl text-sm">
+                            {passwordError}
+                          </div>
+                        )}
+                        {passwordSuccess && (
+                          <div className="bg-green-500/20 border border-green-500/30 text-green-100 px-4 py-2 rounded-xl text-sm">
+                            {passwordSuccess}
+                          </div>
+                        )}
+                        <button
+                          type="submit"
+                          disabled={passwordLoading}
+                          className="w-full py-2 px-4 rounded-xl bg-white text-black font-medium transition-all hover:bg-white/90 disabled:opacity-50"
+                        >
+                          {passwordLoading ? 'Changing Password...' : 'Update Password'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+
+                  {/* TOTP / Two-Factor Authentication */}
+                  <div className="border-t border-white/10 pt-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-lg font-normal mb-1">Two-Factor Authentication</h3>
+                        <p className="text-white/60 text-sm">
+                          {totpEnabled 
+                            ? 'Authenticator app is enabled for your account'
+                            : 'Add an extra layer of security with an authenticator app'
+                          }
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {totpEnabled ? (
+                          <>
+                            <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg text-sm font-medium">
+                              Enabled
+                            </span>
+                            <button
+                              onClick={handleDisableTOTP}
+                              disabled={disablingTOTP}
+                              className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-xl hover:bg-red-500/30 transition-all text-red-300 text-sm disabled:opacity-50"
+                            >
+                              {disablingTOTP ? 'Disabling...' : 'Disable'}
+                            </button>
+                          </>
+                        ) : (
+                          <Link
+                            href="/admin/setup-totp"
+                            className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white text-sm"
+                          >
+                            Setup Authenticator
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                    {totpEnabled && (
+                      <div className="mt-4 p-4 bg-cyan-500/10 border border-blue-500/20 rounded-xl">
+                        <p className="text-white/80 text-sm">
+                          <strong>Note:</strong> With TOTP enabled, password resets will require your authenticator code instead of email.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+
+            {/* Subscription Tab */}
+            {activeTab === 'subscription' && (
+              <div className="space-y-6 text-white">
+                <div>
+                  <h2 className="text-2xl font-light mb-6">Subscription & Billing</h2>
+                  
+                  {/* Current Plan */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-white/90 mb-2">
+                      Current Plan
+                    </label>
+                    <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-normal text-lg capitalize">{user.subscription_tier}</div>
+                          <div className="text-white/60 text-sm mt-1">
+                            {user.subscription_tier === 'free' 
+                              ? 'Free plan with limited features'
+                              : `$${PLAN_DETAILS[user.subscription_tier as keyof typeof PLAN_DETAILS]?.price || 0}/month`
+                            }
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                          user.subscription_status === 'active' 
+                            ? 'bg-green-500/20 text-green-400'
+                            : user.subscription_status === 'cancelled'
+                            ? 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-red-500/20 text-red-400'
+                        }`}>
+                          {user.subscription_status === 'active' ? 'Active' : user.subscription_status === 'cancelled' ? 'Cancelled' : 'Past Due'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Plan Limits */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-white/90 mb-2">
+                      Plan Limits
+                    </label>
+                    <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-white/80">Max Events</span>
+                        <span className="font-normal">
+                          {(() => {
+                            const planLimits = getPlanLimits(user.subscription_tier)
+                            return planLimits.maxEvents === 999999 ? 'Unlimited' : planLimits.maxEvents
+                          })()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-white/80">Max Attendees per Event</span>
+                        <span className="font-normal">
+                          {(() => {
+                            const planLimits = getPlanLimits(user.subscription_tier)
+                            return planLimits.maxAttendeesPerEvent === Infinity ? 'Unlimited' : planLimits.maxAttendeesPerEvent
+                          })()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-white/80">Events Created</span>
+                        <span className="font-normal">{actualEventCount}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment & Billing */}
+                  {user.subscription_tier !== 'free' && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-normal mb-4">Payment & Billing</h3>
+                      <button
+                        onClick={handleBillingPortal}
+                        disabled={billingPortalLoading}
+                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white disabled:opacity-50"
+                      >
+                        {billingPortalLoading ? 'Opening...' : 'Manage Payment Methods & Billing'}
+                      </button>
+                      <p className="text-white/60 text-sm mt-2">
+                        Update payment methods, view invoices, and manage your subscription
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Upgrade Options */}
+                  {user.subscription_tier === 'free' && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-normal mb-4">Upgrade Your Plan</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button
+                          onClick={() => router.push('/checkout?plan=basic')}
+                          className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-left"
+                        >
+                          <div className="font-normal text-lg mb-1">Basic</div>
+                          <div className="text-2xl font-light mb-2">$9<span className="text-sm text-white/60">/mo</span></div>
+                          <div className="text-white/60 text-sm">5 events, custom branding, up to 200 attendees</div>
+                        </button>
+                        <button
+                          onClick={() => router.push('/checkout?plan=pro')}
+                          className="p-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-left"
+                        >
+                          <div className="font-normal text-lg mb-1">Pro</div>
+                          <div className="text-2xl font-light mb-2">$29<span className="text-sm text-white/60">/mo</span></div>
+                          <div className="text-white/60 text-sm">25 events, advanced analytics, up to 1,000 attendees</div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Downgrade/Upgrade for paid users */}
+                  {user.subscription_tier !== 'free' && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-normal mb-4">Change Plan</h3>
+                      <p className="text-white/60 text-sm mb-4">
+                        To upgrade, downgrade, or cancel your subscription, use the billing portal.
+                      </p>
+                      <button
+                        onClick={handleBillingPortal}
+                        disabled={billingPortalLoading}
+                        className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white disabled:opacity-50"
+                      >
+                        {billingPortalLoading ? 'Opening...' : 'Open Billing Portal'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Danger Zone Tab */}
+            {activeTab === 'danger' && (
+              <div className="space-y-6 text-white">
+                <div>
+                  <h2 className="text-2xl font-light mb-6 text-red-400">Danger Zone</h2>
+                  
+                  <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-xl">
+                    <h3 className="text-lg font-normal mb-2 text-red-300">Delete Account</h3>
+                    <p className="text-white/80 text-sm mb-4">
+                      Once you delete your account, there is no going back. This will permanently delete:
+                    </p>
+                    <ul className="list-disc list-inside text-white/70 text-sm mb-4 space-y-1">
+                      <li>All your events and RSVP pages</li>
+                      <li>All attendee data and responses</li>
+                      <li>Your subscription (if active)</li>
+                      <li>All account information</li>
+                    </ul>
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        value={deleteConfirm}
+                        onChange={(e) => setDeleteConfirm(e.target.value)}
+                        placeholder="Type DELETE to confirm"
+                        className="modern-input w-full px-4 py-2"
+                        disabled={deleting}
+                      />
+                      <button
+                        onClick={handleDeleteAccount}
+                        disabled={deleting || deleteConfirm !== 'DELETE'}
+                        className="w-full px-4 py-3 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {deleting ? 'Deleting Account...' : 'Delete My Account'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
       <Footer />
