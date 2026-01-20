@@ -306,14 +306,28 @@ function AdminDashboardContent() {
     }
   }
 
-  const downloadQr = () => {
+  const downloadQr = async () => {
     if (!qrCodeUrl) return
-    const a = document.createElement('a')
-    a.href = qrCodeUrl
-    a.download = 'owlrsvp-qr.png'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
+    
+    try {
+      // Convert data URL to blob for iOS compatibility
+      const response = await fetch(qrCodeUrl)
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = 'owlrsvp-qr.png'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      
+      // Clean up the blob URL after a short delay
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100)
+    } catch (err) {
+      console.error('Failed to download QR code:', err)
+      alert('Failed to download QR code. Please try again.')
+    }
   }
 
   // Social sharing functions

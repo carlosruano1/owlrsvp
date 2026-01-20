@@ -294,10 +294,94 @@ function EventRSVPContent() {
     )
   }
 
+  // Helper function to convert hex/rgb to rgba
+  const colorToRgba = (color: string, alpha: number): string => {
+    if (!color) return `rgba(0, 200, 216, ${alpha})` // Default cyan fallback
+    
+    // If already rgba/rgb, extract and replace alpha
+    if (color.startsWith('rgba')) {
+      // Match the alpha value (number with optional decimal) before the closing paren
+      return color.replace(/,\s*[\d.]+\)$/g, `, ${alpha})`)
+    }
+    if (color.startsWith('rgb')) {
+      return color.replace('rgb', 'rgba').replace(')', `, ${alpha})`)
+    }
+    
+    // Handle hex colors
+    if (color.startsWith('#')) {
+      const hex = color.slice(1)
+      // Handle 3-digit hex
+      if (hex.length === 3) {
+        const r = parseInt(hex[0] + hex[0], 16)
+        const g = parseInt(hex[1] + hex[1], 16)
+        const b = parseInt(hex[2] + hex[2], 16)
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`
+      }
+      // Handle 6-digit hex
+      if (hex.length === 6) {
+        const r = parseInt(hex.slice(0, 2), 16)
+        const g = parseInt(hex.slice(2, 4), 16)
+        const b = parseInt(hex.slice(4, 6), 16)
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`
+      }
+    }
+    
+    // Fallback
+    return `rgba(0, 200, 216, ${alpha})`
+  }
+
+  // Get background style using event's custom colors
+  const getBackgroundStyle = () => {
+    const bgColor = colors.bg || '#0a1929'
+    const primaryColor = colors.primary || '#00c8d8'
+    const secondaryColor = colors.secondary || colors.primary || primaryColor
+    
+    return {
+      background: bgColor,
+      backgroundImage: `
+        radial-gradient(ellipse 80% 50% at 20% 20%, ${colorToRgba(primaryColor, 0.4)} 0%, transparent 50%),
+        radial-gradient(ellipse 80% 50% at 80% 30%, ${colorToRgba(secondaryColor, 0.35)} 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 50% 80%, ${colorToRgba(primaryColor, 0.3)} 0%, transparent 60%)
+      `,
+      backgroundSize: '100% 100%',
+      filter: 'blur(60px)',
+      opacity: 0.9,
+    }
+  }
+
+  const getGlowStyle = () => {
+    const primaryColor = colors.primary || '#00c8d8'
+    const secondaryColor = colors.secondary || colors.primary || primaryColor
+    
+    return {
+      backgroundImage: `
+        radial-gradient(circle 40vmax at 15% 25%, ${colorToRgba(primaryColor, 0.15)} 0%, transparent 50%),
+        radial-gradient(circle 35vmax at 85% 30%, ${colorToRgba(secondaryColor, 0.12)} 0%, transparent 50%),
+        radial-gradient(circle 30vmax at 50% 75%, ${colorToRgba(primaryColor, 0.1)} 0%, transparent 60%)
+      `,
+      filter: 'blur(80px)',
+      opacity: 0.6,
+    }
+  }
+
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bind8-bg" />
-      <div className="absolute inset-0 bind8-glow" />
+      {/* Dynamic blurry background using event's custom colors */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          ...getBackgroundStyle(),
+          animation: 'bind8-breathe 20s ease-in-out infinite',
+        }}
+      />
+      <div 
+        className="absolute inset-0 z-1"
+        style={{
+          ...getGlowStyle(),
+          animation: 'bind8-glow-move 25s ease-in-out infinite',
+          mixBlendMode: 'screen',
+        }}
+      />
       <div className={`relative z-10 min-h-screen flex items-center justify-center p-4 ${creatorTier === 'free' ? 'pb-24' : ''}`}>
         <div className="w-full max-w-xl">
           <div className="text-center mb-8">

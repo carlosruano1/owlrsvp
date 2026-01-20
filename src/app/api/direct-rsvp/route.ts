@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { sendEmail } from '@/lib/email'
+import { generateRSVPConfirmationEmail, generateOrganizerNotificationEmail, generateCalendarICS } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -113,12 +115,62 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
       
-      return NextResponse.json({ 
+      const response = NextResponse.json({ 
         success: true, 
         message: 'RSVP updated successfully',
         attendee: updateData,
         updated: true
       })
+
+      // Send emails for updated RSVP too (same logic as new RSVP)
+      setTimeout(async () => {
+        try {
+          const { data: fullEvent } = await supabase
+            .from('events')
+            .select('title, contact_email, contact_name, event_date, event_end_time, event_location, user_id, admin_token')
+            .eq('id', body.event_id)
+            .single()
+
+          if (!fullEvent) return
+
+          const attendee = updateData
+          const attendeeName = `${attendee.first_name} ${attendee.last_name}`
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+          const adminUrl = `${baseUrl}/a/${fullEvent.admin_token}`
+
+          if (attendee.email) {
+            const calendarIcs = fullEvent.event_date 
+              ? generateCalendarICS(
+                  fullEvent.title,
+                  fullEvent.event_date,
+                  fullEvent.event_end_time || undefined,
+                  fullEvent.event_location || undefined,
+                  `RSVP confirmation for ${fullEvent.title}`
+                )
+              : undefined
+
+            const confirmationEmail = generateRSVPConfirmationEmail(
+              attendeeName,
+              fullEvent.title,
+              fullEvent.event_date || undefined,
+              fullEvent.event_end_time || undefined,
+              fullEvent.event_location || undefined,
+              calendarIcs
+            )
+
+            await sendEmail({
+              to: attendee.email,
+              subject: confirmationEmail.subject,
+              html: confirmationEmail.html,
+              text: confirmationEmail.text
+            }).catch(err => console.error('Failed to send RSVP confirmation email:', err))
+          }
+        } catch (error) {
+          console.error('Error sending RSVP update emails:', error)
+        }
+      }, 0)
+
+      return response
     }
 
     // Otherwise, insert a new record
@@ -185,11 +237,101 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
     
-    return NextResponse.json({ 
+    const response = NextResponse.json({ 
       success: true, 
       message: 'RSVP submitted successfully',
       attendee: data?.[0]
     })
+
+    // Send emails asynchronously (don't block the response)
+    // Use setTimeout to ensure response is sent first
+    setTimeout(async () => {
+      try {
+        // Fetch full event details for email
+        const { data: fullEvent } = await supabase
+          .from('events')
+          .select('title, contact_email, contact_name, event_date, event_end_time, event_location, user_id, admin_token')
+          .eq('id', body.event_id)
+          .single()
+
+        if (!fullEvent) return
+
+        const attendee = data?.[0]
+        const attendeeName = `${attendee.first_name} ${attendee.last_name}`
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        const adminUrl = `${baseUrl}/a/${fullEvent.admin_token}`
+
+        // 1. Send confirmation email to attendee (if email provided)
+        if (attendee.email) {
+          const calendarIcs = fullEvent.event_date 
+            ? generateCalendarICS(
+                fullEvent.title,
+                fullEvent.event_date,
+                fullEvent.event_end_time || undefined,
+                fullEvent.event_location || undefined,
+                `RSVP confirmation for ${fullEvent.title}`
+              )
+            : undefined
+
+          const confirmationEmail = generateRSVPConfirmationEmail(
+            attendeeName,
+            fullEvent.title,
+            fullEvent.event_date || undefined,
+            fullEvent.event_end_time || undefined,
+            fullEvent.event_location || undefined,
+            calendarIcs
+          )
+
+          await sendEmail({
+            to: attendee.email,
+            subject: confirmationEmail.subject,
+            html: confirmationEmail.html,
+            text: confirmationEmail.text
+          }).catch(err => {
+            console.error('Failed to send RSVP confirmation email:', err)
+          })
+        }
+
+        // 2. Send notification to organizer (Pro feature - check tier)
+        if (fullEvent.contact_email && fullEvent.user_id) {
+          // Check if user has Pro tier and email notifications enabled
+          const { data: userData } = await supabase
+            .from('admin_users')
+            .select('subscription_tier, email_notifications_enabled')
+            .eq('id', fullEvent.user_id)
+            .single()
+
+          const isProOrHigher = userData?.subscription_tier === 'pro' || userData?.subscription_tier === 'enterprise'
+          const notificationsEnabled = userData?.email_notifications_enabled !== false // Default to true if not set
+
+          if (isProOrHigher && notificationsEnabled) {
+            const notificationEmail = generateOrganizerNotificationEmail(
+              fullEvent.contact_name || 'Event Organizer',
+              fullEvent.title,
+              attendeeName,
+              attendee.email || null,
+              attendee.phone || null,
+              attendee.guest_count || 0,
+              adminUrl
+            )
+
+            await sendEmail({
+              to: fullEvent.contact_email,
+              subject: notificationEmail.subject,
+              html: notificationEmail.html,
+              text: notificationEmail.text
+            }).catch(err => {
+              console.error('Failed to send organizer notification email:', err)
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error sending RSVP emails:', error)
+        // Don't throw - email failures shouldn't break RSVP submission
+      }
+    }, 0)
+
+    return response
   } catch (error) {
     console.error('Unexpected error in direct-rsvp API:', error)
     return NextResponse.json({ 

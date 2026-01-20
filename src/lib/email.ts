@@ -1,3 +1,7 @@
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
+
 interface EmailOptions {
   to: string
   subject: string
@@ -6,29 +10,30 @@ interface EmailOptions {
 }
 
 export async function sendEmail({ to, subject, html, text }: EmailOptions) {
-  // For now, we'll use a simple console log
-  // In production, you'd integrate with SendGrid, AWS SES, or similar
-  console.log('📧 Email would be sent:', { to, subject })
-  console.log('HTML:', html)
-  
-  // TODO: Replace with actual email service
-  // Example with SendGrid:
-  /*
-  const sgMail = require('@sendgrid/mail')
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY!)
-  
-  const msg = {
-    to,
-    from: 'noreply@owlrsvp.com',
-    subject,
-    text: text || html.replace(/<[^>]*>/g, ''),
-    html,
+  if (!process.env.RESEND_API_KEY) {
+    console.error('RESEND_API_KEY not configured')
+    return { success: false, error: 'Email service not configured' }
   }
-  
-  return await sgMail.send(msg)
-  */
-  
-  return { success: true, messageId: 'mock-' + Date.now() }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: 'OwlRSVP <noreply@owlrsvp.com>', // Use your verified domain
+      to,
+      subject,
+      html,
+      text: text || html.replace(/<[^>]*>/g, ''),
+    })
+
+    if (error) {
+      console.error('Resend error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, messageId: data?.id }
+  } catch (error) {
+    console.error('Error sending email:', error)
+    return { success: false, error: 'Failed to send email' }
+  }
 }
 
 export function generateVerificationEmail(username: string, verificationUrl: string) {
@@ -412,6 +417,216 @@ export function generateCollaboratorInviteEmail(inviterName: string, eventTitle:
     This invitation will expire in 7 days.
     
     If you weren't expecting this invitation, you can safely ignore this email.
+    
+    Best regards,
+    The OwlRSVP Team
+  `
+  
+  return { subject, html, text }
+}
+
+// RSVP Confirmation Email with Calendar Attachment
+export function generateRSVPConfirmationEmail(
+  attendeeName: string,
+  eventTitle: string,
+  eventDate?: string,
+  eventEndTime?: string,
+  eventLocation?: string,
+  calendarIcs?: string
+) {
+  const subject = `RSVP Confirmation: ${eventTitle}`
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>RSVP Confirmation</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; background: #007AFF; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        .event-details { background: #e9ecef; padding: 15px; border-radius: 6px; margin: 20px 0; }
+        .logo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="logo">owl<span style="color: #4FC3F7;">rsvp</span></div>
+        <h1>RSVP Confirmed!</h1>
+      </div>
+      <div class="content">
+        <h2>Hi ${attendeeName}!</h2>
+        <p>Thank you for RSVPing to <strong>${eventTitle}</strong>!</p>
+        
+        <div class="event-details">
+          ${eventDate ? `<p><strong>Date:</strong> ${new Date(eventDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
+          ${eventEndTime ? `<p><strong>Time:</strong> ${eventEndTime}</p>` : ''}
+          ${eventLocation ? `<p><strong>Location:</strong> ${eventLocation}</p>` : ''}
+        </div>
+        
+        ${calendarIcs ? `
+          <div style="text-align: center;">
+            <a href="data:text/calendar;charset=utf8,${encodeURIComponent(calendarIcs)}" class="button" download="event.ics">Add to Calendar</a>
+          </div>
+        ` : ''}
+        
+        <p>We look forward to seeing you there!</p>
+        <p>If you need to update your RSVP, please contact the event organizer.</p>
+      </div>
+      <div class="footer">
+        <p>Best regards,<br>The OwlRSVP Team</p>
+      </div>
+    </body>
+    </html>
+  `
+  
+  const text = `
+    RSVP Confirmation: ${eventTitle}
+    
+    Hi ${attendeeName},
+    
+    Thank you for RSVPing to ${eventTitle}!
+    
+    ${eventDate ? `Date: ${new Date(eventDate).toLocaleDateString()}` : ''}
+    ${eventEndTime ? `Time: ${eventEndTime}` : ''}
+    ${eventLocation ? `Location: ${eventLocation}` : ''}
+    
+    We look forward to seeing you there!
+    
+    Best regards,
+    The OwlRSVP Team
+  `
+  
+  return { subject, html, text }
+}
+
+// Generate ICS Calendar File
+export function generateCalendarICS(
+  eventTitle: string,
+  eventDate: string,
+  eventEndTime?: string,
+  eventLocation?: string,
+  description?: string
+): string {
+  const startDate = new Date(eventDate)
+  let endDate: Date
+  
+  if (eventEndTime) {
+    // Try to parse the end time and combine with date
+    const [hours, minutes] = eventEndTime.split(':').map(Number)
+    endDate = new Date(startDate)
+    endDate.setHours(hours || startDate.getHours() + 2, minutes || 0, 0, 0)
+  } else {
+    // Default 2 hours duration
+    endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000)
+  }
+  
+  // Format dates for ICS (YYYYMMDDTHHmmssZ)
+  const formatICSDate = (date: Date): string => {
+    const year = date.getUTCFullYear()
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(date.getUTCDate()).padStart(2, '0')
+    const hours = String(date.getUTCHours()).padStart(2, '0')
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0')
+    const seconds = String(date.getUTCSeconds()).padStart(2, '0')
+    return `${year}${month}${day}T${hours}${minutes}${seconds}Z`
+  }
+  
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//OwlRSVP//Event Calendar//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `UID:${Date.now()}@owlrsvp.com`,
+    `DTSTAMP:${formatICSDate(new Date())}`,
+    `DTSTART:${formatICSDate(startDate)}`,
+    `DTEND:${formatICSDate(endDate)}`,
+    `SUMMARY:${eventTitle.replace(/[,;\\]/g, '')}`,
+    description ? `DESCRIPTION:${description.replace(/[,;\\]/g, '').replace(/\n/g, '\\n')}` : '',
+    eventLocation ? `LOCATION:${eventLocation.replace(/[,;\\]/g, '')}` : '',
+    'STATUS:CONFIRMED',
+    'SEQUENCE:0',
+    'END:VEVENT',
+    'END:VCALENDAR'
+  ].filter(Boolean).join('\r\n')
+  
+  return ics
+}
+
+// Organizer Notification Email
+export function generateOrganizerNotificationEmail(
+  organizerName: string,
+  eventTitle: string,
+  attendeeName: string,
+  attendeeEmail: string | null,
+  attendeePhone: string | null,
+  guestCount: number,
+  eventAdminUrl: string
+) {
+  const subject = `New RSVP: ${attendeeName}${guestCount > 0 ? ` (+${guestCount} guest${guestCount > 1 ? 's' : ''})` : ''} - ${eventTitle}`
+  const guestText = guestCount > 0 ? ` (+${guestCount} guest${guestCount > 1 ? 's' : ''})` : ''
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>New RSVP</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; background: #007AFF; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        .attendee-info { background: #e9ecef; padding: 15px; border-radius: 6px; margin: 20px 0; }
+        .logo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="logo">owl<span style="color: #4FC3F7;">rsvp</span></div>
+        <h1>New RSVP Received!</h1>
+      </div>
+      <div class="content">
+        <h2>Hi ${organizerName || 'Event Organizer'}!</h2>
+        <p>Someone just RSVP'd to your event <strong>${eventTitle}</strong>!</p>
+        
+        <div class="attendee-info">
+          <p><strong>Name:</strong> ${attendeeName}${guestText}</p>
+          ${attendeeEmail ? `<p><strong>Email:</strong> ${attendeeEmail}</p>` : ''}
+          ${attendeePhone ? `<p><strong>Phone:</strong> ${attendeePhone}</p>` : ''}
+        </div>
+        
+        <div style="text-align: center;">
+          <a href="${eventAdminUrl}" class="button">View All RSVPs</a>
+        </div>
+      </div>
+      <div class="footer">
+        <p>Best regards,<br>The OwlRSVP Team</p>
+      </div>
+    </body>
+    </html>
+  `
+  
+  const text = `
+    New RSVP Received!
+    
+    Hi ${organizerName || 'Event Organizer'},
+    
+    Someone just RSVP'd to your event: ${eventTitle}
+    
+    Name: ${attendeeName}${guestText}
+    ${attendeeEmail ? `Email: ${attendeeEmail}` : ''}
+    ${attendeePhone ? `Phone: ${attendeePhone}` : ''}
+    
+    View all RSVPs: ${eventAdminUrl}
     
     Best regards,
     The OwlRSVP Team

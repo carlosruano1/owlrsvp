@@ -129,6 +129,54 @@ body {
   }
 }
 
+/* Dynamic blurry background using event's custom colors */
+.event-custom-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--theme-bg, #0a1929);
+  background-image: 
+    radial-gradient(ellipse 80% 50% at 20% 20%, color-mix(in srgb, var(--theme-primary, #00c8d8) 40%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 50% at 80% 30%, color-mix(in srgb, var(--theme-secondary, var(--theme-primary, #00c8d8)) 35%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 80%, color-mix(in srgb, var(--theme-primary, #00c8d8) 30%, transparent) 0%, transparent 60%);
+  background-size: 100% 100%;
+  filter: blur(60px);
+  opacity: 0.9;
+  animation: bind8-breathe 20s ease-in-out infinite;
+}
+
+.event-custom-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: 
+    radial-gradient(circle 40vmax at 15% 25%, color-mix(in srgb, var(--theme-primary, #00c8d8) 15%, transparent) 0%, transparent 50%),
+    radial-gradient(circle 35vmax at 85% 30%, color-mix(in srgb, var(--theme-secondary, var(--theme-primary, #00c8d8)) 12%, transparent) 0%, transparent 50%),
+    radial-gradient(circle 30vmax at 50% 75%, color-mix(in srgb, var(--theme-primary, #00c8d8) 10%, transparent) 0%, transparent 60%);
+  filter: blur(80px);
+  opacity: 0.6;
+  animation: bind8-glow-move 25s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+/* Fallback for browsers that don't support color-mix */
+@supports not (color-mix(in srgb, red, transparent)) {
+  .event-custom-bg {
+    background: var(--theme-bg, #0a1929);
+    background-image: 
+      radial-gradient(ellipse 80% 50% at 20% 20%, var(--theme-primary-alpha, rgba(0, 200, 216, 0.4)) 0%, transparent 50%),
+      radial-gradient(ellipse 80% 50% at 80% 30%, var(--theme-secondary-alpha, rgba(0, 200, 216, 0.35)) 0%, transparent 50%),
+      radial-gradient(ellipse 60% 40% at 50% 80%, var(--theme-primary-alpha, rgba(0, 200, 216, 0.3)) 0%, transparent 60%);
+  }
+  
+  .event-custom-glow {
+    background: 
+      radial-gradient(circle 40vmax at 15% 25%, var(--theme-primary-alpha, rgba(0, 200, 216, 0.15)) 0%, transparent 50%),
+      radial-gradient(circle 35vmax at 85% 30%, var(--theme-secondary-alpha, rgba(0, 200, 216, 0.12)) 0%, transparent 50%),
+      radial-gradient(circle 30vmax at 50% 75%, var(--theme-primary-alpha, rgba(0, 200, 216, 0.1)) 0%, transparent 60%);
+  }
+}
+
 /* Moving Spotlight */
 .spotlight {
   position: absolute;

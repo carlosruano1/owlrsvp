@@ -8,7 +8,6 @@ import ElegantLogo from '@/components/ElegantLogo'
 import Navigation from '@/components/Navigation'
 import Image from 'next/image'
 import FeatureCarousel from '@/components/FeatureCarousel'
-import EnvelopeInvitation from '@/components/EnvelopeInvitation'
 import FAQAccordion from '@/components/FAQAccordion'
 import { useScrollReveal, useParallax } from '@/hooks/useScrollReveal'
 import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
@@ -20,7 +19,6 @@ function HomeContent() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [upgradeMessage, setUpgradeMessage] = useState('')
   const [showUpgradeMessage, setShowUpgradeMessage] = useState(false)
-  const growRef = useRef<HTMLSpanElement>(null)
   const featuresSectionRef = useRef<HTMLDivElement>(null)
   
   // Animation hooks
@@ -29,8 +27,18 @@ function HomeContent() {
   const pricingReveal = useScrollReveal()
   const howItWorksReveal = useScrollReveal()
   const howItWorksRef = useRef<HTMLDivElement>(null)
-  const envelopeRef = useRef<HTMLDivElement>(null)
+  const typingSectionRef = useRef<HTMLDivElement>(null)
+  const [revealProgress, setRevealProgress] = useState(0)
   const faqReveal = useScrollReveal()
+  
+  // Email content that will be revealed in chunks as user scrolls
+  const emailChunks = [
+    "Subject: You're Invited to Our Special Event!",
+    "Hi everyone,",
+    "We're so excited to host you for our upcoming celebration. It would mean the world to us if you could join us for this special occasion.",
+    "Please RSVP at your earliest convenience using the link below. We can't wait to celebrate with you!",
+    "Best regards,\nThe OwlRSVP Team"
+  ]
   const ctaReveal = useScrollReveal()
   
   // We're not using the mouse parallax effect anymore
@@ -124,54 +132,37 @@ function HomeContent() {
     window.addEventListener('scroll', onFeatureScroll, { passive: true })
     window.addEventListener('resize', onFeatureScroll)
 
-    // Scroll-driven scaling for the word "grow"
-    const onScroll = () => {
-      const el = growRef.current
-      if (!el) return
-      const y = window.scrollY
-      const start = 0
-      const end = 500
-      const progress = Math.max(0, Math.min(1, (y - start) / (end - start)))
-      const scale = 1 + progress * 0.35 // up to ~1.35x
-      el.style.transform = `scale(${scale})`
-      el.style.transformOrigin = 'left center'
+    // Email reveal animation based on scroll
+    const onTypingScroll = () => {
+      const section = typingSectionRef.current
+      if (!section) return
+      
+      const rect = section.getBoundingClientRect()
+      const windowHeight = window.innerHeight
+      
+      // Highly aggressive scroll reveal
+      // Animation will be completely finished well before the section is centered
+      const revealScrollDistance = windowHeight * 0.4
+      
+      const sectionTop = rect.top
+      const viewportBottom = windowHeight
+      
+      // Start revealing as soon as the top of the section enters the bottom 20% of the screen
+      // Finish by the time the top of the section reaches the top 30% of the screen
+      const startPoint = viewportBottom * 0.9
+      const endPoint = viewportBottom * 0.3
+      
+      const progress = Math.max(0, Math.min(1, (startPoint - sectionTop) / (startPoint - endPoint)))
+      
+      setRevealProgress(progress)
+      
+      setRevealProgress(progress)
     }
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-
-    // Apple-like scroll-driven How It Works animation
-    const onHowItWorksScroll = () => {
-      const el = howItWorksRef.current
-      if (!el) return
-      const rect = el.getBoundingClientRect()
-      const viewH = window.innerHeight
-      const viewportCenter = viewH / 2
-      const progress = Math.max(0, Math.min(1, (viewportCenter - rect.top) / Math.max(1, rect.height)))
-      const steps = Array.from(el.querySelectorAll<HTMLElement>('.how-step'))
-      const image = el.querySelector<HTMLElement>('.how-image')
-      steps.forEach((step, idx) => {
-        const anchor = idx / Math.max(1, steps.length - 1)
-        const delta = Math.abs(progress - anchor)
-        const scale = Math.max(0.92, 1 - delta * 0.08)
-        const translate = Math.min(16, delta * 20)
-        const opacity = Math.max(0.7, 1 - delta * 0.3)
-        step.style.transform = `translateY(${translate}px) scale(${scale})`
-        step.style.opacity = String(opacity)
-        step.style.willChange = 'transform, opacity'
-      })
-      if (image) {
-        const delta = Math.abs(progress - 0.5)
-        const scale = Math.max(0.95, 1 - delta * 0.05)
-        const translate = Math.min(12, delta * 16)
-        image.style.transform = `translateY(${translate}px) scale(${scale})`
-        image.style.opacity = String(Math.max(0.8, 1 - delta * 0.2))
-        image.style.willChange = 'transform, opacity'
-      }
-    }
-    onHowItWorksScroll()
-    window.addEventListener('scroll', onHowItWorksScroll, { passive: true })
-    window.addEventListener('resize', onHowItWorksScroll)
-
+    
+    // Initial call to set starting state
+    onTypingScroll()
+    window.addEventListener('scroll', onTypingScroll, { passive: true })
+    window.addEventListener('resize', onTypingScroll)
 
     return () => {
       revealElements.forEach(element => {
@@ -179,9 +170,8 @@ function HomeContent() {
       })
       window.removeEventListener('scroll', onFeatureScroll)
       window.removeEventListener('resize', onFeatureScroll)
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('scroll', onHowItWorksScroll)
-      window.removeEventListener('resize', onHowItWorksScroll)
+      window.removeEventListener('scroll', onTypingScroll)
+      window.removeEventListener('resize', onTypingScroll)
     }
   }, [])
 
@@ -197,18 +187,20 @@ function HomeContent() {
       <div className={`relative z-10 min-h-screen transition-opacity duration-1000 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}>
         {/* Hero Section - Stripe-inspired */}
         <div 
-          className="flex flex-col lg:flex-row items-center justify-between min-h-screen p-6 pt-28 max-w-7xl mx-auto"
+          className="relative flex flex-col lg:flex-row items-center justify-between min-h-screen p-6 pt-28 max-w-7xl mx-auto overflow-hidden"
         >
+          {/* Content */}
+          <div className="relative z-10 w-full flex flex-col lg:flex-row items-center justify-between">
           <div className="w-full lg:w-1/2 lg:pr-8 mb-16 lg:mb-0">
             <div 
               className="transform transition-all duration-700 animate-reveal text-left"
               ref={heroReveal.ref}
             >
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-light mb-3 leading-tight tracking-tight text-white">
-                Online RSVP Made Simple
+              <h1 className="text-5xl md:text-6xl lg:text-7xl mb-3 leading-tight tracking-tight text-white">
+                Smarter Than a Spreadsheet.
               </h1>
-              <h2 className="text-5xl md:text-6xl lg:text-7xl font-light mb-6 leading-tight tracking-tight text-white">
-                Create event RSVP websites in <span ref={growRef} className="inline-block will-change-transform">seconds</span>
+              <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight tracking-tight text-white">
+                Prettier Than a Form.
               </h2>
             </div>
 
@@ -328,17 +320,18 @@ function HomeContent() {
               <div className="absolute -top-8 -left-8 w-24 h-24 bg-purple-500/20 rounded-full filter blur-2xl animate-pulse z-5" style={{animationDelay: "1s"}}></div>
             </div>
           </div>
+          </div>
         </div>
 
         {/* Desktop Screenshot Section with Enhanced Animations - Hidden on Mobile */}
         <div className="py-16 px-6 relative overflow-hidden hidden md:block">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12 animate-reveal" ref={featuresReveal.ref}>
+            <div className="text-center mb-12 animate-reveal group/section" ref={featuresReveal.ref}>
               <h3 className="inline-block px-4 py-2 bg-white/10 backdrop-blur-sm text-white/90 rounded-full text-sm font-medium mb-4">
                 Powerful Dashboard
               </h3>
               <h2 className="text-5xl md:text-6xl font-light text-white mb-4 tracking-tight">
-                RSVP Management Software Made Simple
+                RSVP Management Software <span className="text-cyan-400 opacity-0 translate-y-4 inline-block transition-all duration-1000 delay-500 group-[.revealed]/section:opacity-100 group-[.revealed]/section:translate-y-0">Made Simple</span>
               </h2>
               <p className="text-lg text-white/80 max-w-2xl mx-auto">
                 Track RSVPs, export guest lists, and get insights into your event's performance
@@ -652,7 +645,7 @@ function HomeContent() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                 {/* Steps */}
                 <div className="space-y-16">
-                  <div className="how-step flex items-start gap-8 transition-all duration-300">
+                  <div className="flex items-start gap-8">
                     <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-cyan-600/30 border border-cyan-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
                       <span className="text-4xl font-light text-cyan-400">1</span>
                     </div>
@@ -662,7 +655,7 @@ function HomeContent() {
                     </div>
                   </div>
                   
-                  <div className="how-step flex items-start gap-8 transition-all duration-300">
+                  <div className="flex items-start gap-8">
                     <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-teal-500/20 to-teal-600/30 border border-teal-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
                       <span className="text-4xl font-light text-teal-400">2</span>
                     </div>
@@ -672,7 +665,7 @@ function HomeContent() {
                     </div>
                   </div>
                   
-                  <div className="how-step flex items-start gap-8 transition-all duration-300">
+                  <div className="flex items-start gap-8">
                     <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-500/20 to-blue-600/30 border border-blue-400/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
                       <span className="text-4xl font-light text-blue-400">3</span>
                     </div>
@@ -684,23 +677,22 @@ function HomeContent() {
                 </div>
                 
                 {/* Image with elegant frame */}
-                <div className="how-image transition-all duration-300 hidden lg:block">
+                <div className="hidden lg:block">
                   <div className="relative">
                     {/* Elegant frame with multiple layers */}
-                    <div className="absolute -inset-4 bg-gradient-to-br from-cyan-500/20 via-teal-500/20 to-blue-500/20 rounded-3xl blur-xl"></div>
                     <div className="absolute -inset-2 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl backdrop-blur-sm border border-white/20"></div>
                     <div className="relative bg-black/40 p-6 rounded-2xl backdrop-blur-md border border-white/10">
                       <div className="aspect-[4/5] rounded-xl overflow-hidden">
                         <Image 
-                          src="/images/woman-phone.jpeg"
-                          alt="Woman using phone for RSVP"
+                          src="/images/how-it-works.png"
+                          alt="How it works"
                           width={400}
                           height={500}
                           className="w-full h-full object-cover"
                         />
                       </div>
                       {/* Subtle overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-xl"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent rounded-xl pointer-events-none"></div>
                     </div>
                   </div>
                 </div>
@@ -709,10 +701,61 @@ function HomeContent() {
           </div>
         </div>
 
-        {/* Envelope Invitation Section */}
-        <div id="invitations" className="page-section radial-overlay" ref={envelopeRef}>
-          <div className="page-section-content">
-            <EnvelopeInvitation />
+        {/* Typing Email Background Section */}
+        <div 
+          ref={typingSectionRef}
+          className="relative min-h-[120vh] md:min-h-[140vh] flex items-center justify-center overflow-hidden py-12 md:py-20"
+        >
+          {/* Background Video - Very Dimmed */}
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover z-0 opacity-[0.08] blur-[3px]"
+          >
+            <source src="/videos/hero-background.mp4" type="video/mp4" />
+          </video>
+          
+          <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-6 w-full">
+            <div className="mb-6 md:mb-10 text-center">
+              <h2 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-light text-white mb-3 md:mb-4 tracking-tight">A New Way to Invite</h2>
+              <p className="text-lg md:text-xl text-white/60">Watch your invitations come to life as you scroll.</p>
+            </div>
+            
+            {/* Email Composition Container */}
+            <div className="glass-card p-6 md:p-8 lg:p-10 rounded-xl md:rounded-2xl border border-white/10 backdrop-blur-xl bg-black/30 min-h-[300px] md:min-h-[400px]">
+              <div className="space-y-4 md:space-y-6">
+                {/* Email Header */}
+                <div className="border-b border-white/10 pb-3 md:pb-4">
+                  <div className="text-xs md:text-sm text-white/50 mb-2">To: Your Guests</div>
+                </div>
+                
+                {/* Email Body - Reveal Chunks */}
+                <div className="text-sm md:text-base lg:text-lg xl:text-xl font-light text-white/80 leading-relaxed whitespace-pre-wrap font-sans min-h-[220px] md:min-h-[280px]">
+                  {emailChunks.map((chunk, index) => {
+                    // Quick overlap (1.2) to make the whole block feel like it's appearing as a unit
+                    const startReveal = index / (emailChunks.length + 0.2)
+                    const endReveal = (index + 1.2) / (emailChunks.length + 0.2)
+                    
+                    const chunkProgress = Math.max(0, Math.min(1, (revealProgress - startReveal) / (endReveal - startReveal)))
+                    
+                    return (
+                      <div 
+                        key={index}
+                        className="mb-4 transition-all duration-300 ease-out"
+                        style={{ 
+                          opacity: chunkProgress,
+                          transform: `translateY(${(1 - chunkProgress) * 15}px)`,
+                        }}
+                      >
+                        {chunk}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
