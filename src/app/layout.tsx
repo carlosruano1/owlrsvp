@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import ScrollToTop from "@/components/ScrollToTop";
 import { WebSiteSchema, SoftwareApplicationSchema } from "@/components/StructuredData";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
   variable: "--font-sans",
@@ -94,6 +95,7 @@ export default function RootLayout({
         />
         {children}
         <ScrollToTop />
+        <SpeedInsights />
       </body>
     </html>
   );
