@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,6 +14,7 @@ import {
   ChartOptions
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import ChartDownloadMenu from './ChartDownloadMenu';
 
 // Register Chart.js components
 ChartJS.register(
@@ -45,6 +46,7 @@ const GrowthTrendChart: React.FC<GrowthTrendChartProps> = ({
   currentAttendance,
   currentResponseRate
 }) => {
+  const chartRef = useRef<any>(null);
   // Format dates for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -132,7 +134,7 @@ const GrowthTrendChart: React.FC<GrowthTrendChartProps> = ({
     scales: {
       x: {
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          display: false,
         },
         ticks: {
           color: 'rgba(255, 255, 255, 0.6)',
@@ -144,7 +146,7 @@ const GrowthTrendChart: React.FC<GrowthTrendChartProps> = ({
         position: 'left' as const,
         beginAtZero: true,
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          display: false,
         },
         ticks: {
           color: 'rgba(75, 192, 192, 0.8)',
@@ -162,7 +164,7 @@ const GrowthTrendChart: React.FC<GrowthTrendChartProps> = ({
         beginAtZero: true,
         max: 100,
         grid: {
-          drawOnChartArea: false,
+          display: false,
         },
         ticks: {
           color: 'rgba(255, 99, 132, 0.8)',
@@ -174,6 +176,25 @@ const GrowthTrendChart: React.FC<GrowthTrendChartProps> = ({
         }
       },
     },
+  };
+
+  const exportData = () => {
+    const csvRows = ['Date,Attendance,Response Rate (%)'];
+    historicalData.forEach(point => {
+      csvRows.push(`${point.date},${point.attendance},${point.responseRate.toFixed(1)}`);
+    });
+    csvRows.push(`Current,${currentAttendance},${currentResponseRate.toFixed(1)}`);
+    const csv = csvRows.join('\n');
+
+    const json = JSON.stringify({
+      historicalData: historicalData,
+      current: {
+        attendance: currentAttendance,
+        responseRate: currentResponseRate
+      }
+    }, null, 2);
+
+    return { csv, json };
   };
 
   if (historicalData.length === 0) {
@@ -188,8 +209,17 @@ const GrowthTrendChart: React.FC<GrowthTrendChartProps> = ({
   }
 
   return (
-    <div className="h-72">
-      <Line data={data} options={options} />
+    <div>
+      <div className="flex justify-end mb-2">
+        <ChartDownloadMenu
+          chartRef={chartRef}
+          chartTitle="Historical Growth Trends"
+          exportData={exportData}
+        />
+      </div>
+      <div className="h-72">
+        <Line ref={chartRef} data={data} options={options} />
+      </div>
     </div>
   );
 };

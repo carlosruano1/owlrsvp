@@ -162,6 +162,10 @@ export async function POST(request: NextRequest) {
         if (body.event_date) eventData.event_date = body.event_date;
         if (body.event_end_time) eventData.event_end_time = body.event_end_time;
         if (body.event_location) eventData.event_location = body.event_location;
+        // Payment fields
+        if (body.ticket_price !== undefined) eventData.ticket_price = body.ticket_price || null;
+        if (body.currency !== undefined) eventData.currency = body.currency || 'usd';
+        if (body.payment_required !== undefined) eventData.payment_required = body.payment_required || false;
         // Only allow required_rsvp_fields for basic+ tier accounts
         if (body.required_rsvp_fields) {
           if (userTier === 'free') {

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       // First try to find by direct ID match
       const { data: eventById, error: idError } = await supabase
         .from('events')
-        .select('id, open_invite, auth_mode, promo_code, user_id')
+        .select('id, open_invite, auth_mode, promo_code, user_id, required_rsvp_fields')
         .eq('id', body.event_id)
         .single();
       
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         // Try to find by admin_token (in case the ID is actually an admin token)
         const { data: eventByToken, error: tokenError } = await supabase
           .from('events')
-          .select('id, open_invite, auth_mode, promo_code, user_id')
+          .select('id, open_invite, auth_mode, promo_code, user_id, required_rsvp_fields')
           .eq('admin_token', body.event_id)
           .single();
           
@@ -200,6 +200,19 @@ export async function POST(request: NextRequest) {
         .limit(1)
       if (!existing || existing.length === 0) {
         return NextResponse.json({ error: 'We could not find you on the guest list.' }, { status: 403 })
+      }
+    }
+
+    // Validate required RSVP fields
+    if (event.required_rsvp_fields) {
+      if (event.required_rsvp_fields.email && !body.email?.trim()) {
+        return NextResponse.json({ error: 'Email is required for this event' }, { status: 400 })
+      }
+      if (event.required_rsvp_fields.phone && !body.phone?.trim()) {
+        return NextResponse.json({ error: 'Phone number is required for this event' }, { status: 400 })
+      }
+      if (event.required_rsvp_fields.address && !body.address?.trim()) {
+        return NextResponse.json({ error: 'Address is required for this event' }, { status: 400 })
       }
     }
 

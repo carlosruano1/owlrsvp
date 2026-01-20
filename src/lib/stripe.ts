@@ -270,3 +270,144 @@ export const calculateOverflowCharges = (plan: string, guestCount: number): numb
   const overflowGuests = Math.max(0, guestCount - planDetails.guestLimit);
   return overflowGuests * OVERFLOW_PRICE_PER_GUEST;
 };
+
+// Stripe Connect: Create checkout session for event tickets (using connected account)
+export const createEventCheckoutSession = async ({
+  eventId,
+  eventTitle,
+  attendeeName,
+  attendeeEmail,
+  ticketPrice,
+  quantity,
+  currency = 'usd',
+  stripeAccountId,
+  successUrl,
+  cancelUrl,
+  applicationFeePercent = 0, // Optional: platform fee percentage (e.g., 2.9 for 2.9%)
+}: {
+  eventId: string
+  eventTitle: string
+  attendeeName: string
+  attendeeEmail: string
+  ticketPrice: number
+  quantity: number
+  currency?: string
+  stripeAccountId: string
+  successUrl: string
+  cancelUrl: string
+  applicationFeePercent?: number // Optional platform fee
+}) => {
+  try {
+    if (!stripe) {
+      throw new Error('Stripe not configured')
+    }
+
+    const totalAmount = Math.round(ticketPrice * 100) * quantity
+    const applicationFeeAmount = applicationFeePercent > 0 
+      ? Math.round(totalAmount * (applicationFeePercent / 100))
+      : undefined
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency,
+            product_data: {
+              name: `Ticket: ${eventTitle}`,
+            },
+            unit_amount: Math.round(ticketPrice * 100), // Convert to cents
+          },
+          quantity,
+        },
+      ],
+      customer_email: attendeeEmail,
+      metadata: {
+        event_id: eventId,
+        attendee_name: attendeeName,
+      },
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      // Add application fee if specified (platform gets this amount)
+      payment_intent_data: applicationFeeAmount ? {
+        application_fee_amount: applicationFeeAmount,
+      } : undefined,
+    }, {
+      stripeAccount: stripeAccountId, // Use connected account
+    })
+
+    return { sessionId: session.id, url: session.url }
+  } catch (error) {
+    console.error('Error creating event checkout session:', error)
+    throw error
+  }
+}
+
+// Stripe Connect: Create or get connected account
+export const createConnectedAccount = async () => {
+  try {
+    if (!stripe) {
+      throw new Error('Stripe not configured')
+    }
+
+    const account = await stripe.accounts.create({
+      type: 'express',
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+    })
+
+    return account
+  } catch (error) {
+    console.error('Error creating connected account:', error)
+    throw error
+  }
+}
+
+// Stripe Connect: Create account link for onboarding
+export const createAccountLink = async (accountId: string, returnUrl: string, refreshUrl: string) => {
+  try {
+    if (!stripe) {
+      throw new Error('Stripe not configured')
+    }
+
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: refreshUrl,
+      return_url: returnUrl,
+      type: 'account_onboarding',
+    })
+
+    return accountLink
+  } catch (error) {
+    console.error('Error creating account link:', error)
+    throw error
+  }
+}
+
+// Stripe Connect: Get account status
+export const getAccountStatus = async (accountId: string) => {
+  try {
+    if (!stripe) {
+      throw new Error('Stripe not configured')
+    }
+
+    const account = await stripe.accounts.retrieve(accountId)
+    
+    // Check if account is ready to accept payments
+    const isActive = account.details_submitted && account.charges_enabled && account.payouts_enabled
+    
+    return {
+      id: account.id,
+      status: isActive ? 'active' : account.details_submitted ? 'pending' : 'incomplete',
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+      detailsSubmitted: account.details_submitted,
+    }
+  } catch (error) {
+    console.error('Error getting account status:', error)
+    throw error
+  }
+}

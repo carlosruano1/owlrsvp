@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,6 +14,7 @@ import {
   ChartOptions
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import ChartDownloadMenu from './ChartDownloadMenu';
 
 // Register Chart.js components
 ChartJS.register(
@@ -32,6 +33,8 @@ interface ResponseOverTimeProps {
 }
 
 const ResponseOverTime: React.FC<ResponseOverTimeProps> = ({ responsesByDay }) => {
+  const chartRef = useRef<any>(null);
+
   // Format dates to be more readable
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -99,7 +102,7 @@ const ResponseOverTime: React.FC<ResponseOverTimeProps> = ({ responsesByDay }) =
       y: {
         beginAtZero: true,
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          display: false,
         },
         ticks: {
           color: 'rgba(255, 255, 255, 0.6)',
@@ -107,7 +110,7 @@ const ResponseOverTime: React.FC<ResponseOverTimeProps> = ({ responsesByDay }) =
       },
       x: {
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          display: false,
         },
         ticks: {
           color: 'rgba(255, 255, 255, 0.6)',
@@ -116,9 +119,46 @@ const ResponseOverTime: React.FC<ResponseOverTimeProps> = ({ responsesByDay }) =
     },
   };
 
+  const exportData = () => {
+    const csvRows = ['Date,Daily Responses,Cumulative Responses'];
+    let cumulative = 0;
+    dates.forEach((date, index) => {
+      const daily = dailyCounts[index];
+      cumulative += daily;
+      csvRows.push(`${date},${daily},${cumulative}`);
+    });
+    const csv = csvRows.join('\n');
+    
+    const json = JSON.stringify({
+      responsesByDay: dates.reduce((acc, date, index) => {
+        acc[date] = dailyCounts[index];
+        return acc;
+      }, {} as Record<string, number>),
+      cumulativeByDay: dates.reduce((acc, date, index) => {
+        let cum = 0;
+        for (let i = 0; i <= index; i++) {
+          cum += dailyCounts[i];
+        }
+        acc[date] = cum;
+        return acc;
+      }, {} as Record<string, number>)
+    }, null, 2);
+    
+    return { csv, json };
+  };
+
   return (
-    <div className="h-72">
-      <Line data={data} options={options} />
+    <div>
+      <div className="flex justify-end mb-2">
+        <ChartDownloadMenu
+          chartRef={chartRef}
+          chartTitle="Responses Over Time"
+          exportData={exportData}
+        />
+      </div>
+      <div className="h-72">
+        <Line ref={chartRef} data={data} options={options} />
+      </div>
     </div>
   );
 };

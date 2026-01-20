@@ -21,9 +21,11 @@ interface AdminUser {
   created_at: string
   last_login?: string
   totp_enabled?: boolean
+  stripe_account_id?: string
+  stripe_account_status?: string
 }
 
-type Tab = 'account' | 'security' | 'subscription' | 'danger'
+type Tab = 'account' | 'security' | 'subscription'
 
 export default function AdminSettings() {
   const [user, setUser] = useState<AdminUser | null>(null)
@@ -57,6 +59,13 @@ export default function AdminSettings() {
 
   // Subscription tab state
   const [billingPortalLoading, setBillingPortalLoading] = useState(false)
+  const [stripeConnectLoading, setStripeConnectLoading] = useState(false)
+  const [stripeConnectStatus, setStripeConnectStatus] = useState<{
+    connected: boolean
+    status: string | null
+    chargesEnabled?: boolean
+    payoutsEnabled?: boolean
+  } | null>(null)
 
   // Danger zone state
   const [deleteConfirm, setDeleteConfirm] = useState('')
@@ -81,6 +90,13 @@ export default function AdminSettings() {
         if (eventsResponse.ok) {
           const eventsData = await eventsResponse.json()
           setActualEventCount(eventsData.events?.length || 0)
+        }
+
+        // Fetch Stripe Connect status
+        const connectStatusResponse = await fetch('/api/stripe/connect/status')
+        if (connectStatusResponse.ok) {
+          const connectData = await connectStatusResponse.json()
+          setStripeConnectStatus(connectData)
         }
       } catch (err) {
         router.push('/admin/login')
@@ -283,6 +299,25 @@ export default function AdminSettings() {
     }
   }
 
+  const handleStripeConnect = async () => {
+    setStripeConnectLoading(true)
+    try {
+      const response = await fetch('/api/stripe/connect')
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to connect Stripe account')
+      }
+
+      if (data.url) {
+        window.location.href = data.url
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to connect Stripe')
+      setStripeConnectLoading(false)
+    }
+  }
+
   // Danger zone handlers
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== 'DELETE') {
@@ -374,15 +409,6 @@ export default function AdminSettings() {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-        </svg>
-      )
-    },
-    {
-      id: 'danger',
-      label: 'Danger Zone',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
         </svg>
       )
     }
@@ -617,6 +643,33 @@ export default function AdminSettings() {
                       }
                     </div>
                   </div>
+
+                  {/* Delete Account - Discrete at bottom */}
+                  <div className="mt-12 pt-8 border-t border-white/10">
+                    <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
+                      <h3 className="text-sm font-medium text-white/70 mb-2">Delete Account</h3>
+                      <p className="text-white/50 text-xs mb-4">
+                        Permanently delete your account and all associated data. This action cannot be undone.
+                      </p>
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          value={deleteConfirm}
+                          onChange={(e) => setDeleteConfirm(e.target.value)}
+                          placeholder="Type DELETE to confirm"
+                          className="modern-input w-full px-3 py-2 text-sm"
+                          disabled={deleting}
+                        />
+                        <button
+                          onClick={handleDeleteAccount}
+                          disabled={deleting || deleteConfirm !== 'DELETE'}
+                          className="w-full px-4 py-2 bg-red-600/80 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {deleting ? 'Deleting Account...' : 'Delete My Account'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -845,6 +898,70 @@ export default function AdminSettings() {
                     </div>
                   )}
 
+                  {/* Stripe Connect - Accept Payments for Events */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-normal mb-4">Accept Payments for Events</h3>
+                    {!stripeConnectStatus?.connected ? (
+                      <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                        <p className="text-white/80 text-sm mb-4">
+                          Connect your Stripe account to accept payments for event tickets. Guests will pay you directly, and funds go straight to your Stripe account.
+                        </p>
+                        <button
+                          onClick={handleStripeConnect}
+                          disabled={stripeConnectLoading}
+                          className="w-full px-4 py-3 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition-all disabled:opacity-50"
+                        >
+                          {stripeConnectLoading ? 'Connecting...' : 'Connect Stripe Account'}
+                        </button>
+                        <p className="text-white/60 text-xs mt-3">
+                          You'll be redirected to Stripe to complete the setup. This is secure and takes just a few minutes.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className={`p-4 rounded-xl border ${
+                        stripeConnectStatus.status === 'active'
+                          ? 'bg-green-500/10 border-green-500/30'
+                          : 'bg-yellow-500/10 border-yellow-500/30'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="font-medium text-white">
+                              Stripe Account Connected
+                            </span>
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            stripeConnectStatus.status === 'active'
+                              ? 'bg-green-500/20 text-green-400'
+                              : 'bg-yellow-500/20 text-yellow-400'
+                          }`}>
+                            {stripeConnectStatus.status === 'active' ? 'Active' : 'Pending'}
+                          </span>
+                        </div>
+                        {stripeConnectStatus.status === 'active' ? (
+                          <p className="text-white/70 text-sm">
+                            Your account is ready to accept payments. You can now set ticket prices when creating events.
+                          </p>
+                        ) : (
+                          <div>
+                            <p className="text-yellow-200 text-sm mb-2">
+                              Your account setup is in progress. Complete the verification in your Stripe dashboard.
+                            </p>
+                            <button
+                              onClick={handleStripeConnect}
+                              disabled={stripeConnectLoading}
+                              className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/15 transition-all text-white text-sm disabled:opacity-50"
+                            >
+                              {stripeConnectLoading ? 'Loading...' : 'Complete Setup'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Upgrade Options */}
                   {user.subscription_tier === 'free' && (
                     <div className="mb-6">
@@ -890,44 +1007,6 @@ export default function AdminSettings() {
               </div>
             )}
 
-            {/* Danger Zone Tab */}
-            {activeTab === 'danger' && (
-              <div className="space-y-6 text-white">
-                <div>
-                  <h2 className="text-2xl font-light mb-6 text-red-400">Danger Zone</h2>
-                  
-                  <div className="p-6 bg-red-500/10 border border-red-500/30 rounded-xl">
-                    <h3 className="text-lg font-normal mb-2 text-red-300">Delete Account</h3>
-                    <p className="text-white/80 text-sm mb-4">
-                      Once you delete your account, there is no going back. This will permanently delete:
-                    </p>
-                    <ul className="list-disc list-inside text-white/70 text-sm mb-4 space-y-1">
-                      <li>All your events and RSVP pages</li>
-                      <li>All attendee data and responses</li>
-                      <li>Your subscription (if active)</li>
-                      <li>All account information</li>
-                    </ul>
-                    <div className="space-y-3">
-                      <input
-                        type="text"
-                        value={deleteConfirm}
-                        onChange={(e) => setDeleteConfirm(e.target.value)}
-                        placeholder="Type DELETE to confirm"
-                        className="modern-input w-full px-4 py-2"
-                        disabled={deleting}
-                      />
-                      <button
-                        onClick={handleDeleteAccount}
-                        disabled={deleting || deleteConfirm !== 'DELETE'}
-                        className="w-full px-4 py-3 bg-red-600 text-white font-medium rounded-xl hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {deleting ? 'Deleting Account...' : 'Delete My Account'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

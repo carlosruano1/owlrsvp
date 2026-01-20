@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,6 +12,7 @@ import {
   ChartOptions
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
+import ChartDownloadMenu from './ChartDownloadMenu';
 
 // Register Chart.js components
 ChartJS.register(
@@ -43,6 +44,7 @@ const EventComparisonChart: React.FC<EventComparisonChartProps> = ({
   currentResponseRate,
   previousEvents
 }) => {
+  const chartRef = useRef<any>(null);
   // Truncate long event titles
   const truncateTitle = (title: string, maxLength: number = 20) => {
     return title.length > maxLength ? title.substring(0, maxLength) + '...' : title;
@@ -119,7 +121,7 @@ const EventComparisonChart: React.FC<EventComparisonChartProps> = ({
     scales: {
       x: {
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          display: false,
         },
         ticks: {
           color: 'rgba(255, 255, 255, 0.6)',
@@ -133,7 +135,7 @@ const EventComparisonChart: React.FC<EventComparisonChartProps> = ({
         position: 'left' as const,
         beginAtZero: true,
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          display: false,
         },
         ticks: {
           color: 'rgba(255, 255, 255, 0.6)',
@@ -151,7 +153,7 @@ const EventComparisonChart: React.FC<EventComparisonChartProps> = ({
         beginAtZero: true,
         max: 100,
         grid: {
-          drawOnChartArea: false,
+          display: false,
         },
         ticks: {
           color: 'rgba(255, 99, 132, 0.6)',
@@ -163,6 +165,30 @@ const EventComparisonChart: React.FC<EventComparisonChartProps> = ({
         }
       },
     },
+  };
+
+  const exportData = () => {
+    const csvRows = ['Event,Total Attendance,Response Rate (%)'];
+    previousEvents.forEach(event => {
+      csvRows.push(`${event.title},${event.totalAttendance},${event.responseRate}`);
+    });
+    csvRows.push(`${currentEventTitle} (Current),${currentAttendance},${currentResponseRate.toFixed(1)}`);
+    const csv = csvRows.join('\n');
+
+    const json = JSON.stringify({
+      currentEvent: {
+        title: currentEventTitle,
+        totalAttendance: currentAttendance,
+        responseRate: currentResponseRate
+      },
+      previousEvents: previousEvents.map(e => ({
+        title: e.title,
+        totalAttendance: e.totalAttendance,
+        responseRate: e.responseRate
+      }))
+    }, null, 2);
+
+    return { csv, json };
   };
 
   if (previousEvents.length === 0) {
@@ -177,8 +203,17 @@ const EventComparisonChart: React.FC<EventComparisonChartProps> = ({
   }
 
   return (
-    <div className="h-72">
-      <Bar data={data} options={options} />
+    <div>
+      <div className="flex justify-end mb-2">
+        <ChartDownloadMenu
+          chartRef={chartRef}
+          chartTitle="Event Comparison"
+          exportData={exportData}
+        />
+      </div>
+      <div className="h-72">
+        <Bar ref={chartRef} data={data} options={options} />
+      </div>
     </div>
   );
 };

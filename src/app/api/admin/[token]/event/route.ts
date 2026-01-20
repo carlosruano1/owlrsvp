@@ -96,6 +96,17 @@ export async function PATCH(
       updates.contact_phone = body.contact_phone || null
     }
     
+    // Payment fields
+    if (body.ticket_price !== undefined) {
+      updates.ticket_price = body.ticket_price || null
+    }
+    if (body.currency !== undefined) {
+      updates.currency = body.currency || 'usd'
+    }
+    if (body.payment_required !== undefined) {
+      updates.payment_required = body.payment_required || false
+    }
+    
     // Handle event details fields
     if (body.title !== undefined) {
       updates.title = body.title

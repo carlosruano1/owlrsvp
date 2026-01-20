@@ -16,7 +16,7 @@ export default function CheckoutSuccess() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          router.push('/admin/settings')
+          router.push('/admin/events')
           return 0
         }
         return prev - 1

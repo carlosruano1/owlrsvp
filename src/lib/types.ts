@@ -25,6 +25,9 @@ export interface Event {
     address?: boolean
     guests?: boolean
   } | null
+  ticket_price?: number | null
+  currency?: string | null
+  payment_required?: boolean | null
   created_at: string
   updated_at: string
   user_id?: string | null
@@ -62,6 +65,9 @@ export interface CreateEventData {
   event_date?: string
   event_end_time?: string
   event_location?: string
+  ticket_price?: number
+  currency?: string
+  payment_required?: boolean
   required_rsvp_fields?: {
     email?: boolean
     phone?: boolean

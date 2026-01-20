@@ -102,6 +102,80 @@ function EventRSVPContent() {
         console.log('Event data received:', data.event);
         console.log('Creator tier:', data.creatorTier || 'free');
         setEvent(data.event)
+
+        // Check for payment success/cancellation in URL params
+        const urlParams = new URLSearchParams(window.location.search)
+        if (urlParams.get('payment_success') === 'true') {
+          // Payment successful - restore form data and auto-submit RSVP
+          const savedData = sessionStorage.getItem(`rsvp_${event.id}`)
+          if (savedData) {
+            try {
+              const formData = JSON.parse(savedData)
+              // Restore form fields
+              setFirstName(formData.firstName || '')
+              setLastName(formData.lastName || '')
+              setEmail(formData.email || '')
+              setPhone(formData.phone || '')
+              setAddress(formData.address || '')
+              setGuestCount(formData.guestCount || 0)
+              setAttending(true)
+              
+              // Auto-submit RSVP
+              const payload = {
+                event_id: event.id,
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                email: formData.email || undefined,
+                phone: formData.phone || undefined,
+                address: formData.address || undefined,
+                guest_count: formData.guestCount || 0,
+                attending: true,
+              }
+              
+              fetch('/api/direct-rsvp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              }).then(() => {
+                sessionStorage.removeItem(`rsvp_${event.id}`)
+                setSubmitted(true)
+              }).catch((err) => {
+                console.error('RSVP submission failed:', err)
+                // Still show success since payment worked, but log error
+                sessionStorage.removeItem(`rsvp_${event.id}`)
+                setSubmitted(true)
+              })
+            } catch (err) {
+              console.error('Error restoring form data:', err)
+              setSubmitted(true)
+            }
+          } else {
+            setSubmitted(true)
+          }
+          // Clean up URL
+          window.history.replaceState({}, '', window.location.pathname)
+        } else if (urlParams.get('payment_cancelled') === 'true') {
+          // Restore form data on cancellation
+          const savedData = sessionStorage.getItem(`rsvp_${event.id}`)
+          if (savedData) {
+            try {
+              const formData = JSON.parse(savedData)
+              setFirstName(formData.firstName || '')
+              setLastName(formData.lastName || '')
+              setEmail(formData.email || '')
+              setPhone(formData.phone || '')
+              setAddress(formData.address || '')
+              setGuestCount(formData.guestCount || 0)
+              setAttending(true)
+              sessionStorage.removeItem(`rsvp_${event.id}`)
+            } catch (err) {
+              console.error('Error restoring form data:', err)
+            }
+          }
+          setError('Payment was cancelled. You can try again below.')
+          // Clean up URL
+          window.history.replaceState({}, '', window.location.pathname)
+        }
         // Track creator tier for watermark display - default to 'free' if not provided
         const tier = data.creatorTier || 'free'
         setCreatorTier(tier)
@@ -149,24 +223,22 @@ function EventRSVPContent() {
     e.preventDefault()
     if (!firstName.trim() || !lastName.trim() || attending === null) return
 
-    // Validate required fields based on event settings (only for basic+ tier)
-    if (creatorTier !== 'free') {
-      if (event?.required_rsvp_fields?.email && !email.trim()) {
-        setError('Email is required')
-        return
-      }
-      if (event?.required_rsvp_fields?.phone && !phone.trim()) {
-        setError('Phone number is required')
-        return
-      }
-      if (event?.required_rsvp_fields?.address && !address.trim()) {
-        setError('Address is required')
-        return
-      }
-      if (event?.required_rsvp_fields?.guests && attending && guestCount === 0) {
-        setError('Number of guests is required')
-        return
-      }
+    // Validate required fields based on event settings
+    if (event?.required_rsvp_fields?.email && !email.trim()) {
+      setError('Email is required')
+      return
+    }
+    if (event?.required_rsvp_fields?.phone && !phone.trim()) {
+      setError('Phone number is required')
+      return
+    }
+    if (event?.required_rsvp_fields?.address && !address.trim()) {
+      setError('Address is required')
+      return
+    }
+    if (event?.required_rsvp_fields?.guests && attending && guestCount === 0) {
+      setError('Number of guests is required')
+      return
     }
 
     setSubmitting(true)
@@ -176,6 +248,54 @@ function EventRSVPContent() {
       // Make sure we have the event object before submitting
       if (!event || !event.id) {
         throw new Error('Event information not available. Please refresh the page.')
+      }
+      
+      // Check if payment is required and user is attending
+      if (event.payment_required && event.ticket_price && attending) {
+        // Email is required for payment
+        if (!email.trim()) {
+          setError('Email is required for ticket purchase')
+          setSubmitting(false)
+          return
+        }
+
+        // Save form data to sessionStorage before redirecting
+        sessionStorage.setItem(`rsvp_${event.id}`, JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          phone: phone.trim() || undefined,
+          address: address.trim() || undefined,
+          guestCount: attending ? guestCount : 0,
+          attending: true,
+        }))
+
+        const totalTickets = 1 + guestCount
+        try {
+          const checkoutResponse = await fetch(`/api/events/${event.id}/checkout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              attendeeName: `${firstName.trim()} ${lastName.trim()}`,
+              attendeeEmail: email.trim(),
+              quantity: totalTickets,
+            }),
+          })
+
+          const checkoutData = await checkoutResponse.json()
+          
+          if (checkoutResponse.ok && checkoutData.url) {
+            // Redirect to Stripe Checkout
+            window.location.href = checkoutData.url
+            return // Don't submit RSVP yet, wait for payment success
+          } else {
+            throw new Error(checkoutData.error || 'Payment setup failed')
+          }
+        } catch (paymentErr) {
+          setError(paymentErr instanceof Error ? paymentErr.message : 'Payment error occurred')
+          setSubmitting(false)
+          return
+        }
       }
       
       // Debug event ID
@@ -582,11 +702,11 @@ function EventRSVPContent() {
                 </div>
               </div>
 
-              {/* Email field - only show for basic+ tier accounts */}
-              {creatorTier !== 'free' && (
+              {/* Email field - only show if organizer has enabled it in settings */}
+              {event?.required_rsvp_fields?.email && (
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-white/80 mb-2">
-                    Email {event?.required_rsvp_fields?.email && <span className="text-red-400">*</span>}
+                    Email <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="email"
@@ -595,7 +715,7 @@ function EventRSVPContent() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="modern-input w-full px-4 py-3"
                     placeholder="you@example.com"
-                    required={event?.required_rsvp_fields?.email || false}
+                    required
                   />
                 </div>
               )}
@@ -705,10 +825,10 @@ function EventRSVPContent() {
                   !firstName.trim() || 
                   !lastName.trim() || 
                   attending === null ||
-                  (creatorTier !== 'free' && event?.required_rsvp_fields?.email && !email.trim()) ||
-                  (creatorTier !== 'free' && event?.required_rsvp_fields?.phone && !phone.trim()) ||
-                  (creatorTier !== 'free' && event?.required_rsvp_fields?.address && !address.trim()) ||
-                  (creatorTier !== 'free' && event?.required_rsvp_fields?.guests && attending && guestCount === 0)
+                  (event?.required_rsvp_fields?.email && !email.trim()) ||
+                  (event?.required_rsvp_fields?.phone && !phone.trim()) ||
+                  (event?.required_rsvp_fields?.address && !address.trim()) ||
+                  (event?.required_rsvp_fields?.guests && attending && guestCount === 0)
                 }
                 className="modern-button w-full py-3 px-4 text-lg"
               >

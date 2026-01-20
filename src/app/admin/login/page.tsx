@@ -18,9 +18,9 @@ export default function AdminLogin() {
   const getRedirectUrl = () => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
-      return params.get('redirect') || '/admin/settings'
+      return params.get('redirect') || '/admin/events'
     }
-    return '/admin/settings'
+    return '/admin/events'
   }
 
   // Check if already logged in

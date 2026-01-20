@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,6 +12,7 @@ import {
   ChartOptions
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
+import ChartDownloadMenu from './ChartDownloadMenu';
 
 // Register Chart.js components
 ChartJS.register(
@@ -43,6 +44,7 @@ const ResponseVelocityChart: React.FC<ResponseVelocityChartProps> = ({
   previousEvents,
   avgPreviousVelocity
 }) => {
+  const chartRef = useRef<any>(null);
   // Calculate velocity for each previous event
   const now = new Date();
   const previousVelocities = previousEvents.map(prevEvent => {
@@ -105,7 +107,7 @@ const ResponseVelocityChart: React.FC<ResponseVelocityChartProps> = ({
     scales: {
       x: {
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          display: false,
         },
         ticks: {
           color: 'rgba(255, 255, 255, 0.6)',
@@ -114,7 +116,7 @@ const ResponseVelocityChart: React.FC<ResponseVelocityChartProps> = ({
       y: {
         beginAtZero: true,
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          display: false,
         },
         ticks: {
           color: 'rgba(255, 255, 255, 0.6)',
@@ -131,6 +133,23 @@ const ResponseVelocityChart: React.FC<ResponseVelocityChartProps> = ({
     },
   };
 
+  const exportData = () => {
+    const csvRows = ['Event,Responses per Day'];
+    csvRows.push(`Previous Events Average,${avgPreviousVelocity.toFixed(2)}`);
+    csvRows.push(`${currentEventTitle} (Current),${currentVelocity.toFixed(2)}`);
+    const csv = csvRows.join('\n');
+
+    const json = JSON.stringify({
+      currentEvent: {
+        title: currentEventTitle,
+        velocity: currentVelocity
+      },
+      averagePreviousVelocity: avgPreviousVelocity
+    }, null, 2);
+
+    return { csv, json };
+  };
+
   if (previousEvents.length === 0) {
     return (
       <div className="h-72 flex items-center justify-center text-white/60">
@@ -143,8 +162,17 @@ const ResponseVelocityChart: React.FC<ResponseVelocityChartProps> = ({
   }
 
   return (
-    <div className="h-72">
-      <Bar data={data} options={options} />
+    <div>
+      <div className="flex justify-end mb-2">
+        <ChartDownloadMenu
+          chartRef={chartRef}
+          chartTitle="Response Velocity"
+          exportData={exportData}
+        />
+      </div>
+      <div className="h-72">
+        <Bar ref={chartRef} data={data} options={options} />
+      </div>
     </div>
   );
 };

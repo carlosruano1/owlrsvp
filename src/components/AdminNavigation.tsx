@@ -7,9 +7,9 @@ import { useRouter } from 'next/navigation'
 
 // Admin navigation links data
 const ADMIN_LINKS = [
-  { href: '/admin/settings', label: 'Settings' },
   { href: '/admin/events', label: 'My Events' },
-  { href: '/create', label: 'Create Event' }
+  { href: '/create', label: 'Create Event' },
+  { href: '/admin/settings', label: 'Settings' }
 ]
 
 export default function AdminNavigation() {

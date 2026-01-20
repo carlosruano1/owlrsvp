@@ -72,7 +72,7 @@ function MagicLogin() {
       
       // Redirect to admin dashboard after successful login
       setTimeout(() => {
-        router.push('/admin/settings')
+        router.push('/admin/events')
       }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to validate magic link')

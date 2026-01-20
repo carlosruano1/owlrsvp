@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,6 +12,7 @@ import {
   ChartOptions
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
+import ChartDownloadMenu from './ChartDownloadMenu';
 
 // Register Chart.js components
 ChartJS.register(
@@ -28,6 +29,7 @@ interface ResponseTimeHeatmapProps {
 }
 
 const ResponseTimeHeatmap: React.FC<ResponseTimeHeatmapProps> = ({ responseHours }) => {
+  const chartRef = useRef<any>(null);
   // Convert hours to readable format
   const formatHour = (hour: number) => {
     const period = hour >= 12 ? 'PM' : 'AM';
@@ -118,7 +120,7 @@ const ResponseTimeHeatmap: React.FC<ResponseTimeHeatmapProps> = ({ responseHours
       y: {
         beginAtZero: true,
         grid: {
-          color: 'rgba(255, 255, 255, 0.1)',
+          display: false,
         },
         ticks: {
           color: 'rgba(255, 255, 255, 0.6)',
@@ -141,9 +143,46 @@ const ResponseTimeHeatmap: React.FC<ResponseTimeHeatmapProps> = ({ responseHours
     },
   };
 
+  const exportData = () => {
+    const formatHour = (hour: number) => {
+      const period = hour >= 12 ? 'PM' : 'AM';
+      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      return `${displayHour} ${period}`;
+    };
+
+    const csvRows = ['Hour,Responses,Percentage'];
+    const totalResponses = hourCounts.reduce((sum, count) => sum + count, 0);
+    hours.forEach((hour, index) => {
+      const count = hourCounts[index];
+      const percentage = totalResponses > 0 ? ((count / totalResponses) * 100).toFixed(1) : '0';
+      csvRows.push(`${formatHour(hour)},${count},${percentage}%`);
+    });
+    const csv = csvRows.join('\n');
+
+    const json = JSON.stringify({
+      responseHours: hours.reduce((acc, hour, index) => {
+        acc[formatHour(hour)] = hourCounts[index];
+        return acc;
+      }, {} as Record<string, number>),
+      totalResponses: totalResponses,
+      mostActiveHour: formatHour(sortedHours[0])
+    }, null, 2);
+
+    return { csv, json };
+  };
+
   return (
-    <div className="h-72">
-      <Bar data={data} options={options} />
+    <div>
+      <div className="flex justify-end mb-2">
+        <ChartDownloadMenu
+          chartRef={chartRef}
+          chartTitle="Response Time Analysis"
+          exportData={exportData}
+        />
+      </div>
+      <div className="h-72">
+        <Bar ref={chartRef} data={data} options={options} />
+      </div>
       <div className="mt-3 text-center text-white/70 text-sm">
         <span className="inline-flex items-center mr-4">
           <span className="w-3 h-3 inline-block mr-1 bg-green-500 rounded-sm"></span> Best times to send reminders

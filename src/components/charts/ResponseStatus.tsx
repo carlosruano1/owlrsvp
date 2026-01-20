@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Chart as ChartJS,
   ArcElement,
@@ -9,6 +9,7 @@ import {
   ChartOptions,
 } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
+import ChartDownloadMenu from './ChartDownloadMenu';
 
 // Register Chart.js components
 ChartJS.register(
@@ -28,6 +29,7 @@ const ResponseStatus: React.FC<ResponseStatusProps> = ({
   totalDeclined, 
   totalPending 
 }) => {
+  const chartRef = useRef<any>(null);
   
   const data = {
     labels: ['Attending', 'Declined', 'Pending'],
@@ -78,9 +80,35 @@ const ResponseStatus: React.FC<ResponseStatusProps> = ({
     },
   };
 
+  const exportData = () => {
+    const total = totalAttending + totalDeclined + totalPending;
+    const csv = `Status,Count,Percentage\nAttending,${totalAttending},${Math.round((totalAttending / total) * 100)}%\nDeclined,${totalDeclined},${Math.round((totalDeclined / total) * 100)}%\nPending,${totalPending},${Math.round((totalPending / total) * 100)}%`;
+    const json = JSON.stringify({
+      attending: totalAttending,
+      declined: totalDeclined,
+      pending: totalPending,
+      total: total,
+      percentages: {
+        attending: Math.round((totalAttending / total) * 100),
+        declined: Math.round((totalDeclined / total) * 100),
+        pending: Math.round((totalPending / total) * 100)
+      }
+    }, null, 2);
+    return { csv, json };
+  };
+
   return (
-    <div className="h-64">
-      <Doughnut data={data} options={options} />
+    <div>
+      <div className="flex justify-end mb-2">
+        <ChartDownloadMenu
+          chartRef={chartRef}
+          chartTitle="Response Status"
+          exportData={exportData}
+        />
+      </div>
+      <div className="h-64">
+        <Doughnut ref={chartRef} data={data} options={options} />
+      </div>
     </div>
   );
 };

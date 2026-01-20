@@ -22,85 +22,114 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
     }
 
-    // Get user's Stripe customer ID and subscription ID
-    const { data: userData, error: userError } = await supabaseAdmin
+    console.log('Starting account deletion for user_id:', session.user.user_id)
+
+    // Try to cancel Stripe subscription if exists (optional - won't block deletion)
+    try {
+      const { data: userData } = await supabaseAdmin
+        .from('admin_users')
+        .select('stripe_customer_id, stripe_subscription_id')
+        .eq('id', session.user.user_id)
+        .single()
+
+      if (userData?.stripe_subscription_id && stripe) {
+        try {
+          await stripe.subscriptions.cancel(userData.stripe_subscription_id)
+          console.log('Stripe subscription cancelled')
+        } catch (stripeError) {
+          console.error('Error canceling Stripe subscription:', stripeError)
+          // Continue with account deletion even if subscription cancellation fails
+        }
+      }
+    } catch (stripeCheckError) {
+      // Column might not exist or user might not have Stripe data - that's fine, continue with deletion
+      console.log('Skipping Stripe cancellation (column may not exist or user has no subscription)')
+    }
+
+    // Call the SQL function to delete the user account and all related data
+    console.log('Calling delete_admin_user_account RPC function with user_id:', session.user.user_id)
+    const { data, error: deleteError } = await supabaseAdmin.rpc('delete_admin_user_account', {
+      p_user_id: session.user.user_id
+    })
+
+    console.log('RPC call result - data:', data, 'error:', deleteError)
+
+    // If RPC fails, fall back to manual deletion
+    if (deleteError) {
+      console.error('RPC function failed, falling back to manual deletion:', deleteError)
+      
+      // Manual deletion fallback
+      const userId = session.user.user_id
+      
+      // Get all event IDs
+      const { data: eventsByAdminId } = await supabaseAdmin
+        .from('events')
+        .select('id')
+        .eq('admin_user_id', userId)
+
+      const { data: eventsByCreatedBy } = await supabaseAdmin
+        .from('events')
+        .select('id')
+        .eq('created_by_admin_id', userId)
+
+      const allEventIds = [
+        ...(eventsByAdminId || []).map(e => e.id),
+        ...(eventsByCreatedBy || []).map(e => e.id)
+      ]
+      const uniqueEventIds = [...new Set(allEventIds)]
+
+      if (uniqueEventIds.length > 0) {
+        await supabaseAdmin.from('attendees').delete().in('event_id', uniqueEventIds)
+        await supabaseAdmin.from('events').delete().in('id', uniqueEventIds)
+      }
+
+      await supabaseAdmin.from('event_access').delete().eq('admin_user_id', userId)
+      await supabaseAdmin.from('admin_sessions').delete().eq('admin_user_id', userId)
+      await supabaseAdmin.from('verification_codes').delete().eq('user_id', userId)
+      await supabaseAdmin.from('password_reset_tokens').delete().eq('admin_user_id', userId)
+      await supabaseAdmin.from('magic_link_tokens').delete().eq('admin_user_id', userId)
+      
+      const { error: userDeleteError } = await supabaseAdmin
+        .from('admin_users')
+        .delete()
+        .eq('id', userId)
+
+      if (userDeleteError) {
+        console.error('Manual deletion also failed:', userDeleteError)
+        return NextResponse.json({ 
+          error: 'Failed to delete account', 
+          details: userDeleteError.message 
+        }, { status: 500 })
+      }
+      
+      console.log('Account deleted via manual fallback')
+    } else if (data !== true) {
+      console.error('Account deletion returned false or unexpected result:', data)
+      return NextResponse.json({ 
+        error: 'Failed to delete account',
+        details: 'Function returned false or unexpected result',
+        result: data
+      }, { status: 500 })
+    } else {
+      console.log('Account successfully deleted via RPC function')
+    }
+
+    // Verify deletion
+    const { data: verifyUser } = await supabaseAdmin
       .from('admin_users')
-      .select('stripe_customer_id, stripe_subscription_id')
+      .select('id')
       .eq('id', session.user.user_id)
       .single()
 
-    if (userError) {
-      console.error('Error fetching user data:', userError)
-      return NextResponse.json({ error: 'Failed to fetch user data' }, { status: 500 })
+    if (verifyUser) {
+      console.error('User still exists after deletion attempt!')
+      return NextResponse.json({ 
+        error: 'Account deletion failed - user still exists',
+        details: 'Please contact support'
+      }, { status: 500 })
     }
 
-    // Cancel Stripe subscription if exists
-    if (userData.stripe_subscription_id && stripe) {
-      try {
-        await stripe.subscriptions.cancel(userData.stripe_subscription_id)
-      } catch (stripeError) {
-        console.error('Error canceling Stripe subscription:', stripeError)
-        // Continue with account deletion even if subscription cancellation fails
-      }
-    }
-
-    // Delete user's events and related data (cascade should handle this, but we'll be explicit)
-    // First, get all events for this user
-    const { data: events } = await supabaseAdmin
-      .from('events')
-      .select('id')
-      .eq('admin_user_id', session.user.user_id)
-
-    if (events && events.length > 0) {
-      const eventIds = events.map(e => e.id)
-      
-      // Delete attendees for these events
-      await supabaseAdmin
-        .from('attendees')
-        .delete()
-        .in('event_id', eventIds)
-
-      // Delete events
-      await supabaseAdmin
-        .from('events')
-        .delete()
-        .eq('admin_user_id', session.user.user_id)
-    }
-
-    // Delete user's sessions
-    await supabaseAdmin
-      .from('admin_sessions')
-      .delete()
-      .eq('admin_user_id', session.user.user_id)
-
-    // Delete user's verification codes
-    await supabaseAdmin
-      .from('verification_codes')
-      .delete()
-      .eq('user_id', session.user.user_id)
-
-    // Delete user's password reset tokens
-    await supabaseAdmin
-      .from('password_reset_tokens')
-      .delete()
-      .eq('admin_user_id', session.user.user_id)
-
-    // Delete user's magic link tokens
-    await supabaseAdmin
-      .from('magic_link_tokens')
-      .delete()
-      .eq('admin_user_id', session.user.user_id)
-
-    // Finally, delete the user account (soft delete by setting is_active to false)
-    const { error: deleteError } = await supabaseAdmin
-      .from('admin_users')
-      .update({ is_active: false })
-      .eq('id', session.user.user_id)
-
-    if (deleteError) {
-      console.error('Error deleting account:', deleteError)
-      return NextResponse.json({ error: 'Failed to delete account' }, { status: 500 })
-    }
+    console.log('Account deletion verified - user no longer exists')
 
     // Clear the session cookie
     const response = NextResponse.json({ 
