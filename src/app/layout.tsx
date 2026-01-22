@@ -14,8 +14,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://owlrsvp.com'),
-  title: "Online RSVP | Event RSVP Website | OwlRSVP",
-  description: "Create online RSVP pages in seconds. Professional event RSVP website with custom branding, QR codes, and real-time tracking. No signup required for guests. Start free.",
+  title: "Create Beautiful RSVP Pages in Seconds | OwlRSVP",
+  description: "The easiest way to collect event RSVPs online. Custom branding, QR codes, and real-time tracking—no signup required for guests. Start free today.",
   keywords: "event management, RSVP, event planning, guest list, corporate events, QR code, custom branding, event page",
   authors: [{ name: "OwlRSVP Team" }],
   creator: "OwlRSVP",
@@ -29,8 +29,8 @@ export const metadata: Metadata = {
     apple: { url: "/images/logo.png", type: "image/png" },
   },
   openGraph: {
-    title: "OwlRSVP - Beautiful Event RSVP Management",
-    description: "Create stunning RSVP pages in seconds with custom branding, QR codes, and powerful guest management tools.",
+    title: "Create Beautiful RSVP Pages in Seconds | OwlRSVP",
+    description: "The easiest way to collect event RSVPs online. Custom branding, QR codes, and real-time tracking—no signup required for guests.",
     url: "https://owlrsvp.com",
     siteName: "OwlRSVP",
     images: [
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
         url: "/images/owlrsvp-og.png",
         width: 1200,
         height: 630,
-        alt: "OwlRSVP - Beautiful Event RSVP Management",
+        alt: "Create Beautiful RSVP Pages in Seconds | OwlRSVP",
       },
     ],
     locale: "en_US",
@@ -46,8 +46,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "OwlRSVP - Beautiful Event RSVP Management",
-    description: "Create stunning RSVP pages in seconds with custom branding, QR codes, and powerful guest management tools.",
+    title: "Create Beautiful RSVP Pages in Seconds | OwlRSVP",
+    description: "The easiest way to collect event RSVPs online. Custom branding, QR codes, and real-time tracking—no signup required for guests.",
     images: ["/images/owlrsvp-og.png"],
   },
   robots: {
@@ -77,6 +77,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="google-adsense-account" content="ca-pub-5389151790314295" />
         <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
         <link rel="shortcut icon" href="/favicon.ico?v=2" />
         <link rel="apple-touch-icon" href="/images/logo.png?v=2" />

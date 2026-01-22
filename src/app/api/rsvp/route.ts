@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       // First try to find by direct ID match
       const { data: eventById, error: idError } = await supabase
         .from('events')
-        .select('id, open_invite, auth_mode, promo_code, user_id, required_rsvp_fields')
+        .select('id, open_invite, auth_mode, promo_code, promo_codes, user_id, required_rsvp_fields')
         .eq('id', body.event_id)
         .single();
       
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         // Try to find by admin_token (in case the ID is actually an admin token)
         const { data: eventByToken, error: tokenError } = await supabase
           .from('events')
-          .select('id, open_invite, auth_mode, promo_code, user_id, required_rsvp_fields')
+          .select('id, open_invite, auth_mode, promo_code, promo_codes, user_id, required_rsvp_fields')
           .eq('admin_token', body.event_id)
           .single();
           
@@ -176,12 +176,35 @@ export async function POST(request: NextRequest) {
     // Handle different auth modes
     if (authMode === 'code') {
       // Check if promo code is provided and matches
-      const providedCode = body.promo_code || ''
-      const eventCode = event.promo_code || ''
+      const providedCode = (body.promo_code || '').toLowerCase().trim()
       
-      if (!providedCode || providedCode.toLowerCase().trim() !== eventCode.toLowerCase().trim()) {
+      // Check against multiple promo codes (for pro users) or single promo code
+      let isValidCode = false
+      let matchedCode: string | null = null
+      
+      if (event.promo_codes && Array.isArray(event.promo_codes) && event.promo_codes.length > 0) {
+        // Check against multiple promo codes
+        for (const promo of event.promo_codes) {
+          if (promo.code && promo.code.toLowerCase().trim() === providedCode) {
+            isValidCode = true
+            matchedCode = promo.code
+            break
+          }
+        }
+      } else if (event.promo_code) {
+        // Fallback to single promo code for backward compatibility
+        if (event.promo_code.toLowerCase().trim() === providedCode) {
+          isValidCode = true
+          matchedCode = event.promo_code
+        }
+      }
+      
+      if (!providedCode || !isValidCode) {
         return NextResponse.json({ error: 'Invalid promo code. Please check and try again.' }, { status: 403 })
       }
+      
+      // Store the matched promo code in the body for tracking
+      body.matched_promo_code = matchedCode
     } 
     else if (authMode === 'guest_list' || !event.open_invite) {
       // If guest list only, require email and an existing attendee match by email or name
@@ -244,7 +267,8 @@ export async function POST(request: NextRequest) {
           guest_count: body.guest_count || 0,
           attending: body.attending || false,
           phone: body.phone || null,
-          address: body.address || null
+          address: body.address || null,
+          promo_code_used: body.matched_promo_code || null
         }, { 
           onConflict: 'event_id,first_name,last_name',
           ignoreDuplicates: false

@@ -47,6 +47,9 @@ function AdminDashboardContent() {
   const [saving, setSaving] = useState(false)
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [promoCode, setPromoCode] = useState('')
+  const [promoCodes, setPromoCodes] = useState<Array<{code: string, label?: string}>>([])
+  const [newPromoCode, setNewPromoCode] = useState('')
+  const [newPromoCodeLabel, setNewPromoCodeLabel] = useState('')
   const [expandedAttendee, setExpandedAttendee] = useState<string | null>(null)
   const [contextMenuPos, setContextMenuPos] = useState<{x:number;y:number} | null>(null)
   const [contextAnchor, setContextAnchor] = useState<{left:number; right:number; bottom:number; top?: number} | null>(null)
@@ -760,14 +763,24 @@ function AdminDashboardContent() {
       // Update local data
       setData(prev => {
         if (!prev) return prev
+        const updatedEvent = { ...prev.event, ...result.event }
+        
+        // Initialize promo codes for pro users
+        if ((userTier === 'pro' || userTier === 'enterprise') && updatedEvent.promo_codes) {
+          setPromoCodes(Array.isArray(updatedEvent.promo_codes) ? updatedEvent.promo_codes : [])
+        }
+        
         return {
           ...prev,
-          event: { ...prev.event, ...result.event }
+          event: updatedEvent
         }
       })
       
       // Clear form fields after successful update
       if (settings.promo_code !== undefined) setPromoCode('')
+      if (settings.promo_codes !== undefined) {
+        setPromoCodes(settings.promo_codes || [])
+      }
       if (settings.contact_name !== undefined) setContactName('')
       if (settings.contact_email !== undefined) setContactEmail('')
       if (settings.contact_phone !== undefined) setContactPhone('')
@@ -930,6 +943,14 @@ function AdminDashboardContent() {
           setRequiredFields(result.event.required_rsvp_fields)
         } else {
           setRequiredFields({})
+        }
+
+        // Initialize promo codes for pro users
+        if ((userTier === 'pro' || userTier === 'enterprise') && result.event.promo_codes) {
+          setPromoCodes(Array.isArray(result.event.promo_codes) ? result.event.promo_codes : [])
+        } else if (result.event.promo_code) {
+          // For backward compatibility, convert single promo_code to array format
+          setPromoCodes([{ code: result.event.promo_code }])
         }
       }
       
@@ -2245,24 +2266,112 @@ function AdminDashboardContent() {
                 
                 {(data?.event.auth_mode === 'code') && (
                   <div className="mt-4">
-                    <label className="block text-sm font-medium text-white/80 mb-2">
-                      Promo Code
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={promoCode || data?.event.promo_code || ''}
-                        onChange={(e) => setPromoCode(e.target.value)}
-                        placeholder="Enter promo code"
-                        className="modern-input flex-1 px-4 py-2"
-                      />
-                      <button 
-                        onClick={() => updateEventSettings({ promo_code: promoCode })}
-                        className="modern-button px-4 py-2"
-                      >
-                        Save
-                      </button>
-                    </div>
+                    {userTier === 'pro' || userTier === 'enterprise' ? (
+                      // Multiple promo codes for pro users
+                      <div>
+                        <label className="block text-sm font-medium text-white/80 mb-2">
+                          Promo Codes (Track referral sources)
+                        </label>
+                        <p className="text-xs text-white/60 mb-3">
+                          Add multiple promo codes to track where your RSVPs come from (e.g., "TV10" for TV ad, "FB20" for Facebook)
+                        </p>
+                        
+                        {/* Existing promo codes list */}
+                        {promoCodes.length > 0 && (
+                          <div className="space-y-2 mb-4">
+                            {promoCodes.map((item, index) => (
+                              <div key={index} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-white/5 p-3 rounded-lg">
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-white font-medium break-words">{item.code}</div>
+                                  {item.label && (
+                                    <div className="text-xs text-white/60 break-words">{item.label}</div>
+                                  )}
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    const updated = promoCodes.filter((_, i) => i !== index)
+                                    setPromoCodes(updated)
+                                    updateEventSettings({ promo_codes: updated })
+                                  }}
+                                  className="text-red-400 hover:text-red-300 px-3 py-1.5 text-sm whitespace-nowrap sm:flex-shrink-0"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Add new promo code form */}
+                        <div className="space-y-2">
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <input
+                              type="text"
+                              value={newPromoCode}
+                              onChange={(e) => setNewPromoCode(e.target.value)}
+                              placeholder="Code (e.g., TV10)"
+                              className="modern-input flex-1 px-4 py-2 min-w-0"
+                            />
+                            <input
+                              type="text"
+                              value={newPromoCodeLabel}
+                              onChange={(e) => setNewPromoCodeLabel(e.target.value)}
+                              placeholder="Label (e.g., TV Ad)"
+                              className="modern-input flex-1 px-4 py-2 min-w-0"
+                            />
+                            <button
+                              onClick={() => {
+                                if (!newPromoCode.trim()) {
+                                  alert('Please enter a promo code')
+                                  return
+                                }
+                                const updated = [...promoCodes, { code: newPromoCode.trim(), label: newPromoCodeLabel.trim() || undefined }]
+                                setPromoCodes(updated)
+                                setNewPromoCode('')
+                                setNewPromoCodeLabel('')
+                                updateEventSettings({ promo_codes: updated })
+                              }}
+                              className="modern-button px-4 py-2 whitespace-nowrap sm:flex-shrink-0"
+                              disabled={settingsSaving}
+                            >
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      // Single promo code for free/basic users
+                      <div>
+                        <label className="block text-sm font-medium text-white/80 mb-2">
+                          Promo Code
+                        </label>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <input
+                            type="text"
+                            value={promoCode || data?.event.promo_code || ''}
+                            onChange={(e) => setPromoCode(e.target.value)}
+                            placeholder="Enter promo code"
+                            className="modern-input flex-1 px-4 py-2 min-w-0"
+                          />
+                          <button 
+                            onClick={() => {
+                              // Get the current input value directly from the input element
+                              const input = document.querySelector('input[placeholder="Enter promo code"]') as HTMLInputElement
+                              const codeToSave = input?.value || promoCode || ''
+                              if (!codeToSave.trim() && !data?.event.promo_code) {
+                                alert('Please enter a promo code')
+                                return
+                              }
+                              updateEventSettings({ promo_code: codeToSave.trim() || null })
+                            }}
+                            className="modern-button px-4 py-2 whitespace-nowrap sm:flex-shrink-0"
+                            disabled={settingsSaving}
+                          >
+                            {settingsSaving ? 'Saving...' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

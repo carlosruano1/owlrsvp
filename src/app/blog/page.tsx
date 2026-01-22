@@ -5,8 +5,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 
 export const metadata: Metadata = {
-  title: "Blog - Event Management & RSVP Tips | OwlRSVP",
-  description: "Expert guides on event management, RSVP best practices, digital invitations, and event planning. Learn how to create better events.",
+  title: "Event Planning Tips & RSVP Best Practices | OwlRSVP Blog",
+  description: "Learn how to create better events with expert guides on RSVP management, digital invitations, and event planning. Practical tips you can use today.",
   alternates: {
     canonical: "https://owlrsvp.com/blog",
   },

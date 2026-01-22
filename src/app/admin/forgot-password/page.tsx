@@ -38,6 +38,7 @@ export default function ForgotPassword() {
       if (data.requiresTOTP && !totpCode) {
         setRequiresTOTP(true)
         setSuccess('Please enter your authenticator app code')
+        setLoading(false)
         return
       }
 

@@ -197,10 +197,10 @@ function HomeContent() {
               ref={heroReveal.ref}
             >
               <h1 className="text-5xl md:text-6xl lg:text-7xl mb-3 leading-tight tracking-tight text-white">
-                Smarter Than a Spreadsheet.
+                Online RSVP Made Simple
               </h1>
               <h2 className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight tracking-tight text-white">
-                Prettier Than a Form.
+                Smarter Than a Spreadsheet. Prettier Than a Form.
               </h2>
             </div>
 
@@ -481,7 +481,7 @@ function HomeContent() {
             className={`page-section-content animate-reveal stagger-reveal relative z-20 ${pricingReveal.isRevealed ? 'revealed' : ''}`}
             ref={pricingReveal.ref}
           >
-            <h2 className="text-4xl font-light text-center mb-6 text-white">Simple, Transparent Pricing</h2>
+            <h2 className="text-4xl font-light text-center mb-6 text-white">RSVP Platform Pricing and Plans</h2>
             <p className="text-xl text-white/80 text-center mb-16 max-w-2xl mx-auto">
               Choose the plan that fits your needs. All plans include our beautiful RSVP pages and core features.
             </p>
@@ -640,7 +640,7 @@ function HomeContent() {
             className={`page-section-content animate-reveal stagger-reveal ${howItWorksReveal.isRevealed ? 'revealed' : ''}`}
             ref={howItWorksReveal.ref}
           >
-            <h2 className="text-5xl md:text-6xl font-light text-center mb-20 text-white">How It Works</h2>
+            <h2 className="text-5xl md:text-6xl font-light text-center mb-20 text-white">How Digital RSVP and Event Registration Works</h2>
             <div className="max-w-7xl mx-auto">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                 {/* Steps */}
@@ -719,7 +719,7 @@ function HomeContent() {
           
           <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-6 w-full">
             <div className="mb-6 md:mb-10 text-center">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-light text-white mb-3 md:mb-4 tracking-tight">A New Way to Invite</h2>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-light text-white mb-3 md:mb-4 tracking-tight">Digital Invitations and Event Management</h2>
               <p className="text-lg md:text-xl text-white/60">Watch your invitations come to life as you scroll.</p>
             </div>
             
@@ -770,7 +770,7 @@ function HomeContent() {
                 FAQ
               </div>
               <h2 className="text-4xl md:text-5xl font-light mb-6 text-white">
-                Frequently Asked Questions
+                Online RSVP and Event Management FAQs
               </h2>
               <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">
                 Quick answers to the most common questions about OwlRSVP.
@@ -801,7 +801,7 @@ function HomeContent() {
             <div className="mb-12">
               <span className="inline-block px-4 py-2 bg-white/10 backdrop-blur-sm text-white/90 rounded-full text-sm font-medium mb-4">Simple Pricing</span>
               <h2 className="text-5xl font-light mb-8 text-white">
-                Ready to Create Your Event?
+                Start Your Event RSVP and Guest Management Today
               </h2>
               <p className="text-xl text-white/80 mb-6">
                 Create beautiful RSVP pages and start managing your events today.

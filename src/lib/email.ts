@@ -439,15 +439,42 @@ export function generateCollaboratorInviteEmail(inviterName: string, eventTitle:
 }
 
 // RSVP Confirmation Email with Calendar Attachment
+/**
+ * Generate email ad HTML for free tier events
+ * Uses image-based ads since JavaScript doesn't work in emails
+ */
+function generateEmailAdHTML(): string {
+  const adImageUrl = process.env.EMAIL_AD_IMAGE_URL || ''
+  const adLinkUrl = process.env.EMAIL_AD_LINK_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://owlrsvp.com'
+  const adEnabled = process.env.EMAIL_ADS_ENABLED === 'true'
+  
+  if (!adEnabled || !adImageUrl) {
+    return ''
+  }
+  
+  return `
+    <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center; border-top: 3px solid #667eea;">
+      <p style="margin: 0 0 10px 0; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Sponsored</p>
+      <a href="${adLinkUrl}" style="display: inline-block; text-decoration: none;" target="_blank" rel="noopener noreferrer">
+        <img src="${adImageUrl}" alt="Advertisement" style="max-width: 100%; height: auto; border-radius: 6px; display: block; margin: 0 auto;" />
+      </a>
+      <p style="margin: 10px 0 0 0; font-size: 11px; color: #999;">Advertisement</p>
+    </div>
+  `
+}
+
 export function generateRSVPConfirmationEmail(
   attendeeName: string,
   eventTitle: string,
   eventDate?: string,
   eventEndTime?: string,
   eventLocation?: string,
-  calendarIcs?: string
+  calendarIcs?: string,
+  creatorTier?: string
 ) {
   const subject = `RSVP Confirmation: ${eventTitle}`
+  const showAd = creatorTier === 'free'
+  const adHTML = showAd ? generateEmailAdHTML() : ''
   
   const html = `
     <!DOCTYPE html>
@@ -489,6 +516,8 @@ export function generateRSVPConfirmationEmail(
         
         <p>We look forward to seeing you there!</p>
         <p>If you need to update your RSVP, please contact the event organizer.</p>
+        
+        ${adHTML}
       </div>
       <div class="footer">
         <p>Best regards,<br>The OwlRSVP Team</p>

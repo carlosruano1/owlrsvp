@@ -133,6 +133,17 @@ export async function POST(request: NextRequest) {
 
           if (!fullEvent) return
 
+          // Get creator tier for ad display
+          let creatorTier = 'free'
+          if (fullEvent.user_id) {
+            const { data: creatorData } = await supabase
+              .from('admin_users')
+              .select('subscription_tier')
+              .eq('id', fullEvent.user_id)
+              .single()
+            creatorTier = creatorData?.subscription_tier || 'free'
+          }
+
           const attendee = updateData
           const attendeeName = `${attendee.first_name} ${attendee.last_name}`
           const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -155,7 +166,8 @@ export async function POST(request: NextRequest) {
               fullEvent.event_date || undefined,
               fullEvent.event_end_time || undefined,
               fullEvent.event_location || undefined,
-              calendarIcs
+              calendarIcs,
+              creatorTier
             )
 
             await sendEmail({
@@ -256,6 +268,17 @@ export async function POST(request: NextRequest) {
 
         if (!fullEvent) return
 
+        // Get creator tier for ad display
+        let creatorTier = 'free'
+        if (fullEvent.user_id) {
+          const { data: creatorData } = await supabase
+            .from('admin_users')
+            .select('subscription_tier')
+            .eq('id', fullEvent.user_id)
+            .single()
+          creatorTier = creatorData?.subscription_tier || 'free'
+        }
+
         const attendee = data?.[0]
         const attendeeName = `${attendee.first_name} ${attendee.last_name}`
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -279,7 +302,8 @@ export async function POST(request: NextRequest) {
             fullEvent.event_date || undefined,
             fullEvent.event_end_time || undefined,
             fullEvent.event_location || undefined,
-            calendarIcs
+            calendarIcs,
+            creatorTier
           )
 
           await sendEmail({

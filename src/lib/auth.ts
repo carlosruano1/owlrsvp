@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, supabaseAdmin } from './supabase'
 import { sendEmail, generateVerificationEmail, generatePasswordResetEmail, generateMagicLinkEmail, generateEventAccessEmail } from './email'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
@@ -39,7 +39,18 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return await bcrypt.compare(password, hash)
+  try {
+    if (!hash || !password) {
+      console.error('verifyPassword: Missing password or hash')
+      return false
+    }
+    const result = await bcrypt.compare(password, hash)
+    console.log('verifyPassword: Comparison result:', result)
+    return result
+  } catch (error) {
+    console.error('verifyPassword: Error comparing passwords:', error)
+    return false
+  }
 }
 
 export async function createAdminUser(
@@ -132,20 +143,9 @@ export async function createAdminUser(
     }
 
     // Otherwise try to send verification email
-    try {
-      // Send verification email
-      const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/verify-email?token=${encodeURIComponent(data)}`
-      const emailContent = generateVerificationEmail(username, verificationUrl)
-      
-      await sendEmail({
-        to: email,
-        subject: emailContent.subject,
-        html: emailContent.html,
-        text: emailContent.text
-      })
-      console.log('Verification email sent to:', email);
-    } catch (emailError) {
-      console.error('Error sending verification email:', emailError);
+    const emailResult = await sendVerificationEmail(user_id, email, username)
+    
+    if (!emailResult.success) {
       // Continue with account creation even if email fails
       // Return the verification code as a fallback
       return { 
@@ -168,12 +168,120 @@ export async function createAdminUser(
   }
 }
 
+// Generate and send verification email for a user
+export async function sendVerificationEmail(
+  userId: string,
+  email: string,
+  username: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabaseAdmin) {
+      return { success: false, error: 'Database not configured' }
+    }
+
+    // Generate a secure verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+    // Try to store in email_verification_tokens table first (preferred approach)
+    // If that table doesn't exist, fall back to admin_users table
+    
+    // First, try to delete any existing tokens for this user
+    await supabaseAdmin
+      .from('email_verification_tokens')
+      .delete()
+      .eq('admin_user_id', userId)
+
+    // Insert new token
+    const { error: insertError } = await supabaseAdmin
+      .from('email_verification_tokens')
+      .insert({
+        admin_user_id: userId,
+        token: verificationToken,
+        expires_at: expiresAt.toISOString(),
+        used: false
+      })
+
+    // If table doesn't exist or insert failed, try storing in admin_users table
+    if (insertError) {
+      console.log('email_verification_tokens insert failed, trying admin_users table:', insertError.message)
+      const { error: updateError } = await supabaseAdmin
+        .from('admin_users')
+        .update({ 
+          email_verification_token: verificationToken,
+          email_verification_token_expires_at: expiresAt.toISOString()
+        })
+        .eq('id', userId)
+
+      if (updateError) {
+        console.error('Error storing verification token:', updateError)
+        return { success: false, error: 'Failed to generate verification token' }
+      }
+    }
+
+    // Generate verification URL
+    const verificationUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/verify-email?token=${encodeURIComponent(verificationToken)}`
+    const emailContent = generateVerificationEmail(username, verificationUrl)
+
+    // Send verification email
+    const emailResult = await sendEmail({
+      to: email,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text
+    })
+
+    if (!emailResult.success) {
+      console.error('Error sending verification email:', emailResult.error)
+      return { success: false, error: emailResult.error || 'Failed to send verification email' }
+    }
+
+    console.log('Verification email sent to:', email)
+    return { success: true }
+  } catch (error) {
+    console.error('Error in sendVerificationEmail:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error'
+    return { success: false, error: errorMessage }
+  }
+}
+
 export async function verifyAdminEmail(token: string): Promise<{ success: boolean; error?: string }> {
   try {
     if (!supabase) {
       return { success: false, error: 'Database not configured' }
     }
 
+    // First try to find token in email_verification_tokens table
+    const { data: tokenData, error: tokenError } = await supabase
+      .from('email_verification_tokens')
+      .select('admin_user_id')
+      .eq('token', token)
+      .eq('used', false)
+      .gt('expires_at', new Date().toISOString())
+      .single()
+
+    if (!tokenError && tokenData) {
+      // Token found in table, mark as used and verify email
+      await supabase
+        .from('email_verification_tokens')
+        .update({ used: true })
+        .eq('token', token)
+
+      // Mark user's email as verified
+      const { error: updateError } = await supabase
+        .from('admin_users')
+        .update({ email_verified: true })
+        .eq('id', tokenData.admin_user_id)
+
+      if (updateError) {
+        console.error('Error updating email verification status:', updateError)
+        return { success: false, error: 'Failed to verify email' }
+      }
+
+      return { success: true }
+    }
+
+    // Fallback: Try RPC function (for backward compatibility)
     const { data, error } = await supabase
       .rpc('verify_admin_email', { p_token: token })
 
@@ -254,25 +362,44 @@ export async function authenticateAdmin(
   password: string
 ): Promise<{ success: boolean; user?: AdminUser; session_token?: string; error?: string }> {
   try {
-    if (!supabase) {
+    // Use supabaseAdmin (service role) to bypass RLS for authentication
+    if (!supabaseAdmin) {
       return { success: false, error: 'Database not configured' }
     }
 
-    // Find user by username or email
-    const { data: user, error: userError } = await supabase
+    console.log('authenticateAdmin: Looking for user with:', usernameOrEmail)
+
+    // Find user by username or email - need to quote the values for Supabase
+    const { data: user, error: userError } = await supabaseAdmin
       .from('admin_users')
       .select('*')
-      .or(`username.eq.${usernameOrEmail},email.eq.${usernameOrEmail}`)
+      .or(`username.eq."${usernameOrEmail}",email.eq."${usernameOrEmail}"`)
       .eq('is_active', true)
       .single()
 
-    if (userError || !user) {
+    if (userError) {
+      console.error('authenticateAdmin: User query error:', userError)
+      console.error('Error code:', userError.code)
+      console.error('Error message:', userError.message)
       return { success: false, error: 'Invalid credentials' }
     }
 
+    if (!user) {
+      console.log('authenticateAdmin: No user found with username/email:', usernameOrEmail)
+      return { success: false, error: 'Invalid credentials' }
+    }
+
+    console.log('authenticateAdmin: User found:', { id: user.id, username: user.username, email: user.email, is_active: user.is_active, email_verified: user.email_verified })
+    console.log('authenticateAdmin: Password hash exists:', !!user.password_hash)
+    console.log('authenticateAdmin: Password hash length:', user.password_hash?.length)
+
     // Verify password
+    console.log('authenticateAdmin: Verifying password...')
     const passwordValid = await verifyPassword(password, user.password_hash)
+    console.log('authenticateAdmin: Password valid:', passwordValid)
+    
     if (!passwordValid) {
+      console.error('authenticateAdmin: Password verification failed')
       return { success: false, error: 'Invalid credentials' }
     }
 
@@ -285,7 +412,7 @@ export async function authenticateAdmin(
     if (!user.email_verified && process.env.NODE_ENV === 'development') {
       console.log('Development mode: Auto-verifying email for', user.email);
       try {
-        const { error: updateError } = await supabase
+        const { error: updateError } = await supabaseAdmin
           .from('admin_users')
           .update({ email_verified: true })
           .eq('id', user.id);
@@ -301,7 +428,7 @@ export async function authenticateAdmin(
     }
 
     // Create session
-    const { data: sessionToken, error: sessionError } = await supabase
+    const { data: sessionToken, error: sessionError } = await supabaseAdmin
       .rpc('create_admin_session', {
         p_user_id: user.id,
         p_ip_address: null, // Will be set by API route
@@ -314,7 +441,7 @@ export async function authenticateAdmin(
     }
 
     // Update last login
-    await supabase
+    await supabaseAdmin
       .from('admin_users')
       .update({ last_login: new Date().toISOString() })
       .eq('id', user.id)
@@ -451,12 +578,12 @@ export async function createMagicLink(email: string): Promise<{ success: boolean
 // Validate a magic link token and create a session
 export async function validateMagicLink(token: string): Promise<{ success: boolean; user?: AdminUser; session_token?: string; error?: string }> {
   try {
-    if (!supabase) {
+    if (!supabaseAdmin) {
       return { success: false, error: 'Database not configured' }
     }
 
     // Find valid magic link token
-    const { data: tokenData, error: tokenError } = await supabase
+    const { data: tokenData, error: tokenError } = await supabaseAdmin
       .from('magic_link_tokens')
       .select('admin_user_id')
       .eq('token', token)
@@ -469,13 +596,13 @@ export async function validateMagicLink(token: string): Promise<{ success: boole
     }
 
     // Mark token as used
-    await supabase
+    await supabaseAdmin
       .from('magic_link_tokens')
       .update({ used: true })
       .eq('token', token)
 
     // Get user data
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await supabaseAdmin
       .from('admin_users')
       .select('*')
       .eq('id', tokenData.admin_user_id)
@@ -486,7 +613,7 @@ export async function validateMagicLink(token: string): Promise<{ success: boole
     }
 
     // Create session
-    const { data: sessionToken, error: sessionError } = await supabase
+    const { data: sessionToken, error: sessionError } = await supabaseAdmin
       .rpc('create_admin_session', {
         p_user_id: user.id,
         p_ip_address: null,
@@ -499,7 +626,7 @@ export async function validateMagicLink(token: string): Promise<{ success: boole
     }
 
     // Update last login
-    await supabase
+    await supabaseAdmin
       .from('admin_users')
       .update({ last_login: new Date().toISOString() })
       .eq('id', user.id)
@@ -880,15 +1007,20 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
       })
 
     // Send reset email
-    const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/reset-password?token=${encodeURIComponent(resetToken)}`
+    const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/admin/reset-password?token=${encodeURIComponent(resetToken)}`
     const emailContent = generatePasswordResetEmail(user.username, resetUrl)
     
-    await sendEmail({
+    const emailResult = await sendEmail({
       to: user.email,
       subject: emailContent.subject,
       html: emailContent.html,
       text: emailContent.text
     })
+
+    if (!emailResult.success) {
+      console.error('Failed to send password reset email:', emailResult.error)
+      return { success: false, error: emailResult.error || 'Failed to send password reset email' }
+    }
 
     return { success: true, requiresTOTP: false }
   } catch (error) {

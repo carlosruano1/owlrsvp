@@ -5,21 +5,21 @@ import Link from 'next/link'
 import FAQAccordion from '@/components/FAQAccordion'
 
 export const metadata: Metadata = {
-  title: "RSVP Management Software | OwlRSVP",
-  description: "Professional RSVP management software for events of any size. Track attendance, manage guests, export data, and analyze responses. Start free today.",
+  title: "RSVP Management Software That Actually Works | OwlRSVP",
+  description: "Stop juggling spreadsheets and emails. Track RSVPs in real-time, manage guest lists, and export data with ease. Free plan available—no credit card required.",
   keywords: "RSVP management software, event management software, RSVP tracking, guest management system, event registration software",
   openGraph: {
-    title: "RSVP Management Software | OwlRSVP",
-    description: "Professional RSVP management software for events of any size. Track attendance, manage guests, export data, and analyze responses.",
+    title: "RSVP Management Software That Actually Works | OwlRSVP",
+    description: "Stop juggling spreadsheets and emails. Track RSVPs in real-time, manage guest lists, and export data with ease.",
     url: "https://owlrsvp.com/rsvp-management-software",
     siteName: "OwlRSVP",
-    images: [{ url: "/images/owlrsvp-og.png", width: 1200, height: 630, alt: "RSVP Management Software by OwlRSVP" }],
+    images: [{ url: "/images/owlrsvp-og.png", width: 1200, height: 630, alt: "RSVP Management Software That Actually Works" }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "RSVP Management Software | OwlRSVP",
-    description: "Professional RSVP management software for events of any size. Track attendance, manage guests, export data, and analyze responses.",
+    title: "RSVP Management Software That Actually Works | OwlRSVP",
+    description: "Stop juggling spreadsheets and emails. Track RSVPs in real-time, manage guest lists, and export data with ease.",
   },
   alternates: {
     canonical: "https://owlrsvp.com/rsvp-management-software",
@@ -119,7 +119,7 @@ export default function RSVPManagementSoftwarePage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">Key Features of RSVP Management Software</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">Core Features of Event RSVP Management Tools</h2>
                 <div className="grid md:grid-cols-2 gap-6 mb-6">
                   <div className="bg-white/5 rounded-xl p-6 border border-white/10">
                     <h3 className="text-xl font-medium mb-3 text-white">Real-Time Tracking</h3>
@@ -171,7 +171,7 @@ export default function RSVPManagementSoftwarePage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">Why Use RSVP Management Software?</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">Benefits of Automated Event RSVP Systems</h2>
                 <p className="text-lg text-white/80 leading-relaxed mb-4">
                   Manual RSVP tracking methods have significant limitations:
                 </p>

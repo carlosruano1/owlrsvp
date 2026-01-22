@@ -57,12 +57,12 @@ export async function GET(
     // Check if event creator is on free tier (for ads display)
     // Only check the account tier, not event features
     let creatorTier = 'free'
-    if (finalEvent.created_by_admin_id && supabaseAdmin) {
+    if (finalEvent.user_id && supabaseAdmin) {
       try {
         const { data: creatorData } = await supabaseAdmin
           .from('admin_users')
           .select('subscription_tier')
-          .eq('id', finalEvent.created_by_admin_id)
+          .eq('id', finalEvent.user_id)
           .single()
         
         if (creatorData) {
@@ -70,7 +70,7 @@ export async function GET(
         }
       } catch (err) {
         // If we can't get creator tier, default to free (show ads)
-        console.log('Could not fetch creator tier, defaulting to free')
+        console.log('Could not fetch creator tier, defaulting to free:', err)
       }
     }
     // If event has no creator (anonymous event), default to free tier for ads

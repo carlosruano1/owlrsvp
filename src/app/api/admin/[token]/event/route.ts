@@ -19,7 +19,7 @@ export async function GET(
     
     const { data: event, error: eventError } = await supabase
       .from('events')
-      .select('*')
+      .select('*, promo_codes')
       .eq('admin_token', token)
       .single()
     
@@ -82,6 +82,26 @@ export async function PATCH(
 
     if (body.promo_code !== undefined) {
       updates.promo_code = body.promo_code || null
+    }
+
+    // Handle multiple promo codes for pro users (JSONB array)
+    if (body.promo_codes !== undefined) {
+      // Validate it's an array
+      if (Array.isArray(body.promo_codes)) {
+        // Wrap in try-catch in case column doesn't exist yet
+        try {
+          updates.promo_codes = body.promo_codes.length > 0 ? body.promo_codes : null
+          // Also update promo_code for backward compatibility (use first code)
+          if (body.promo_codes.length > 0 && body.promo_codes[0]?.code) {
+            updates.promo_code = body.promo_codes[0].code
+          }
+        } catch (e) {
+          console.log('promo_codes column not available in database schema yet')
+          // If column doesn't exist, we'll get an error when trying to update, but we'll handle it gracefully
+        }
+      } else {
+        return NextResponse.json({ error: 'promo_codes must be an array' }, { status: 400 })
+      }
     }
     
     if (body.contact_name !== undefined) {
@@ -257,7 +277,16 @@ export async function PATCH(
       if (error) {
         console.error('Error updating event:', error)
         
-        // Check if error is about missing column
+        // Check if error is about missing promo_codes column
+        if (error.message?.includes('promo_codes') || (error.code === '42703' && updates.promo_codes !== undefined)) {
+          return NextResponse.json({ 
+            error: 'The promo_codes column does not exist in the database. Please run the migration SQL to add it.',
+            requiresMigration: true,
+            migrationHint: 'Run: ALTER TABLE events ADD COLUMN IF NOT EXISTS promo_codes JSONB;'
+          }, { status: 500 })
+        }
+        
+        // Check if error is about missing required_rsvp_fields column
         if (error.message?.includes('required_rsvp_fields') || error.message?.includes('column') || error.code === '42703') {
           return NextResponse.json({ 
             error: 'The required_rsvp_fields column does not exist in the database. Please run the migration SQL to add it.',
@@ -278,7 +307,16 @@ export async function PATCH(
     } catch (error: any) {
       console.error('Exception in event update:', error)
       
-      // Check if error is about missing column
+      // Check if error is about missing promo_codes column
+      if (error?.message?.includes('promo_codes') || (error?.code === '42703' && updates.promo_codes !== undefined)) {
+        return NextResponse.json({ 
+          error: 'The promo_codes column does not exist in the database. Please run the migration SQL to add it.',
+          requiresMigration: true,
+          migrationHint: 'Run: ALTER TABLE events ADD COLUMN IF NOT EXISTS promo_codes JSONB;'
+        }, { status: 500 })
+      }
+      
+      // Check if error is about missing required_rsvp_fields column
       if (error?.message?.includes('required_rsvp_fields') || error?.message?.includes('column') || error?.code === '42703') {
         return NextResponse.json({ 
           error: 'The required_rsvp_fields column does not exist in the database. Please run the migration SQL to add it.',

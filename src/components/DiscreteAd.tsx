@@ -19,7 +19,8 @@ export default function DiscreteAd({ show }: DiscreteAdProps) {
   const adLoaded = useRef(false)
   const [scriptLoaded, setScriptLoaded] = useState(false)
 
-  const adClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID
+  // Use environment variable or fallback to default client ID
+  const adClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || 'ca-pub-5389151790314295'
 
   // Debug logging (remove in production)
   useEffect(() => {

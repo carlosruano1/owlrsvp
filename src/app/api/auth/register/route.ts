@@ -59,30 +59,36 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    // Create user with direct verification (skip email)
-    console.log('Calling createAdminUser function with direct verification');
-    const result = await createAdminUser(username, email, password, true)
+    // Create user and try to send verification email
+    console.log('Calling createAdminUser function with email verification');
+    const result = await createAdminUser(username, email, password, false)
 
     if (!result.success) {
       console.error('User creation failed:', result.error);
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
-    // If there's a warning message but the account was created
-    if (result.error && result.success) {
+    // Check if email was sent successfully
+    // If result.error exists but success is true, it means email failed but account was created
+    const emailSent = !result.error || (result.error && result.error.includes('verification email could not be sent'))
+    
+    if (emailSent && !result.error) {
+      // Email sent successfully - redirect to check email
+      console.log('User registered successfully, email sent:', username);
       return NextResponse.json({ 
         success: true,
-        warning: result.error,
-        verification_code: result.verification_code,
-        message: 'Account created successfully, but there was an issue with the verification email. Please use the verification code provided.'
+        email_sent: true,
+        message: 'Account created successfully. Please check your email to verify your account.' 
       })
     }
 
-    console.log('User registered successfully:', username);
+    // Email failed but account created - return verification code as fallback
+    console.log('User registered successfully, email failed, using code:', username);
     return NextResponse.json({ 
       success: true,
+      email_sent: false,
       verification_code: result.verification_code,
-      message: 'Account created successfully. Please use the verification code to activate your account.' 
+      message: 'Account created successfully, but verification email could not be sent. Please use the verification code provided.'
     })
   } catch (error) {
     console.error('Error in register API:', error)

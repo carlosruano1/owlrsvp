@@ -13,6 +13,7 @@ export interface Event {
   open_invite?: boolean
   auth_mode?: 'open' | 'code' | 'guest_list'
   promo_code?: string | null
+  promo_codes?: Array<{code: string, label?: string}> | null
   contact_name?: string | null
   contact_email?: string | null
   contact_phone?: string | null

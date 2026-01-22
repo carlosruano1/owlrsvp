@@ -5,21 +5,21 @@ import Link from 'next/link'
 import FAQAccordion from '@/components/FAQAccordion'
 
 export const metadata: Metadata = {
-  title: "Event RSVP Website | OwlRSVP",
-  description: "Build a professional event RSVP website in seconds. Custom branding, QR codes, and real-time tracking. Perfect for conferences, parties, and corporate events.",
+  title: "Build Your Event RSVP Website in Minutes | No Coding Required",
+  description: "Create professional RSVP websites with custom branding and QR codes. Track responses in real-time. Perfect for conferences, weddings, and corporate events.",
   keywords: "event RSVP website, event registration website, online event RSVP, event management website",
   openGraph: {
-    title: "Event RSVP Website | OwlRSVP",
-    description: "Build a professional event RSVP website in seconds. Custom branding, QR codes, and real-time tracking.",
+    title: "Build Your Event RSVP Website in Minutes | No Coding Required",
+    description: "Create professional RSVP websites with custom branding and QR codes. Track responses in real-time.",
     url: "https://owlrsvp.com/event-rsvp-website",
     siteName: "OwlRSVP",
-    images: [{ url: "/images/owlrsvp-og.png", width: 1200, height: 630, alt: "Event RSVP Website with OwlRSVP" }],
+    images: [{ url: "/images/owlrsvp-og.png", width: 1200, height: 630, alt: "Build Your Event RSVP Website" }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Event RSVP Website | OwlRSVP",
-    description: "Build a professional event RSVP website in seconds. Custom branding, QR codes, and real-time tracking.",
+    title: "Build Your Event RSVP Website in Minutes | No Coding Required",
+    description: "Create professional RSVP websites with custom branding and QR codes. Track responses in real-time.",
   },
   alternates: {
     canonical: "https://owlrsvp.com/event-rsvp-website",
@@ -120,7 +120,7 @@ export default function EventRSVPWebsitePage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">Key Features of a Professional Event RSVP Website</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">Essential Features for Event RSVP Websites</h2>
                 <div className="grid md:grid-cols-2 gap-6 mb-6">
                   <div className="bg-white/5 rounded-xl p-6 border border-white/10">
                     <h3 className="text-xl font-medium mb-3 text-white">Custom Branding</h3>
@@ -169,7 +169,7 @@ export default function EventRSVPWebsitePage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">Why Build an Event RSVP Website Instead of Using Social Media?</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">Professional RSVP Websites vs Social Media Event Pages</h2>
                 <p className="text-lg text-white/80 leading-relaxed mb-4">
                   While social media platforms offer event creation features, a dedicated event RSVP website 
                   provides significant advantages:
@@ -185,7 +185,7 @@ export default function EventRSVPWebsitePage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">How to Build Your Event RSVP Website in 5 Steps</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">Creating Your Event RSVP Website: Step-by-Step Guide</h2>
                 <ol className="list-decimal list-inside space-y-6 mb-6 text-lg text-white/80">
                   <li>
                     <strong className="text-white">Choose Your Platform</strong> - Select a platform like OwlRSVP that offers 

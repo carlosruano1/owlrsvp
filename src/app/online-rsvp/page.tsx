@@ -6,21 +6,21 @@ import FAQAccordion from '@/components/FAQAccordion'
 import { TOP_10_FAQS } from '@/lib/faqData'
 
 export const metadata: Metadata = {
-  title: "Online RSVP | OwlRSVP",
-  description: "Create beautiful online RSVP pages in seconds. No signup required for guests. Perfect for events, parties, and conferences. Start free today.",
+  title: "Online RSVP Made Simple | Create Event Pages in Seconds",
+  description: "Collect RSVPs instantly with beautiful online pages. No guest signup required—perfect for weddings, parties, and corporate events. Free to start.",
   keywords: "online RSVP, digital RSVP, event RSVP, RSVP website, online event registration",
   openGraph: {
-    title: "Online RSVP | OwlRSVP",
-    description: "Create beautiful online RSVP pages in seconds. No signup required for guests.",
+    title: "Online RSVP Made Simple | Create Event Pages in Seconds",
+    description: "Collect RSVPs instantly with beautiful online pages. No guest signup required—perfect for any event.",
     url: "https://owlrsvp.com/online-rsvp",
     siteName: "OwlRSVP",
-    images: [{ url: "/images/owlrsvp-og.png", width: 1200, height: 630, alt: "Online RSVP with OwlRSVP" }],
+    images: [{ url: "/images/owlrsvp-og.png", width: 1200, height: 630, alt: "Online RSVP Made Simple" }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Online RSVP | OwlRSVP",
-    description: "Create beautiful online RSVP pages in seconds. No signup required for guests.",
+    title: "Online RSVP Made Simple | Create Event Pages in Seconds",
+    description: "Collect RSVPs instantly with beautiful online pages. No guest signup required—perfect for any event.",
   },
   alternates: {
     canonical: "https://owlrsvp.com/online-rsvp",
@@ -122,7 +122,7 @@ export default function OnlineRSVPPage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">Why Choose Online RSVP Over Traditional Methods?</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">Digital RSVP vs Traditional Event Registration</h2>
                 <div className="grid md:grid-cols-2 gap-6 mb-6">
                   <div className="bg-white/5 rounded-xl p-6 border border-white/10">
                     <h3 className="text-xl font-medium mb-3 text-white">Instant Responses</h3>
@@ -156,7 +156,7 @@ export default function OnlineRSVPPage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">How to Create an Online RSVP Page</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">How to Build Your Digital RSVP Page</h2>
                 <p className="text-lg text-white/80 leading-relaxed mb-4">
                   Creating an online RSVP page with OwlRSVP is designed to be incredibly simple. Here's how it works:
                 </p>
@@ -191,7 +191,7 @@ export default function OnlineRSVPPage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">Features of Modern Online RSVP Platforms</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">Essential Features for Event RSVP Systems</h2>
                 <p className="text-lg text-white/80 leading-relaxed mb-4">
                   When choosing an online RSVP solution, look for these essential features:
                 </p>
@@ -208,7 +208,7 @@ export default function OnlineRSVPPage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">Use Cases for Online RSVP</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">Event Types That Benefit from Digital RSVP</h2>
                 <p className="text-lg text-white/80 leading-relaxed mb-4">
                   Online RSVPs work for virtually any event type:
                 </p>

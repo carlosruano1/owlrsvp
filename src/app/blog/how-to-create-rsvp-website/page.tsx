@@ -4,12 +4,12 @@ import Footer from '@/components/Footer'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: "How to Create an RSVP Website for Any Event | OwlRSVP Blog",
-  description: "Complete guide to creating professional RSVP websites. Learn step-by-step how to build, customize, and optimize event RSVP pages for maximum response rates and better guest experience.",
+  title: "How to Create an RSVP Website: Complete Step-by-Step Guide",
+  description: "Learn how to build professional RSVP websites that get responses. Step-by-step instructions for creating, customizing, and optimizing your event pages.",
   keywords: "how to create RSVP website, build RSVP page, event RSVP website, create online RSVP, RSVP website guide",
   openGraph: {
-    title: "How to Create an RSVP Website for Any Event",
-    description: "Complete guide to creating professional RSVP websites. Step-by-step instructions for building optimized event RSVP pages.",
+    title: "How to Create an RSVP Website: Complete Step-by-Step Guide",
+    description: "Learn how to build professional RSVP websites that get responses. Step-by-step instructions for creating and optimizing your event pages.",
     url: "https://owlrsvp.com/blog/how-to-create-rsvp-website",
     type: "article",
     publishedTime: "2024-01-15T00:00:00Z",
@@ -18,8 +18,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "How to Create an RSVP Website for Any Event",
-    description: "Complete guide to creating professional RSVP websites. Step-by-step instructions for building optimized event RSVP pages.",
+    title: "How to Create an RSVP Website: Complete Step-by-Step Guide",
+    description: "Learn how to build professional RSVP websites that get responses. Step-by-step instructions for creating and optimizing your event pages.",
   },
   alternates: {
     canonical: "https://owlrsvp.com/blog/how-to-create-rsvp-website",

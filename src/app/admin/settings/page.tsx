@@ -43,6 +43,7 @@ export default function AdminSettings() {
   const [accountLoading, setAccountLoading] = useState(false)
   const [accountError, setAccountError] = useState('')
   const [accountSuccess, setAccountSuccess] = useState('')
+  const [resendVerificationLoading, setResendVerificationLoading] = useState(false)
 
   // Security tab state
   const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
@@ -70,6 +71,7 @@ export default function AdminSettings() {
   // Danger zone state
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [deleteExpanded, setDeleteExpanded] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -188,6 +190,33 @@ export default function AdminSettings() {
       setAccountError(err instanceof Error ? err.message : 'Failed to update username')
     } finally {
       setAccountLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    setResendVerificationLoading(true)
+    setAccountError('')
+    setAccountSuccess('')
+
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send verification email')
+      }
+
+      setAccountSuccess(data.message || 'Verification email sent successfully! Please check your inbox.')
+      setTimeout(() => setAccountSuccess(''), 5000)
+    } catch (err) {
+      setAccountError(err instanceof Error ? err.message : 'Failed to send verification email')
+    } finally {
+      setResendVerificationLoading(false)
     }
   }
 
@@ -565,19 +594,35 @@ export default function AdminSettings() {
                         </button>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
-                        <span>{user.email}</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                          <span>{user.email}</span>
+                          {!user.email_verified && (
+                            <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">
+                              Unverified
+                            </span>
+                          )}
+                          <button
+                            onClick={() => setEditingEmail(true)}
+                            className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white text-sm"
+                          >
+                            Edit
+                          </button>
+                        </div>
                         {!user.email_verified && (
-                          <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded text-xs">
-                            Unverified
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={handleResendVerification}
+                              disabled={resendVerificationLoading}
+                              className="px-4 py-2 bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 rounded-xl hover:bg-yellow-500/30 transition-all text-sm disabled:opacity-50"
+                            >
+                              {resendVerificationLoading ? 'Sending...' : 'Resend Verification Email'}
+                            </button>
+                            <span className="text-xs text-white/60">
+                              Please verify your email to access your account
+                            </span>
+                          </div>
                         )}
-                        <button
-                          onClick={() => setEditingEmail(true)}
-                          className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white text-sm"
-                        >
-                          Edit
-                        </button>
                       </div>
                     )}
                   </div>
@@ -646,29 +691,50 @@ export default function AdminSettings() {
 
                   {/* Delete Account - Discrete at bottom */}
                   <div className="mt-12 pt-8 border-t border-white/10">
-                    <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
-                      <h3 className="text-sm font-medium text-white/70 mb-2">Delete Account</h3>
-                      <p className="text-white/50 text-xs mb-4">
-                        Permanently delete your account and all associated data. This action cannot be undone.
-                      </p>
-                      <div className="space-y-3">
-                        <input
-                          type="text"
-                          value={deleteConfirm}
-                          onChange={(e) => setDeleteConfirm(e.target.value)}
-                          placeholder="Type DELETE to confirm"
-                          className="modern-input w-full px-3 py-2 text-sm"
-                          disabled={deleting}
-                        />
-                        <button
-                          onClick={handleDeleteAccount}
-                          disabled={deleting || deleteConfirm !== 'DELETE'}
-                          className="w-full px-4 py-2 bg-red-600/80 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {deleting ? 'Deleting Account...' : 'Delete My Account'}
-                        </button>
+                    {!deleteExpanded ? (
+                      <button
+                        onClick={() => setDeleteExpanded(true)}
+                        className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl hover:bg-red-500/15 transition-all text-red-400 text-sm"
+                      >
+                        Delete Account
+                      </button>
+                    ) : (
+                      <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-sm font-medium text-white/70">Delete Account</h3>
+                          <button
+                            onClick={() => {
+                              setDeleteExpanded(false)
+                              setDeleteConfirm('')
+                              setError('')
+                            }}
+                            className="text-white/50 hover:text-white/80 text-sm"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        <p className="text-white/50 text-xs mb-4">
+                          Permanently delete your account and all associated data. This action cannot be undone.
+                        </p>
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            value={deleteConfirm}
+                            onChange={(e) => setDeleteConfirm(e.target.value)}
+                            placeholder="Type DELETE to confirm"
+                            className="modern-input w-full px-3 py-2 text-sm"
+                            disabled={deleting}
+                          />
+                          <button
+                            onClick={handleDeleteAccount}
+                            disabled={deleting || deleteConfirm !== 'DELETE'}
+                            className="w-full px-4 py-2 bg-red-600/80 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {deleting ? 'Deleting Account...' : 'Delete My Account'}
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>

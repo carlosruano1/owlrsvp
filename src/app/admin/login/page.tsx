@@ -48,18 +48,32 @@ export default function AdminLogin() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
+      }).catch((fetchError) => {
+        console.error('Fetch error:', fetchError)
+        throw new Error('Network error: Could not connect to server. Make sure the development server is running.')
       })
 
-      const data = await response.json()
+      if (!response) {
+        throw new Error('No response from server')
+      }
+
+      let data
+      try {
+        data = await response.json()
+      } catch (jsonError) {
+        console.error('JSON parse error:', jsonError)
+        throw new Error(`Server error: ${response.status} ${response.statusText}. The API may have crashed.`)
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed')
+        throw new Error(data.error || `Login failed: ${response.status}`)
       }
 
       // Redirect to intended destination or admin settings
       router.push(getRedirectUrl())
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      console.error('Login error:', err)
+      setError(err instanceof Error ? err.message : 'Login failed. Check console for details.')
     } finally {
       setLoading(false)
     }

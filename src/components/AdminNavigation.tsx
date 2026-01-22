@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Fragment } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 
 // Admin navigation links data
 const ADMIN_LINKS = [
@@ -12,9 +12,20 @@ const ADMIN_LINKS = [
   { href: '/admin/settings', label: 'Settings' }
 ]
 
+// Auth pages that should show simplified header
+const AUTH_PAGES = [
+  '/admin/login',
+  '/admin/register',
+  '/admin/forgot-password',
+  '/admin/reset-password',
+  '/admin/setup-totp'
+]
+
 export default function AdminNavigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
+  const isAuthPage = AUTH_PAGES.includes(pathname || '')
   
   // Prevent scrolling when mobile menu is open
   useEffect(() => {
@@ -41,6 +52,21 @@ export default function AdminNavigation() {
   const handleNavigate = (path: string) => {
     setMobileMenuOpen(false)
     router.push(path)
+  }
+
+  // Simplified header for auth pages
+  if (isAuthPage) {
+    return (
+      <header className="bg-transparent py-4 fixed top-0 left-0 right-0 z-50">
+        <div className="container mx-auto px-4">
+          <Link href="/" className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-all">
+            <span className="text-lg font-bold">
+              owl<span className="text-blue-400">rsvp</span>.com
+            </span>
+          </Link>
+        </div>
+      </header>
+    )
   }
 
   return (

@@ -5,21 +5,21 @@ import Link from 'next/link'
 import FAQAccordion from '@/components/FAQAccordion'
 
 export const metadata: Metadata = {
-  title: "QR Code RSVP | OwlRSVP",
-  description: "Generate QR codes for instant RSVP collection. Print on invitations, display at venues, or share digitally. No app required—guests scan and respond instantly.",
+  title: "QR Code RSVP: Scan to Respond in Seconds | OwlRSVP",
+  description: "Generate QR codes for your event invitations. Guests scan and RSVP instantly—no app download needed. Perfect for weddings, conferences, and parties.",
   keywords: "QR code RSVP, QR code event registration, scan to RSVP, QR code invitations, event QR code",
   openGraph: {
-    title: "QR Code RSVP | OwlRSVP",
-    description: "Generate QR codes for instant RSVP collection. Print on invitations, display at venues, or share digitally.",
+    title: "QR Code RSVP: Scan to Respond in Seconds | OwlRSVP",
+    description: "Generate QR codes for your event invitations. Guests scan and RSVP instantly—no app download needed.",
     url: "https://owlrsvp.com/qr-code-rsvp",
     siteName: "OwlRSVP",
-    images: [{ url: "/images/owlrsvp-og.png", width: 1200, height: 630, alt: "QR Code RSVP with OwlRSVP" }],
+    images: [{ url: "/images/owlrsvp-og.png", width: 1200, height: 630, alt: "QR Code RSVP: Scan to Respond" }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "QR Code RSVP | OwlRSVP",
-    description: "Generate QR codes for instant RSVP collection. Print on invitations, display at venues, or share digitally.",
+    title: "QR Code RSVP: Scan to Respond in Seconds | OwlRSVP",
+    description: "Generate QR codes for your event invitations. Guests scan and RSVP instantly—no app download needed.",
   },
   alternates: {
     canonical: "https://owlrsvp.com/qr-code-rsvp",
@@ -118,7 +118,7 @@ export default function QRCodeRSVPPage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">Benefits of QR Code RSVPs</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">Advantages of QR Code Event Registration</h2>
                 <div className="grid md:grid-cols-2 gap-6 mb-6">
                   <div className="bg-white/5 rounded-xl p-6 border border-white/10">
                     <h3 className="text-xl font-medium mb-3 text-white">Instant Access</h3>
@@ -167,7 +167,7 @@ export default function QRCodeRSVPPage() {
               </section>
 
               <section className="mb-12">
-                <h2 className="text-3xl font-light mb-6 text-white">How QR Code RSVPs Work</h2>
+                <h2 className="text-3xl font-light mb-6 text-white">How QR Code Event RSVP Systems Work</h2>
                 <p className="text-lg text-white/80 leading-relaxed mb-4">
                   The process is remarkably simple for both event organizers and guests:
                 </p>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { validateSession } from '@/lib/auth'
+import { validateSession, sendVerificationEmail } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export async function PATCH(request: NextRequest) {
@@ -87,9 +87,33 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
     }
 
+    // If email was updated, send verification email
+    if (email) {
+      // Get updated user info for email
+      const { data: updatedUser } = await supabaseAdmin
+        .from('admin_users')
+        .select('username, email')
+        .eq('id', session.user.user_id)
+        .single()
+
+      if (updatedUser) {
+        const emailResult = await sendVerificationEmail(
+          session.user.user_id,
+          email,
+          updatedUser.username
+        )
+
+        if (!emailResult.success) {
+          console.error('Error sending verification email:', emailResult.error)
+          // Still return success, but log the error
+          // The user can use the resend verification endpoint
+        }
+      }
+    }
+
     return NextResponse.json({ 
       success: true,
-      message: 'Profile updated successfully'
+      message: email ? 'Profile updated successfully. Please check your email to verify your new address.' : 'Profile updated successfully'
     })
   } catch (error) {
     console.error('Error in update-profile API:', error)

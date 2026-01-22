@@ -98,19 +98,21 @@ export default function AdminRegister() {
         }
       }
 
-      // Handle warning but successful registration
-      if (data.warning) {
-        console.warn('Registration warning:', data.warning);
+      // If email was sent successfully, show success message
+      if (data.email_sent) {
+        setSuccess(true)
+        setLoading(false)
+        return
       }
 
-      // If we got a verification code, store it and move to verification step
+      // If email failed but we have a verification code, show verification step
       if (data.verification_code) {
         setVerificationCode(data.verification_code)
         setVerificationStep(true)
         setLoading(false)
       } else {
-        // Account created successfully - redirect to create event page
-        router.push('/create?accountCreated=true')
+        // Account created successfully without verification needed - redirect to admin events
+        router.push('/admin/events')
       }
     } catch (err) {
       console.error('Registration error:', err);
@@ -141,8 +143,8 @@ export default function AdminRegister() {
         throw new Error(data.error || 'Verification failed')
       }
 
-      // Verification successful - redirect to create event page
-      router.push('/create?accountCreated=true')
+      // Verification successful - redirect to admin events page
+      router.push('/admin/events')
     } catch (err) {
       console.error('Verification error:', err);
       setError(err instanceof Error ? err.message : 'Verification failed. Please try again.')
@@ -168,8 +170,8 @@ export default function AdminRegister() {
   if (success) {
     return (
       <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
+        <div className="absolute inset-0 bind8-bg" />
+        <div className="absolute inset-0 bind8-glow" />
         <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
           <div className="w-full max-w-md glass-card rounded-3xl p-8 shadow-2xl text-center text-white">
             <div className="text-6xl mb-4">📧</div>
@@ -193,6 +195,102 @@ export default function AdminRegister() {
             >
               Back to Login
             </Link>
+          </div>
+        </div>
+        <Footer showDonate={false} />
+      </div>
+    )
+  }
+
+  if (verificationStep) {
+    return (
+      <div className="min-h-screen relative overflow-hidden">
+        <div className="absolute inset-0 bind8-bg" />
+        <div className="absolute inset-0 bind8-glow" />
+        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
+          <div className="w-full max-w-md">
+            {/* Header */}
+            <div className="text-center mb-8 text-white text-glow">
+              <h1 className="text-4xl font-light mb-2 tracking-tight">Verify Your Account</h1>
+              <p className="text-white/80 text-lg font-light">Enter the verification code sent to your email</p>
+            </div>
+
+            {/* Verification Card */}
+            <div className="glass-card rounded-3xl p-8 shadow-2xl">
+              <form onSubmit={handleVerifyCode} className="space-y-6">
+                <div>
+                  <label htmlFor="verifyCode" className="block text-sm font-medium text-white/90 mb-2">
+                    Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    id="verifyCode"
+                    name="verifyCode"
+                    value={verifyCode}
+                    onChange={(e) => setVerifyCode(e.target.value)}
+                    className="modern-input w-full px-4 py-3 text-center text-2xl tracking-widest"
+                    placeholder="000000"
+                    maxLength={6}
+                    required
+                  />
+                  <p className="text-white/60 text-xs mt-2">
+                    Check your email for the 6-digit verification code
+                  </p>
+                  {verificationCode && (
+                    <p className="text-white/80 text-sm mt-2">
+                      Your code: <span className="font-mono">{verificationCode}</span>
+                    </p>
+                  )}
+                </div>
+
+                {error && (
+                  <div className="bg-red-500/20 border border-red-500/30 text-red-100 px-4 py-3 rounded-xl backdrop-blur-sm text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={verifying || verifyCode.length !== 6}
+                  className="flex items-center justify-center gap-2 w-full py-3 px-6 rounded-xl bg-white text-black font-medium transition-all hover:bg-white/90 disabled:opacity-50 disabled:hover:bg-white"
+                >
+                  {verifying ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    'Verify Account'
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => {
+                    setVerificationStep(false)
+                    setError('')
+                    setVerifyCode('')
+                  }}
+                  className="text-white/70 hover:text-white/90 text-sm"
+                >
+                  ← Back to registration
+                </button>
+              </div>
+            </div>
+
+            {/* Back to home */}
+            <div className="text-center mt-6">
+              <Link 
+                href="/" 
+                className="text-white/60 hover:text-white/80 text-sm"
+              >
+                ← Back to OwlRSVP
+              </Link>
+            </div>
           </div>
         </div>
         <Footer showDonate={false} />
