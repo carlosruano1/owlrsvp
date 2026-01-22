@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Store the matched promo code in the body for tracking
-      body.matched_promo_code = matchedCode
+      body.matched_promo_code = matchedCode || undefined
     } 
     else if (authMode === 'guest_list' || !event.open_invite) {
       // If guest list only, require email and an existing attendee match by email or name

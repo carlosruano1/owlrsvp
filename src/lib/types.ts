@@ -85,6 +85,7 @@ export interface CreateRSVPData {
   guest_count: number
   attending: boolean
   promo_code?: string
+  matched_promo_code?: string
   phone?: string
   address?: string
 }
