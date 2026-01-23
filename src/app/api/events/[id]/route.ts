@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { validateSession, checkEventAccess } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
@@ -7,13 +8,26 @@ export async function GET(
 ) {
   // Extract id from params
   const { id } = params
-  
+
   try {
     console.log('GET /api/events/[id] called with id:', id);
-    
+
     if (!supabase) {
       console.error('Supabase client not initialized');
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
+    }
+
+    // Check if this is an admin request (has session cookie)
+    const sessionToken = request.cookies.get('admin_session')?.value
+    let isAdminRequest = false
+    let userId: string | null = null
+
+    if (sessionToken) {
+      const session = await validateSession(sessionToken)
+      if (session.valid) {
+        isAdminRequest = true
+        userId = session.user!.user_id
+      }
     }
     
     // Try to find the event by ID first
@@ -52,6 +66,14 @@ export async function GET(
     if (!finalEvent) {
       console.error('Event query returned null');
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+    }
+
+    // If this is an admin request, check permissions
+    if (isAdminRequest && userId) {
+      const accessCheck = await checkEventAccess(userId, finalEvent.id, 'can_edit')
+      if (!accessCheck.hasAccess) {
+        return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+      }
     }
 
     // Check if event creator is on free tier (for ads display)

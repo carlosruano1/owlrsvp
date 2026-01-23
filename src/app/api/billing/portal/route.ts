@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateSession } from '@/lib/auth'
-import { createCustomerPortalSession } from '@/lib/stripe'
+import { createCustomerPortalSession, getBaseUrl } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const returnUrl = body.returnUrl || `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/admin/settings`
+    const returnUrl = body.returnUrl || `${getBaseUrl()}/admin/settings`
 
     // Create billing portal session
     const portalSession = await createCustomerPortalSession({

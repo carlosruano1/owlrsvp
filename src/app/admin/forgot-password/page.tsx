@@ -12,6 +12,8 @@ export default function ForgotPassword() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [requiresTOTP, setRequiresTOTP] = useState(false)
+  const [totpEnabled, setTotpEnabled] = useState(false)
+  const [resetMethod, setResetMethod] = useState<'email' | 'totp'>('totp')
   const [resetToken, setResetToken] = useState('')
   const router = useRouter()
 
@@ -25,7 +27,11 @@ export default function ForgotPassword() {
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, totpCode: totpCode || undefined })
+        body: JSON.stringify({
+          email,
+          totpCode: totpCode || undefined,
+          method: totpEnabled ? resetMethod : undefined
+        })
       })
 
       const data = await response.json()
@@ -34,17 +40,25 @@ export default function ForgotPassword() {
         throw new Error(data.error || 'Request failed')
       }
 
-      // If TOTP is required, show TOTP input
-      if (data.requiresTOTP && !totpCode) {
-        setRequiresTOTP(true)
-        setSuccess('Please enter your authenticator app code')
+      // If TOTP is enabled, show choice (default to TOTP)
+      if (data.totpEnabled && !totpCode) {
+        setTotpEnabled(true)
+        setResetMethod('totp')
+        setSuccess('Choose how to reset your password')
         setLoading(false)
         return
       }
 
-      // If reset token is returned, redirect to reset page
+      // If reset token is returned (TOTP method), redirect to reset page
       if (data.resetToken) {
         router.push(`/admin/reset-password?token=${encodeURIComponent(data.resetToken)}`)
+        return
+      }
+
+      // If TOTP method was selected but no code provided yet, require it
+      if (resetMethod === 'totp' && !totpCode) {
+        setSuccess('Please enter your authenticator code')
+        setLoading(false)
         return
       }
 
@@ -66,7 +80,7 @@ export default function ForgotPassword() {
           <div className="text-center mb-8 text-white text-glow">
             <h1 className="text-4xl font-semibold mb-2 tracking-tight">Reset Password</h1>
             <p className="text-white/80 text-lg font-light">
-              {requiresTOTP ? 'Enter your authenticator code' : 'Enter your email to reset your password'}
+              {totpEnabled ? 'Choose how to reset your password' : 'Enter your email to reset your password'}
             </p>
           </div>
 
@@ -88,25 +102,75 @@ export default function ForgotPassword() {
                 />
               </div>
 
-              {requiresTOTP && (
-                <div>
-                  <label htmlFor="totpCode" className="block text-sm font-medium text-white/90 mb-2">
-                    Authenticator Code
-                  </label>
-                  <input
-                    type="text"
-                    id="totpCode"
-                    value={totpCode}
-                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="modern-input w-full px-4 py-3 text-center text-2xl tracking-widest"
-                    placeholder="000000"
-                    maxLength={6}
-                    required
-                    autoFocus
-                  />
-                  <p className="text-white/60 text-xs mt-2">
-                    Enter the 6-digit code from your authenticator app
-                  </p>
+              {totpEnabled && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white/90 mb-3">
+                      Reset Method
+                    </label>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition-all">
+                        <input
+                          type="radio"
+                          name="resetMethod"
+                          value="totp"
+                          checked={resetMethod === 'totp'}
+                          onChange={(e) => setResetMethod(e.target.value as 'totp')}
+                          className="text-cyan-400 focus:ring-cyan-400"
+                        />
+                        <div className="flex-1">
+                          <div className="text-white/90 font-medium">Authenticator App (Recommended)</div>
+                          <div className="text-white/60 text-sm">Use your 2FA app for instant reset</div>
+                        </div>
+                        <div className="text-cyan-400">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                      </label>
+                      <label className="flex items-center gap-3 p-3 bg-white/5 rounded-xl border border-white/10 cursor-pointer hover:bg-white/10 transition-all">
+                        <input
+                          type="radio"
+                          name="resetMethod"
+                          value="email"
+                          checked={resetMethod === 'email'}
+                          onChange={(e) => setResetMethod(e.target.value as 'email')}
+                          className="text-cyan-400 focus:ring-cyan-400"
+                        />
+                        <div className="flex-1">
+                          <div className="text-white/90 font-medium">Email Link</div>
+                          <div className="text-white/60 text-sm">Receive a reset link via email</div>
+                        </div>
+                        <div className="text-white/60">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {resetMethod === 'totp' && (
+                    <div>
+                      <label htmlFor="totpCode" className="block text-sm font-medium text-white/90 mb-2">
+                        Authenticator Code
+                      </label>
+                      <input
+                        type="text"
+                        id="totpCode"
+                        value={totpCode}
+                        onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        className="modern-input w-full px-4 py-3 text-center text-2xl tracking-widest"
+                        placeholder="000000"
+                        maxLength={6}
+                        required
+                        autoFocus
+                      />
+                      <p className="text-white/60 text-xs mt-2">
+                        Enter the 6-digit code from your authenticator app
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -136,7 +200,7 @@ export default function ForgotPassword() {
                     <span>Processing...</span>
                   </>
                 ) : (
-                  requiresTOTP ? 'Verify & Continue' : 'Request Reset'
+                  (totpEnabled && resetMethod === 'totp') ? 'Verify & Continue' : 'Request Reset'
                 )}
               </button>
             </form>

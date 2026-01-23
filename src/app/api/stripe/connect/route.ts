@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe, createConnectedAccount, createAccountLink } from '@/lib/stripe'
+import { stripe, createConnectedAccount, createAccountLink, getBaseUrl } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase'
 import { validateSession } from '@/lib/auth'
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
     const returnUrl = `${baseUrl}/admin/settings?stripe_connected=true`
     const refreshUrl = `${baseUrl}/admin/settings?stripe_refresh=true`
 

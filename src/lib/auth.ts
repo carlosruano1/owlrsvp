@@ -403,10 +403,8 @@ export async function authenticateAdmin(
       return { success: false, error: 'Invalid credentials' }
     }
 
-    // Temporarily bypass email verification check for local development
-    if (!user.email_verified && process.env.NODE_ENV === 'production') {
-      return { success: false, error: 'Please verify your email address before logging in' }
-    }
+    // Email verification is encouraged but not required for login
+    // Users can proceed with unverified emails to reduce friction
     
     // If email is not verified in development, auto-verify it
     if (!user.email_verified && process.env.NODE_ENV === 'development') {
@@ -952,7 +950,46 @@ export async function checkTOTPEnabled(email: string): Promise<{ enabled: boolea
   }
 }
 
-export async function requestPasswordReset(email: string): Promise<{ success: boolean; requiresTOTP?: boolean; error?: string }> {
+// Check if user can access an event (owner or team member)
+export async function checkEventAccess(userId: string, eventId: string, requiredPermission: string = 'can_edit'): Promise<{ hasAccess: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { hasAccess: false, error: 'Database not configured' }
+    }
+
+    // First check if user owns the event
+    const { data: ownedEvent, error: ownerError } = await supabase
+      .from('events')
+      .select('id')
+      .eq('id', eventId)
+      .eq('created_by_admin_id', userId)
+      .single()
+
+    if (ownedEvent) {
+      return { hasAccess: true }
+    }
+
+    // Check if user is a team member with required permission
+    const { data: permission, error: permError } = await supabase
+      .rpc('can_access_event', {
+        p_user_id: userId,
+        p_event_id: eventId,
+        p_permission_type: requiredPermission
+      })
+
+    if (permError) {
+      console.error('Error checking event access:', permError)
+      return { hasAccess: false, error: 'Failed to verify permissions' }
+    }
+
+    return { hasAccess: !!permission }
+  } catch (error) {
+    console.error('Error in checkEventAccess:', error)
+    return { hasAccess: false, error: 'Internal server error' }
+  }
+}
+
+export async function requestPasswordReset(email: string): Promise<{ success: boolean; requiresTOTP?: boolean; totpEnabled?: boolean; error?: string }> {
   try {
     if (!supabase) {
       return { success: false, error: 'Database not configured' }
@@ -971,25 +1008,9 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
       return { success: true }
     }
 
-    // Check if TOTP is enabled - if so, use TOTP instead of email
+    // Check if TOTP is enabled - if so, return that info and let user choose
     if (user.totp_enabled) {
-      // Generate reset token that requires TOTP verification
-      const resetToken = crypto.randomBytes(32).toString('hex')
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-
-      // Store reset token
-      await supabase
-        .from('password_reset_tokens')
-        .insert({
-          admin_user_id: user.id,
-          token: resetToken,
-          expires_at: expiresAt.toISOString(),
-          requires_totp: true
-        })
-
-      // Return success with TOTP requirement flag
-      // The frontend will show TOTP input instead of email link
-      return { success: true, requiresTOTP: true }
+      return { success: true, requiresTOTP: false, totpEnabled: true }
     }
 
     // Fallback to email-based reset
@@ -1025,6 +1046,63 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
     return { success: true, requiresTOTP: false }
   } catch (error) {
     console.error('Error in requestPasswordReset:', error)
+    return { success: false, error: 'Internal server error' }
+  }
+}
+
+// Request password reset forcing email method (ignoring TOTP)
+export async function requestPasswordResetForceEmail(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Database not configured' }
+    }
+
+    // Find user by email
+    const { data: user, error: userError } = await supabase
+      .from('admin_users')
+      .select('id, username, email')
+      .eq('email', email)
+      .eq('is_active', true)
+      .single()
+
+    if (userError || !user) {
+      // Don't reveal if email exists or not
+      return { success: true }
+    }
+
+    // Generate reset token (force email method)
+    const resetToken = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+
+    // Store reset token
+    await supabase
+      .from('password_reset_tokens')
+      .insert({
+        admin_user_id: user.id,
+        token: resetToken,
+        expires_at: expiresAt.toISOString(),
+        requires_totp: false
+      })
+
+    // Send reset email
+    const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/admin/reset-password?token=${encodeURIComponent(resetToken)}`
+    const emailContent = generatePasswordResetEmail(user.username, resetUrl)
+
+    const emailResult = await sendEmail({
+      to: user.email,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text
+    })
+
+    if (!emailResult.success) {
+      console.error('Failed to send password reset email:', emailResult.error)
+      return { success: false, error: emailResult.error || 'Failed to send password reset email' }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in requestPasswordResetForceEmail:', error)
     return { success: false, error: 'Internal server error' }
   }
 }

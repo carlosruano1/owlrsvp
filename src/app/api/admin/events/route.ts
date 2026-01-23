@@ -35,30 +35,29 @@ export async function GET(request: NextRequest) {
     
     const userId = data[0].user_id;
     console.log('Fetching events for admin user ID:', userId);
-    
-    // Fetch events owned by this user (excluding archived events from active list)
-    // Note: Archived events still count toward limits, but are hidden from active view
+
+    // Use the RPC function to get user's events (including team events)
     const { data: events, error } = await supabase
-      .from('events')
-      .select(`
-        id, 
-        title, 
-        created_at,
-        admin_token,
-        created_by_admin_id,
-        archived,
-        original_created_at
-      `)
-      .eq('created_by_admin_id', userId)
-      .eq('archived', includeArchived) // Only show non-archived events in active list
-      .order('created_at', { ascending: false });
+      .rpc('get_user_events', { p_user_id: userId })
+
+    let filteredEvents = [];
+    if (events) {
+      // Filter by archived status and add permission info
+      filteredEvents = events
+        .filter(event => event.archived === includeArchived)
+        .map(event => ({
+          ...event,
+          permissions: event.permissions || { can_edit: true, can_view_analytics: true, can_export_data: true, can_send_communications: true }
+        }))
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
 
     // Generate admin tokens for events that don't have them
-    if (events && events.length > 0) {
-      const eventsNeedingTokens = events.filter(event => !event.admin_token);
+    if (filteredEvents && filteredEvents.length > 0) {
+      const eventsNeedingTokens = filteredEvents.filter(event => !event.admin_token);
       if (eventsNeedingTokens.length > 0) {
         console.log(`Found ${eventsNeedingTokens.length} events without admin tokens, generating them...`);
-        
+
         for (const event of eventsNeedingTokens) {
           // Generate a more secure admin token
           const adminToken = Math.random().toString(36).substring(2, 15) + 
@@ -86,10 +85,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch events: ' + error.message }, { status: 500 });
     }
     
-    console.log(`Found ${events?.length || 0} events for user ${userId}`);
-    
+    console.log(`Found ${filteredEvents?.length || 0} events for user ${userId}`);
+
     // If no events found, try to find unassociated events by admin token
-    if (!events || events.length === 0) {
+    if (!filteredEvents || filteredEvents.length === 0) {
       console.log('No events found with created_by_admin_id, trying to find by admin access');
       
       // First get all event access records for this admin
@@ -218,7 +217,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch attendee counts for each event
     const eventsWithAttendeeCounts = await Promise.all(
-      events.map(async (event) => {
+      filteredEvents.map(async (event) => {
         if (!supabase) {
           console.error('Database connection not available');
           return { ...event, attendee_count: 0 };

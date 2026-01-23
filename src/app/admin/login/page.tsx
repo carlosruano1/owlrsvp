@@ -18,6 +18,10 @@ export default function AdminLogin() {
   const getRedirectUrl = () => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
+      const invitationToken = params.get('invitation_token')
+      if (invitationToken) {
+        return `/admin/team/accept-invitation?token=${invitationToken}`
+      }
       return params.get('redirect') || '/admin/events'
     }
     return '/admin/events'
@@ -29,7 +33,8 @@ export default function AdminLogin() {
       try {
         const response = await fetch('/api/auth/me')
         if (response.ok) {
-          router.push(getRedirectUrl())
+          const redirectUrl = getRedirectUrl()
+          router.push(redirectUrl)
         }
       } catch (err) {
         // Not logged in, continue
@@ -37,6 +42,18 @@ export default function AdminLogin() {
     }
     checkAuth()
   }, [router])
+
+  // Check for invitation_processed flag
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('invitation_processed') === 'true') {
+        // Show success message for processed invitation
+        setError('')
+        // Could add a success message here if needed
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -23,9 +23,31 @@ const AUTH_PAGES = [
 
 export default function AdminNavigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [user, setUser] = useState<{ email_verified: boolean; email: string } | null>(null)
+  const [showVerificationBanner, setShowVerificationBanner] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
   const isAuthPage = AUTH_PAGES.includes(pathname || '')
+
+  // Check user verification status
+  useEffect(() => {
+    const checkUserStatus = async () => {
+      if (isAuthPage) return // Don't check on auth pages
+
+      try {
+        const response = await fetch('/api/auth/me')
+        if (response.ok) {
+          const data = await response.json()
+          setUser(data.user)
+          setShowVerificationBanner(!data.user.email_verified)
+        }
+      } catch (error) {
+        // Ignore errors, user might not be logged in
+      }
+    }
+
+    checkUserStatus()
+  }, [isAuthPage])
   
   // Prevent scrolling when mobile menu is open
   useEffect(() => {
@@ -71,6 +93,48 @@ export default function AdminNavigation() {
 
   return (
     <Fragment>
+      {/* Email Verification Banner */}
+      {showVerificationBanner && !isAuthPage && (
+        <div className="bg-yellow-500/10 border-b border-yellow-500/20 backdrop-blur-sm">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 text-yellow-400 flex-shrink-0">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-yellow-200 text-sm font-medium">
+                    Please verify your email address
+                  </p>
+                  <p className="text-yellow-300/80 text-xs">
+                    Verify your email to unlock all features and secure your account
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.push('/admin/settings')}
+                  className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Verify Now
+                </button>
+                <button
+                  onClick={() => setShowVerificationBanner(false)}
+                  className="p-1 text-yellow-300/60 hover:text-yellow-300/80 transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="bg-black/80 backdrop-blur-md shadow-lg py-3 sticky top-0 z-50">
         <div className="container mx-auto px-4 flex items-center justify-between">
           {/* Logo */}
@@ -157,7 +221,7 @@ export default function AdminNavigation() {
         aria-modal="true"
       >
         {/* Safe area for iOS/Android */}
-        <div className="flex flex-col h-full pt-20 pb-8 px-6">
+        <div className={`flex flex-col h-full pb-8 px-6 ${showVerificationBanner ? 'pt-32' : 'pt-20'}`}>
           {/* Navigation Links */}
           <div className="flex-1 flex flex-col justify-center">
             <nav className="space-y-1">

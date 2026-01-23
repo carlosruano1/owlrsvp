@@ -2,6 +2,20 @@ import Stripe from 'stripe';
 import { loadStripe } from '@stripe/stripe-js';
 import { supabaseAdmin } from './supabase';
 
+// Helper to get base URL with HTTPS enforcement for production
+export const getBaseUrl = (): string => {
+  let baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+
+  // For live mode Stripe, always use HTTPS
+  if (process.env.NODE_ENV === 'production' || process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_')) {
+    if (baseUrl.startsWith('http://')) {
+      baseUrl = baseUrl.replace('http://', 'https://')
+    }
+  }
+
+  return baseUrl
+}
+
 // Initialize Stripe with the secret key on the server side
 export const stripe = process.env.STRIPE_SECRET_KEY 
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase, supabaseAdmin } from '@/lib/supabase'
-import { createEventCheckoutSession } from '@/lib/stripe'
+import { createEventCheckoutSession, getBaseUrl } from '@/lib/stripe'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,7 +59,7 @@ export async function POST(
     }
 
     // Create checkout session
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const baseUrl = getBaseUrl()
     
     // Optional: Set platform fee percentage (e.g., 2.9 for 2.9% fee)
     // Set to 0 to take no fee, or use environment variable

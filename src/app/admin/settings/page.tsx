@@ -25,7 +25,7 @@ interface AdminUser {
   stripe_account_status?: string
 }
 
-type Tab = 'account' | 'security' | 'subscription'
+type Tab = 'account' | 'security' | 'subscription' | 'team'
 
 export default function AdminSettings() {
   const [user, setUser] = useState<AdminUser | null>(null)
@@ -73,6 +73,28 @@ export default function AdminSettings() {
   const [deleting, setDeleting] = useState(false)
   const [deleteExpanded, setDeleteExpanded] = useState(false)
 
+  // Team tab state
+  const [teamMembers, setTeamMembers] = useState<any[]>([])
+  const [teamEvents, setTeamEvents] = useState<any[]>([])
+  const [inviteForm, setInviteForm] = useState({
+    email: '',
+    role: 'editor',
+    message: ''
+  })
+  const [inviting, setInviting] = useState(false)
+  const [permissionsForm, setPermissionsForm] = useState<{
+    teamMemberEmail: string
+    eventId: string
+    permissions: {
+      can_edit: boolean
+      can_view_analytics: boolean
+      can_export_data: boolean
+      can_send_communications: boolean
+    }
+  } | null>(null)
+  const [settingPermissions, setSettingPermissions] = useState(false)
+  const [removingMember, setRemovingMember] = useState<string | null>(null)
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -99,6 +121,22 @@ export default function AdminSettings() {
         if (connectStatusResponse.ok) {
           const connectData = await connectStatusResponse.json()
           setStripeConnectStatus(connectData)
+        }
+
+        // Fetch team members (only if pro/enterprise)
+        if (['pro', 'enterprise'].includes(data.user.subscription_tier)) {
+          const teamResponse = await fetch('/api/admin/team/members')
+          if (teamResponse.ok) {
+            const teamData = await teamResponse.json()
+            setTeamMembers(teamData.members || [])
+          }
+
+          // Fetch user's events for permission assignment
+          const eventsResponse = await fetch('/api/admin/events')
+          if (eventsResponse.ok) {
+            const eventsData = await eventsResponse.json()
+            setTeamEvents(eventsData.events || [])
+          }
         }
       } catch (err) {
         router.push('/admin/login')
@@ -379,6 +417,138 @@ export default function AdminSettings() {
     }
   }
 
+  // Team tab handlers
+  const handleInviteTeamMember = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setInviting(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/admin/team/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(inviteForm)
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send invitation')
+      }
+
+      // Refresh team members
+      const teamResponse = await fetch('/api/admin/team/members')
+      if (teamResponse.ok) {
+        const teamData = await teamResponse.json()
+        setTeamMembers(teamData.members || [])
+      }
+
+      setInviteForm({ email: '', role: 'editor', message: '' })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send invitation')
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  const handleSetPermissions = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!permissionsForm) return
+
+    setSettingPermissions(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/admin/team/permissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(permissionsForm)
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to set permissions')
+      }
+
+      // Refresh team members
+      const teamResponse = await fetch('/api/admin/team/members')
+      if (teamResponse.ok) {
+        const teamData = await teamResponse.json()
+        setTeamMembers(teamData.members || [])
+      }
+
+      setPermissionsForm(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to set permissions')
+    } finally {
+      setSettingPermissions(false)
+    }
+  }
+
+  const handleRemovePermissions = async (teamMemberEmail: string, eventId: string) => {
+    setError('')
+
+    try {
+      const response = await fetch('/api/admin/team/permissions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ team_member_email: teamMemberEmail, event_id: eventId })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove permissions')
+      }
+
+      // Refresh team members
+      const teamResponse = await fetch('/api/admin/team/members')
+      if (teamResponse.ok) {
+        const teamData = await teamResponse.json()
+        setTeamMembers(teamData.members || [])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove permissions')
+    }
+  }
+
+  const handleRemoveTeamMember = async (memberId: string) => {
+    if (!confirm('Are you sure you want to remove this team member? They will lose access to all events.')) {
+      return
+    }
+
+    setRemovingMember(memberId)
+    setError('')
+
+    try {
+      const response = await fetch(`/api/admin/team/members/${memberId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove team member')
+      }
+
+      // Refresh team members
+      const teamResponse = await fetch('/api/admin/team/members')
+      if (teamResponse.ok) {
+        const teamData = await teamResponse.json()
+        setTeamMembers(teamData.members || [])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove team member')
+    } finally {
+      setRemovingMember(null)
+    }
+  }
+
   // Danger zone handlers
   const handleDeleteAccount = async () => {
     if (deleteConfirm !== 'DELETE') {
@@ -470,6 +640,15 @@ export default function AdminSettings() {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        </svg>
+      )
+    },
+    {
+      id: 'team',
+      label: 'Team',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
       )
     }
@@ -1101,6 +1280,277 @@ export default function AdminSettings() {
                       </button>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Team Tab */}
+            {activeTab === 'team' && (
+              <div className="space-y-6 text-white">
+                <div>
+                  <h2 className="text-2xl font-light mb-6">Team Management</h2>
+
+                  {/* Team feature availability */}
+                  {(!user || !['pro', 'enterprise'].includes(user.subscription_tier)) && (
+                    <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+                      <div className="flex items-center gap-3 mb-3">
+                        <svg className="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                        <h3 className="text-lg font-normal text-yellow-200">Team Management Unavailable</h3>
+                      </div>
+                      <p className="text-yellow-100/80 mb-4">
+                        Team management is available only for Pro and Enterprise subscribers. Upgrade your plan to invite team members and manage event permissions collaboratively.
+                      </p>
+                      <Link
+                        href="/checkout?plan=pro"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition-all"
+                      >
+                        Upgrade to Pro
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Link>
+                    </div>
+                  )}
+
+                  {/* Team management interface */}
+                  {user && ['pro', 'enterprise'].includes(user.subscription_tier) && (
+                    <>
+                      {/* Invite Team Member */}
+                      <div className="mb-8">
+                        <h3 className="text-lg font-normal mb-4">Invite Team Member</h3>
+                        <form onSubmit={handleInviteTeamMember} className="space-y-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label htmlFor="teamEmail" className="block text-sm font-medium text-white/90 mb-2">
+                                Email Address
+                              </label>
+                              <input
+                                type="email"
+                                id="teamEmail"
+                                value={inviteForm.email}
+                                onChange={(e) => setInviteForm(prev => ({ ...prev, email: e.target.value }))}
+                                className="modern-input w-full px-4 py-2"
+                                placeholder="team@example.com"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <label htmlFor="teamRole" className="block text-sm font-medium text-white/90 mb-2">
+                                Role
+                              </label>
+                              <select
+                                id="teamRole"
+                                value={inviteForm.role}
+                                onChange={(e) => setInviteForm(prev => ({ ...prev, role: e.target.value }))}
+                                className="modern-input w-full px-4 py-2"
+                              >
+                                <option value="viewer">Viewer - Can view events and data</option>
+                                <option value="editor">Editor - Can edit events and manage RSVPs</option>
+                                <option value="admin">Admin - Full access to all team features</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label htmlFor="inviteMessage" className="block text-sm font-medium text-white/90 mb-2">
+                              Personal Message (Optional)
+                            </label>
+                            <textarea
+                              id="inviteMessage"
+                              value={inviteForm.message}
+                              onChange={(e) => setInviteForm(prev => ({ ...prev, message: e.target.value }))}
+                              className="modern-input w-full px-4 py-2"
+                              placeholder="Welcome to our event management team!"
+                              rows={3}
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={inviting}
+                            className="w-full px-4 py-2 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition-all disabled:opacity-50"
+                          >
+                            {inviting ? 'Sending Invitation...' : 'Send Invitation'}
+                          </button>
+                        </form>
+                      </div>
+
+                      {/* Team Members List */}
+                      <div className="mb-8">
+                        <h3 className="text-lg font-normal mb-4">Team Members</h3>
+                        {teamMembers.length === 0 ? (
+                          <div className="p-8 text-center bg-white/5 rounded-xl border border-white/10">
+                            <svg className="w-12 h-12 text-white/40 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <p className="text-white/60">No team members yet</p>
+                            <p className="text-white/40 text-sm">Invite your first team member above</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {teamMembers.map((member) => (
+                              <div key={member.id} className="p-4 bg-white/5 rounded-xl border border-white/10">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-normal">{member.email}</span>
+                                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                        member.status === 'active'
+                                          ? 'bg-green-500/20 text-green-400'
+                                          : member.status === 'invited'
+                                          ? 'bg-yellow-500/20 text-yellow-400'
+                                          : 'bg-red-500/20 text-red-400'
+                                      }`}>
+                                        {member.status}
+                                      </span>
+                                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                        member.role === 'admin'
+                                          ? 'bg-purple-500/20 text-purple-400'
+                                          : member.role === 'editor'
+                                          ? 'bg-blue-500/20 text-blue-400'
+                                          : 'bg-gray-500/20 text-gray-400'
+                                      }`}>
+                                        {member.role}
+                                      </span>
+                                    </div>
+                                    <div className="text-white/60 text-sm mt-1">
+                                      Invited: {new Date(member.invited_at).toLocaleDateString()}
+                                      {member.joined_at && ` • Joined: ${new Date(member.joined_at).toLocaleDateString()}`}
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => handleRemoveTeamMember(member.id)}
+                                    disabled={removingMember === member.id}
+                                    className="px-3 py-1 bg-red-500/20 border border-red-500/30 rounded-lg hover:bg-red-500/30 transition-all text-red-300 text-sm disabled:opacity-50"
+                                  >
+                                    {removingMember === member.id ? 'Removing...' : 'Remove'}
+                                  </button>
+                                </div>
+
+                                {/* Event Permissions */}
+                                <div className="space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-white/80">Event Access:</span>
+                                    <button
+                                      onClick={() => setPermissionsForm({
+                                        teamMemberEmail: member.email,
+                                        eventId: '',
+                                        permissions: {
+                                          can_edit: true,
+                                          can_view_analytics: true,
+                                          can_export_data: true,
+                                          can_send_communications: false
+                                        }
+                                      })}
+                                      className="px-3 py-1 bg-white/10 border border-white/20 rounded-lg hover:bg-white/15 transition-all text-white text-sm"
+                                    >
+                                      Grant Access
+                                    </button>
+                                  </div>
+
+                                  {member.event_permissions?.length > 0 ? (
+                                    <div className="space-y-2">
+                                      {member.event_permissions.map((perm: any) => (
+                                        <div key={perm.event_id} className="flex items-center justify-between p-2 bg-white/5 rounded border border-white/10">
+                                          <div>
+                                            <div className="font-normal text-sm">{perm.event_title}</div>
+                                            <div className="text-white/60 text-xs">
+                                              Can {Object.entries(perm.permissions).filter(([_, v]) => v).map(([k]) =>
+                                                k.replace('can_', '').replace('_', ' ')
+                                              ).join(', ')}
+                                            </div>
+                                          </div>
+                                          <button
+                                            onClick={() => handleRemovePermissions(member.email, perm.event_id)}
+                                            className="px-2 py-1 bg-red-500/20 border border-red-500/30 rounded text-red-300 text-xs hover:bg-red-500/30 transition-all"
+                                          >
+                                            Remove
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-white/40 text-sm italic">No event access granted yet</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Permissions Modal */}
+            {permissionsForm && (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-gray-900 rounded-2xl p-6 max-w-md w-full border border-white/20">
+                  <h3 className="text-lg font-normal mb-4 text-white">Grant Event Access</h3>
+                  <form onSubmit={handleSetPermissions} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-white/90 mb-2">
+                        Select Event
+                      </label>
+                      <select
+                        value={permissionsForm.eventId}
+                        onChange={(e) => setPermissionsForm(prev => prev ? { ...prev, eventId: e.target.value } : null)}
+                        className="modern-input w-full px-4 py-2"
+                        required
+                      >
+                        <option value="">Choose an event...</option>
+                        {teamEvents.map((event) => (
+                          <option key={event.id} value={event.id}>{event.title}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-white/90 mb-2">
+                        Permissions
+                      </label>
+                      <div className="space-y-2">
+                        {Object.entries(permissionsForm.permissions).map(([key, value]) => (
+                          <label key={key} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={value}
+                              onChange={(e) => setPermissionsForm(prev => prev ? {
+                                ...prev,
+                                permissions: { ...prev.permissions, [key]: e.target.checked }
+                              } : null)}
+                              className="rounded border-white/20"
+                            />
+                            <span className="text-white/80 text-sm">
+                              {key === 'can_edit' && 'Edit event details and RSVPs'}
+                              {key === 'can_view_analytics' && 'View analytics and reports'}
+                              {key === 'can_export_data' && 'Export attendee data'}
+                              {key === 'can_send_communications' && 'Send communications to guests'}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                      <button
+                        type="submit"
+                        disabled={settingPermissions}
+                        className="flex-1 px-4 py-2 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition-all disabled:opacity-50"
+                      >
+                        {settingPermissions ? 'Granting...' : 'Grant Access'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPermissionsForm(null)}
+                        className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl hover:bg-white/15 transition-all text-white"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             )}
