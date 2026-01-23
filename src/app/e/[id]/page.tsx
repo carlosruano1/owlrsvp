@@ -8,6 +8,7 @@ import Footer from '@/components/Footer'
 import PdfViewer from '@/components/PdfViewer'
 import Watermark from '@/components/Watermark'
 import DiscreteAd from '@/components/DiscreteAd'
+import LocationMapLink from '@/components/LocationMapLink'
 import Image from 'next/image'
 import { ThemeProvider, ThemeColors, useTheme } from '@/components/ThemeProvider'
 import { formatDateLong, formatTime12h, parseDateTimeLocal } from '@/lib/dateUtils'
@@ -48,8 +49,29 @@ function EventRSVPContent() {
   const [event, setEvent] = useState<Event | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [creatorTier, setCreatorTier] = useState<string>('free')
+  const [creatorTier, setCreatorTier] = useState<string | null>(null)
   const { colors, setColors } = useTheme()
+  
+  // Tier detection - only show ads/watermark for FREE tier
+  // Hide ads/watermark for BASIC, PRO, ENTERPRISE, and any unknown/null tiers
+  const normalizedTier = creatorTier ? creatorTier.toLowerCase().trim() : null
+  const isFreeTier = normalizedTier === 'free'
+  
+  // Debug: Log tier changes
+  useEffect(() => {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('[Event Page] TIER STATE UPDATE:')
+    console.log('  creatorTier:', creatorTier)
+    console.log('  normalizedTier:', normalizedTier)
+    console.log('  isFreeTier:', isFreeTier)
+    console.log('  Will show ads/watermark:', isFreeTier)
+    if (isFreeTier) {
+      console.log('  ℹ️ FREE TIER - Ads and watermark SHOWN')
+    } else {
+      console.log('  ✅ PAID OR UNKNOWN TIER - Ads and watermark HIDDEN')
+    }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  }, [creatorTier, normalizedTier, isFreeTier])
   
   // Form state
   const [firstName, setFirstName] = useState('')
@@ -179,10 +201,22 @@ function EventRSVPContent() {
           // Clean up URL
           window.history.replaceState({}, '', window.location.pathname)
         }
-        // Track creator tier for watermark display - default to 'free' if not provided
-        const tier = data.creatorTier || 'free'
+        // Track creator tier for watermark display
+        const tier = data.creatorTier ? String(data.creatorTier).toLowerCase().trim() : null
         setCreatorTier(tier)
-        console.log('Watermark will show:', tier === 'free')
+
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+        console.log('[Event Page] TIER DETECTION:')
+        console.log('  Raw tier from API:', data.creatorTier)
+        console.log('  Normalized tier:', tier)
+        console.log('  Will show ads/watermark?', tier === 'free')
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+        if (tier === 'free') {
+          console.log('ℹ️ [Event Page] FREE TIER - Ads and watermark will be shown')
+        } else {
+          console.log('✅ [Event Page] PAID/UNKNOWN TIER:', tier || 'null', '- Ads and watermark WILL BE HIDDEN')
+        }
         // Get colors from event data
         const themeColors: Partial<ThemeColors> = {
           primary: data.event.background_color || '#007AFF',
@@ -503,7 +537,7 @@ function EventRSVPContent() {
           mixBlendMode: 'screen',
         }}
       />
-      <div className={`relative z-10 min-h-screen flex items-center justify-center p-4 ${creatorTier === 'free' ? 'pb-24' : ''}`}>
+      <div className={`relative z-10 min-h-screen flex items-center justify-center p-4 ${isFreeTier ? 'pb-24' : ''}`}>
         <div className="w-full max-w-xl">
           <div className="text-center mb-8">
             {/* Company block - Enhanced with larger logo and better styling */}
@@ -607,13 +641,7 @@ function EventRSVPContent() {
             {/* Event location */}
             {event?.event_location && (
               <div className="text-lg apple-subtitle mt-3">
-                <div className="flex items-center justify-center">
-                  <svg className="w-5 h-5 mr-2 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span>{event.event_location}</span>
-                </div>
+                <LocationMapLink location={event.event_location} />
               </div>
             )}
             
@@ -722,7 +750,7 @@ function EventRSVPContent() {
               )}
 
               {/* Phone field - only show for basic+ tier accounts */}
-              {creatorTier !== 'free' && event?.required_rsvp_fields?.phone && (
+              {!isFreeTier && event?.required_rsvp_fields?.phone && (
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-white/80 mb-2">
                     Phone Number <span className="text-red-400">*</span>
@@ -740,7 +768,7 @@ function EventRSVPContent() {
               )}
 
               {/* Address field - only show for basic+ tier accounts */}
-              {creatorTier !== 'free' && event?.required_rsvp_fields?.address && (
+              {!isFreeTier && event?.required_rsvp_fields?.address && (
                 <div>
                   <label htmlFor="address" className="block text-sm font-medium text-white/80 mb-2">
                     Address <span className="text-red-400">*</span>
@@ -780,7 +808,7 @@ function EventRSVPContent() {
               </div>
 
               {/* Guests field - only show for basic+ tier accounts, and if allow_plus_guests is true OR if required_rsvp_fields.guests is true */}
-              {creatorTier !== 'free' && ((event?.allow_plus_guests && attending) || (event?.required_rsvp_fields?.guests && attending)) && (
+              {!isFreeTier && ((event?.allow_plus_guests && attending) || (event?.required_rsvp_fields?.guests && attending)) && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-white/80">
@@ -837,8 +865,8 @@ function EventRSVPContent() {
               </button>
             </form>
             
-            {/* Discrete ad for free tier events - placed after form */}
-            <DiscreteAd show={creatorTier === 'free'} />
+            {/* Discrete ad ONLY for free tier events - completely hidden for paid accounts */}
+            {isFreeTier && <DiscreteAd show={true} />}
           </div>
         </div>
       </div>
@@ -890,8 +918,8 @@ function EventRSVPContent() {
         </div>
       )}
 
-      {/* Show watermark for free tier events */}
-      {creatorTier === 'free' && <Watermark />}
+      {/* Show watermark ONLY for free tier events - completely hidden for paid accounts */}
+      {isFreeTier && <Watermark />}
 
       <Footer showDonate={false} />
     </div>

@@ -55,25 +55,44 @@ export async function GET(
     }
 
     // Check if event creator is on free tier (for ads display)
-    // Only check the account tier, not event features
-    let creatorTier = 'free'
+    // Only show ads if we're CERTAIN it's free tier - default to paid tier if uncertain
+    let creatorTier: string | null = null
     if (finalEvent.user_id && supabaseAdmin) {
       try {
-        const { data: creatorData } = await supabaseAdmin
+        const { data: creatorData, error: creatorError } = await supabaseAdmin
           .from('admin_users')
           .select('subscription_tier')
           .eq('id', finalEvent.user_id)
           .single()
         
-        if (creatorData) {
-          creatorTier = creatorData.subscription_tier || 'free'
+        if (creatorError) {
+          console.error('[API] Error fetching creator tier for user_id:', finalEvent.user_id, 'Error:', creatorError)
+          // Default to 'pro' if error - don't show ads if we can't verify
+          creatorTier = 'pro'
+        } else if (creatorData) {
+          const rawTier = creatorData.subscription_tier
+          if (rawTier) {
+            creatorTier = String(rawTier).toLowerCase().trim()
+            console.log('[API] Found creator tier - Raw:', rawTier, 'Normalized:', creatorTier, 'Will show ads:', creatorTier === 'free')
+          } else {
+            console.warn('[API] Creator data found but subscription_tier is null/undefined for user_id:', finalEvent.user_id)
+            // No tier data - default to paid tier (don't show ads)
+            creatorTier = 'pro'
+          }
+        } else {
+          console.warn('[API] No creator data found for user_id:', finalEvent.user_id)
+          // No tier data - default to paid tier (don't show ads)
+          creatorTier = 'pro'
         }
       } catch (err) {
-        // If we can't get creator tier, default to free (show ads)
-        console.log('Could not fetch creator tier, defaulting to free:', err)
+        // If we can't get creator tier, default to paid tier (don't show ads)
+        console.log('[API] Exception fetching creator tier, defaulting to paid:', err)
+        creatorTier = 'pro'
       }
+    } else {
+      // If event has no creator (anonymous event), default to free tier for ads
+      creatorTier = 'free'
     }
-    // If event has no creator (anonymous event), default to free tier for ads
 
     console.log('Found event by ID:', finalEvent.id, 'Creator tier:', creatorTier);
     return NextResponse.json({ 

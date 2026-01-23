@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 import { validateSession } from '@/lib/auth'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,11 +18,12 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch full user data including TOTP status
-    if (!supabase) {
+    // Use supabaseAdmin to bypass RLS and get accurate email_verified status
+    if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
     }
 
-    const { data: userData, error: userError } = await supabase
+    const { data: userData, error: userError } = await supabaseAdmin
       .from('admin_users')
       .select('id, username, email, email_verified, subscription_tier, subscription_status, max_events, max_attendees_per_event, events_created_count, created_at, last_login, totp_enabled')
       .eq('id', result.user.user_id)

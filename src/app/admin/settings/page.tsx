@@ -213,6 +213,38 @@ export default function AdminSettings() {
 
       setAccountSuccess(data.message || 'Verification email sent successfully! Please check your inbox.')
       setTimeout(() => setAccountSuccess(''), 5000)
+
+      // Always refresh user data after resend verification to update email_verified status
+      // This handles cases where email was already verified or was auto-verified by TOTP
+      try {
+        const userResponse = await fetch('/api/auth/me', {
+          credentials: 'include'
+        })
+        if (userResponse.ok) {
+          const userData = await userResponse.json()
+          if (userData.user) {
+            console.log('[Settings] Before refresh - email_verified:', user?.email_verified)
+            console.log('[Settings] After refresh - email_verified:', userData.user.email_verified)
+            // Force state update with new object reference to trigger re-render
+            setUser((prevUser) => {
+              const newUser = { ...userData.user }
+              console.log('[Settings] State update - prev email_verified:', prevUser?.email_verified, 'new email_verified:', newUser.email_verified)
+              return newUser
+            })
+            // Also update email value if it changed
+            if (userData.user.email !== emailValue) {
+              setEmailValue(userData.user.email)
+            }
+          } else {
+            console.warn('[Settings] No user data in response:', userData)
+          }
+        } else {
+          console.error('[Settings] Failed to fetch user data:', userResponse.status)
+        }
+      } catch (refreshError) {
+        console.error('[Settings] Failed to refresh user data after resend verification:', refreshError)
+        // Don't show error to user, just log it
+      }
     } catch (err) {
       setAccountError(err instanceof Error ? err.message : 'Failed to send verification email')
     } finally {
