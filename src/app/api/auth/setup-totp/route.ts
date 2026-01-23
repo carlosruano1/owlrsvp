@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       qrCode: result.qrCode,
       secret: process.env.NODE_ENV === 'development' ? result.secret : undefined
@@ -33,4 +33,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
-

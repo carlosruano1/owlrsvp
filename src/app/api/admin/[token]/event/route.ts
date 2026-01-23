@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { canUseCustomBranding, getUserTierFromSession } from '@/lib/tierEnforcement'
+import { canUseCustomBranding, getEffectiveUserTier } from '@/lib/tierEnforcement'
 
 // Get event by admin token
 export async function GET(
@@ -176,9 +176,6 @@ export async function PATCH(
       updates.event_location = body.event_location || null
     }
 
-    if (body.event_location_link !== undefined) {
-      updates.event_location_link = body.event_location_link || null
-    }
     
     // Check if user has custom branding feature for branding-related updates
     const sessionCookie = request.cookies.get('admin_session')?.value
@@ -241,7 +238,7 @@ export async function PATCH(
     // Only allow for basic+ tier accounts
     if (body.required_rsvp_fields !== undefined) {
       // Check user tier
-      const userTier = await getUserTierFromSession(sessionCookie)
+      const userTier = await getEffectiveUserTier(sessionCookie)
       if (userTier === 'free') {
         return NextResponse.json({ 
           error: 'Additional RSVP fields (email, phone, address, guests) are only available on Basic tier and above. Please upgrade to use this feature.',

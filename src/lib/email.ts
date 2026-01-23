@@ -22,15 +22,21 @@ interface EmailOptions {
 }
 
 export async function sendEmail({ to, subject, html, text }: EmailOptions) {
+  console.log('[Email] Checking RESEND_API_KEY configuration...')
   if (!process.env.RESEND_API_KEY) {
-    console.error('RESEND_API_KEY not configured')
-    return { success: false, error: 'Email service not configured' }
+    console.error('[Email] RESEND_API_KEY not configured in environment variables')
+    return { success: false, error: 'Email service not configured. Please set RESEND_API_KEY in your environment variables.' }
   }
 
+  console.log('[Email] RESEND_API_KEY found, initializing client...')
   try {
     const client = getResendClient()
+    console.log(`[Email] Sending email to: ${to}`)
+    console.log(`[Email] Subject: ${subject}`)
+    console.log(`[Email] From: OwlRSVP <noreply@owlrsvp.com>`)
+
     const { data, error } = await client.emails.send({
-      from: 'OwlRSVP <noreply@owlrsvp.com>', // Use your verified domain
+      from: process.env.EMAIL_FROM || 'OwlRSVP <noreply@owlrsvp.com>', // Use your verified domain or configurable from
       to,
       subject,
       html,
@@ -38,14 +44,16 @@ export async function sendEmail({ to, subject, html, text }: EmailOptions) {
     })
 
     if (error) {
-      console.error('Resend error:', error)
-      return { success: false, error: error.message }
+      console.error('[Email] Resend API error:', JSON.stringify(error, null, 2))
+      return { success: false, error: `Email service error: ${error.message}` }
     }
 
+    console.log('[Email] Email sent successfully, Message ID:', data?.id)
     return { success: true, messageId: data?.id }
   } catch (error) {
-    console.error('Error sending email:', error)
-    return { success: false, error: 'Failed to send email' }
+    console.error('[Email] Exception during email sending:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    return { success: false, error: `Failed to send email: ${errorMessage}` }
   }
 }
 

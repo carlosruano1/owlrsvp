@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 })
     }
 
-    // Fetch full user data including TOTP status
+    // Fetch full user data
     // Use supabaseAdmin to bypass RLS and get accurate email_verified status
     if (!supabaseAdmin) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })

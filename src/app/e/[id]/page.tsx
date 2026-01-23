@@ -643,7 +643,6 @@ function EventRSVPContent() {
               <div className="text-lg apple-subtitle mt-3">
                 <LocationMapLink
                   location={event.event_location}
-                  locationLink={event.event_location_link || undefined}
                 />
               </div>
             )}
@@ -753,7 +752,7 @@ function EventRSVPContent() {
               )}
 
               {/* Phone field - only show for basic+ tier accounts */}
-              {!isFreeTier && event?.required_rsvp_fields?.phone && (
+              {event?.required_rsvp_fields?.phone && (
                 <div>
                   <label htmlFor="phone" className="block text-sm font-medium text-white/80 mb-2">
                     Phone Number <span className="text-red-400">*</span>
@@ -771,7 +770,7 @@ function EventRSVPContent() {
               )}
 
               {/* Address field - only show for basic+ tier accounts */}
-              {!isFreeTier && event?.required_rsvp_fields?.address && (
+              {event?.required_rsvp_fields?.address && (
                 <div>
                   <label htmlFor="address" className="block text-sm font-medium text-white/80 mb-2">
                     Address <span className="text-red-400">*</span>
@@ -811,7 +810,7 @@ function EventRSVPContent() {
               </div>
 
               {/* Guests field - only show for basic+ tier accounts, and if allow_plus_guests is true OR if required_rsvp_fields.guests is true */}
-              {!isFreeTier && ((event?.allow_plus_guests && attending) || (event?.required_rsvp_fields?.guests && attending)) && (
+              {((!isFreeTier && event?.allow_plus_guests && attending) || (event?.required_rsvp_fields?.guests && attending)) && (
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm font-medium text-white/80">

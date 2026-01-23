@@ -57,6 +57,7 @@ export default function AdminSettings() {
   const [passwordSuccess, setPasswordSuccess] = useState('')
   const [totpEnabled, setTotpEnabled] = useState(false)
   const [disablingTOTP, setDisablingTOTP] = useState(false)
+  const [totpSuccess, setTotpSuccess] = useState('')
 
   // Subscription tab state
   const [billingPortalLoading, setBillingPortalLoading] = useState(false)
@@ -253,7 +254,7 @@ export default function AdminSettings() {
       setTimeout(() => setAccountSuccess(''), 5000)
 
       // Always refresh user data after resend verification to update email_verified status
-      // This handles cases where email was already verified or was auto-verified by TOTP
+      // This handles cases where email was already verified
       try {
         const userResponse = await fetch('/api/auth/me', {
           credentials: 'include'
@@ -343,28 +344,39 @@ export default function AdminSettings() {
       return
     }
 
+    console.log('[Settings] Starting TOTP disable process')
     setDisablingTOTP(true)
     setError('')
+    setTotpSuccess('')
 
     try {
+      console.log('[Settings] Making API call to disable TOTP')
       const response = await fetch('/api/auth/disable-totp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include'
       })
 
+      console.log('[Settings] API response status:', response.status)
       const data = await response.json()
+      console.log('[Settings] API response data:', data)
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to disable TOTP')
       }
 
+      console.log('[Settings] TOTP disabled successfully, updating UI state')
       setTotpEnabled(false)
+      setTotpSuccess('Two-factor authentication has been disabled successfully.')
       if (user) {
         setUser({ ...user, totp_enabled: false })
+        console.log('[Settings] User state updated:', { ...user, totp_enabled: false })
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to disable TOTP')
+      console.error('[Settings] Error disabling TOTP:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to disable TOTP'
+      console.error('[Settings] Error message to show:', errorMessage)
+      setError(errorMessage)
     } finally {
       setDisablingTOTP(false)
     }
@@ -1043,6 +1055,11 @@ export default function AdminSettings() {
                             {passwordSuccess}
                           </div>
                         )}
+                        {totpSuccess && (
+                          <div className="bg-green-500/20 border border-green-500/30 text-green-100 px-4 py-2 rounded-xl text-sm">
+                            {totpSuccess}
+                          </div>
+                        )}
                         <button
                           type="submit"
                           disabled={passwordLoading}
@@ -1060,7 +1077,7 @@ export default function AdminSettings() {
                       <div>
                         <h3 className="text-lg font-normal mb-1">Two-Factor Authentication</h3>
                         <p className="text-white/60 text-sm">
-                          {totpEnabled 
+                          {totpEnabled
                             ? 'Authenticator app is enabled for your account'
                             : 'Add an extra layer of security with an authenticator app'
                           }
@@ -1098,6 +1115,7 @@ export default function AdminSettings() {
                       </div>
                     )}
                   </div>
+
                 </div>
               </div>
             )}

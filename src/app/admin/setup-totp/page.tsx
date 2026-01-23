@@ -199,8 +199,8 @@ export default function SetupTOTP() {
             )}
 
             <div className="mt-6 text-center">
-              <Link 
-                href="/admin/settings" 
+              <Link
+                href="/admin/settings"
                 className="text-white/70 hover:text-white/90 text-sm"
               >
                 Back to Settings
@@ -213,4 +213,3 @@ export default function SetupTOTP() {
     </div>
   )
 }
-

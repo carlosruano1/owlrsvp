@@ -67,7 +67,6 @@ function AdminDashboardContent() {
     event_date: string;
     event_end_time: string;
     event_location: string;
-    event_location_link: string;
     company_name: string;
     company_logo_url: string;
   }>({
@@ -75,7 +74,6 @@ function AdminDashboardContent() {
     event_date: '',
     event_end_time: '',
     event_location: '',
-    event_location_link: '',
     company_name: '',
     company_logo_url: ''
   })
@@ -93,6 +91,7 @@ function AdminDashboardContent() {
   const [rsvpMenuOpen, setRsvpMenuOpen] = useState(false)
   const rsvpMenuRef = useRef<HTMLDivElement>(null)
   const [attendeesExpanded, setAttendeesExpanded] = useState(false)
+  const [addGuestExpanded, setAddGuestExpanded] = useState(false)
   const [requiredFields, setRequiredFields] = useState<{
     email?: boolean
     phone?: boolean
@@ -924,7 +923,6 @@ function AdminDashboardContent() {
           event_date: formatDateForInput(result.event.event_date),
           event_end_time: formatDateForInput(result.event.event_end_time),
           event_location: result.event.event_location || '',
-          event_location_link: result.event.event_location_link || '',
           company_name: result.event.company_name || '',
           company_logo_url: result.event.company_logo_url || ''
         })
@@ -1693,7 +1691,6 @@ function AdminDashboardContent() {
                       event_date: eventDetailsForm.event_date ? formatDateForDatabase(eventDetailsForm.event_date) : undefined,
                       event_end_time: eventDetailsForm.event_end_time ? formatDateForDatabase(eventDetailsForm.event_end_time) : undefined,
                       event_location: eventDetailsForm.event_location || undefined,
-                      event_location_link: eventDetailsForm.event_location_link || undefined,
                     };
                     
                     // Only include branding fields if user has access
@@ -1774,16 +1771,6 @@ function AdminDashboardContent() {
                     <label className="block text-sm font-medium text-white/80 mb-2">
                       Location Map Link
                     </label>
-                    <input
-                      type="url"
-                      value={eventDetailsForm.event_location_link}
-                      onChange={(e) => setEventDetailsForm({...eventDetailsForm, event_location_link: e.target.value})}
-                      placeholder="Google Maps URL or address for navigation (leave empty to use display name)"
-                      className="modern-input w-full px-4 py-3"
-                    />
-                    <p className="text-xs text-white/60 mt-1">
-                      If different from display name, this is what opens in maps when guests click the location
-                    </p>
                   </div>
 
                   {/* Company Name */}
@@ -2019,7 +2006,6 @@ function AdminDashboardContent() {
                             event_date: formatDateForInput(data.event.event_date),
                             event_end_time: formatDateForInput(data.event.event_end_time),
                             event_location: data.event.event_location || '',
-                            event_location_link: data.event.event_location_link || '',
                             company_name: data.event.company_name || '',
                             company_logo_url: data.event.company_logo_url || ''
                           });
@@ -2080,11 +2066,6 @@ function AdminDashboardContent() {
                         </div>
                         <div className="flex items-center gap-2">
                           <p className="text-white/90">{data?.event.event_location || 'Not set'}</p>
-                          {data?.event.event_location_link && (
-                            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full">
-                              Map Link
-                            </span>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -2522,6 +2503,21 @@ function AdminDashboardContent() {
                   </div>
                 )}
               </div>
+
+              {/* Add Guest Button */}
+              <button
+                onClick={() => setAddGuestExpanded(!addGuestExpanded)}
+                className={`w-10 h-10 rounded-lg border transition-all flex items-center justify-center ${
+                  addGuestExpanded
+                    ? 'bg-white/20 border-white/40 text-white'
+                    : 'bg-white/10 border-white/20 text-white/80 hover:bg-white/15 hover:border-white/30'
+                }`}
+                title="Add guest manually"
+              >
+                <svg className={`w-5 h-5 transition-transform ${addGuestExpanded ? 'rotate-45' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
             </div>
 
             {/* Show info message for open access mode */}
@@ -2971,14 +2967,27 @@ function AdminDashboardContent() {
               </div>
             )}
           </div>
-          {/* Manual Add Guest - Available for all auth modes */}
-          <div className="glass-card rounded-2xl p-6 sm:p-8 text-white">
-            <h2 className="text-2xl font-light mb-6">Add Guest Manually</h2>
-            <p className="text-white/70 text-sm mb-4">
-              Add guests manually for phone calls, walk-ins, or other situations where they can't RSVP online.
-            </p>
-            <AddGuestForm adminToken={adminToken} onAdded={(attendee) => setData(d => d ? ({ ...d, attendees: [attendee, ...d.attendees] }) : d)} />
-          </div>
+          {/* Manual Add Guest - Collapsible */}
+          {addGuestExpanded && (
+            <div className="glass-card rounded-2xl p-6 sm:p-8 text-white animate-fadeIn">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-light">Add Guest Manually</h2>
+                <button
+                  onClick={() => setAddGuestExpanded(false)}
+                  className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors"
+                  title="Close"
+                >
+                  <svg className="w-4 h-4 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-white/70 text-sm mb-4">
+                Add guests manually for phone calls, walk-ins, or other situations where they can't RSVP online.
+              </p>
+              <AddGuestForm adminToken={adminToken} onAdded={(attendee) => setData(d => d ? ({ ...d, attendees: [attendee, ...d.attendees] }) : d)} />
+            </div>
+          )}
 
           {/* Contact Info for Guests - Discrete & Collapsible */}
           <div className="glass-card rounded-2xl p-4 sm:p-6 text-white">

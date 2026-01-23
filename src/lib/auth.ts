@@ -797,158 +797,9 @@ export async function validateAdminToken(adminToken: string): Promise<{
   }
 }
 
-// Setup TOTP for a user (generate secret and QR code)
-export async function setupTOTP(userId: string): Promise<{ success: boolean; secret?: string; qrCode?: string; error?: string }> {
-  try {
-    if (!supabase) {
-      return { success: false, error: 'Database not configured' }
-    }
 
-    // Get user info
-    const { data: user, error: userError } = await supabase
-      .from('admin_users')
-      .select('id, username, email')
-      .eq('id', userId)
-      .single()
 
-    if (userError || !user) {
-      return { success: false, error: 'User not found' }
-    }
 
-    // Generate TOTP secret
-    const secret = authenticator.generateSecret()
-    
-    // Create service name for the authenticator app
-    const serviceName = 'OwlRSVP'
-    const accountName = user.email
-    
-    // Generate the OTP Auth URL
-    const otpAuthUrl = authenticator.keyuri(accountName, serviceName, secret)
-    
-    // Generate QR code as data URL
-    const qrCode = await QRCode.toDataURL(otpAuthUrl)
-
-    // Store the secret (encrypted/hashed in production - for now storing as-is)
-    // In production, you should encrypt this before storing
-    const { error: updateError } = await supabase
-      .from('admin_users')
-      .update({ totp_secret: secret, totp_enabled: false }) // Not enabled until verified
-      .eq('id', userId)
-
-    if (updateError) {
-      return { success: false, error: 'Failed to save TOTP secret' }
-    }
-
-    return { success: true, secret, qrCode }
-  } catch (error) {
-    console.error('Error in setupTOTP:', error)
-    return { success: false, error: 'Internal server error' }
-  }
-}
-
-// Verify TOTP code and enable it for a user
-export async function verifyAndEnableTOTP(userId: string, token: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    if (!supabase) {
-      return { success: false, error: 'Database not configured' }
-    }
-
-    // Get user's TOTP secret
-    const { data: user, error: userError } = await supabase
-      .from('admin_users')
-      .select('totp_secret')
-      .eq('id', userId)
-      .single()
-
-    if (userError || !user || !user.totp_secret) {
-      return { success: false, error: 'TOTP not set up. Please set it up first.' }
-    }
-
-    // Verify the token
-    const isValid = authenticator.verify({ token, secret: user.totp_secret })
-
-    if (!isValid) {
-      return { success: false, error: 'Invalid TOTP code' }
-    }
-
-    // Enable TOTP
-    const { error: updateError } = await supabase
-      .from('admin_users')
-      .update({ totp_enabled: true })
-      .eq('id', userId)
-
-    if (updateError) {
-      return { success: false, error: 'Failed to enable TOTP' }
-    }
-
-    return { success: true }
-  } catch (error) {
-    console.error('Error in verifyAndEnableTOTP:', error)
-    return { success: false, error: 'Internal server error' }
-  }
-}
-
-// Verify TOTP code (for password reset)
-export async function verifyTOTP(email: string, token: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    if (!supabase) {
-      return { success: false, error: 'Database not configured' }
-    }
-
-    // Get user's TOTP secret
-    const { data: user, error: userError } = await supabase
-      .from('admin_users')
-      .select('id, totp_secret, totp_enabled')
-      .eq('email', email)
-      .eq('is_active', true)
-      .single()
-
-    if (userError || !user) {
-      return { success: false, error: 'User not found' }
-    }
-
-    if (!user.totp_enabled || !user.totp_secret) {
-      return { success: false, error: 'TOTP is not enabled for this account' }
-    }
-
-    // Verify the token
-    const isValid = authenticator.verify({ token, secret: user.totp_secret })
-
-    if (!isValid) {
-      return { success: false, error: 'Invalid TOTP code' }
-    }
-
-    return { success: true }
-  } catch (error) {
-    console.error('Error in verifyTOTP:', error)
-    return { success: false, error: 'Internal server error' }
-  }
-}
-
-// Check if user has TOTP enabled
-export async function checkTOTPEnabled(email: string): Promise<{ enabled: boolean; error?: string }> {
-  try {
-    if (!supabase) {
-      return { enabled: false, error: 'Database not configured' }
-    }
-
-    const { data: user, error: userError } = await supabase
-      .from('admin_users')
-      .select('totp_enabled')
-      .eq('email', email)
-      .eq('is_active', true)
-      .single()
-
-    if (userError || !user) {
-      return { enabled: false }
-    }
-
-    return { enabled: !!user.totp_enabled }
-  } catch (error) {
-    console.error('Error in checkTOTPEnabled:', error)
-    return { enabled: false }
-  }
-}
 
 // Check if user can access an event (owner or team member)
 export async function checkEventAccess(userId: string, eventId: string, requiredPermission: string = 'can_edit'): Promise<{ hasAccess: boolean; error?: string }> {
@@ -989,14 +840,17 @@ export async function checkEventAccess(userId: string, eventId: string, required
   }
 }
 
-export async function requestPasswordReset(email: string): Promise<{ success: boolean; requiresTOTP?: boolean; totpEnabled?: boolean; error?: string }> {
+export async function requestPasswordReset(email: string): Promise<{ success: boolean; totpEnabled?: boolean; error?: string }> {
   try {
     if (!supabase) {
       return { success: false, error: 'Database not configured' }
     }
 
-    // Find user by email
-    const { data: user, error: userError } = await supabase
+    console.log('[Password Reset] Processing request for email:', email)
+
+    // Find user by email and check TOTP status
+    // Use supabaseAdmin to bypass RLS and get accurate TOTP status
+    const { data: user, error: userError } = await supabaseAdmin
       .from('admin_users')
       .select('id, username, email, totp_enabled')
       .eq('email', email)
@@ -1004,33 +858,61 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
       .single()
 
     if (userError || !user) {
-      // Don't reveal if email exists or not
-      return { success: true }
+      console.log('[Password Reset] User lookup failed or no user found. Error:', userError?.message, 'for email:', email)
+      // Don't reveal if email exists or not - return success anyway
+      return { success: true, totpEnabled: false }
     }
 
-    // Check if TOTP is enabled - if so, return that info and let user choose
-    if (user.totp_enabled) {
-      return { success: true, requiresTOTP: false, totpEnabled: true }
+    console.log('[Password Reset] Found user ID:', user.id, 'type:', typeof user.id, 'username:', user.username, 'email:', user.email, 'totp_enabled:', user.totp_enabled)
+
+    // If TOTP is enabled, return that info so frontend can show method choice
+    if (user.totp_enabled === true) {
+      console.log('[Password Reset] TOTP is enabled for user, showing method choice')
+      return { success: true, totpEnabled: true }
     }
 
-    // Fallback to email-based reset
+    console.log('[Password Reset] TOTP is NOT enabled for user (totp_enabled =', user.totp_enabled, '), proceeding with email reset')
+
+    // If TOTP is not enabled, send email reset
     const resetToken = crypto.randomBytes(32).toString('hex')
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
     // Store reset token
-    await supabase
+    console.log('[Password Reset] Inserting token for user:', user.id, 'user ID type:', typeof user.id, 'token starts with:', resetToken.substring(0, 10))
+    console.log('[Password Reset] Insert data:', {
+      admin_user_id: user.id,
+      token: resetToken.substring(0, 20) + '...',
+      expires_at: expiresAt.toISOString()
+    })
+
+    const { error: insertError } = await supabaseAdmin
       .from('password_reset_tokens')
       .insert({
         admin_user_id: user.id,
         token: resetToken,
-        expires_at: expiresAt.toISOString(),
-        requires_totp: false
+        expires_at: expiresAt.toISOString()
       })
+
+    if (insertError) {
+      console.error('[Password Reset] Failed to insert reset token:', insertError)
+      console.error('[Password Reset] Insert error details:', {
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        code: insertError.code
+      })
+      return { success: false, error: 'Failed to create reset token' }
+    }
+
+    console.log('[Password Reset] Token inserted successfully')
 
     // Send reset email
     const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/admin/reset-password?token=${encodeURIComponent(resetToken)}`
     const emailContent = generatePasswordResetEmail(user.username, resetUrl)
-    
+
+    console.log('[Force Email Reset] Attempting to send reset email to user.email:', user.email, 'for requested email:', email)
+    console.log('[Force Email Reset] Reset URL:', resetUrl.substring(0, 80) + '...')
+
     const emailResult = await sendEmail({
       to: user.email,
       subject: emailContent.subject,
@@ -1039,26 +921,34 @@ export async function requestPasswordReset(email: string): Promise<{ success: bo
     })
 
     if (!emailResult.success) {
-      console.error('Failed to send password reset email:', emailResult.error)
+      console.error('[Password Reset] Failed to send password reset email:', emailResult.error)
       return { success: false, error: emailResult.error || 'Failed to send password reset email' }
     }
 
-    return { success: true, requiresTOTP: false }
+    console.log('[Password Reset] Successfully sent reset email to:', user.email, 'Message ID:', emailResult.messageId)
+    return { success: true, totpEnabled: false }
   } catch (error) {
     console.error('Error in requestPasswordReset:', error)
     return { success: false, error: 'Internal server error' }
   }
 }
 
-// Request password reset forcing email method (ignoring TOTP)
-export async function requestPasswordResetForceEmail(email: string): Promise<{ success: boolean; error?: string }> {
+// Request password reset forcing email method
+// Request password reset with TOTP verification
+export async function requestPasswordResetWithTOTP(email: string, totpCode: string): Promise<{ success: boolean; resetToken?: string; error?: string }> {
   try {
-    if (!supabase) {
+    if (!supabaseAdmin) {
       return { success: false, error: 'Database not configured' }
     }
 
+    // Verify TOTP first
+    const totpResult = await verifyTOTP(email, totpCode)
+    if (!totpResult.success) {
+      return { success: false, error: totpResult.error }
+    }
+
     // Find user by email
-    const { data: user, error: userError } = await supabase
+    const { data: user, error: userError } = await supabaseAdmin
       .from('admin_users')
       .select('id, username, email')
       .eq('email', email)
@@ -1066,8 +956,65 @@ export async function requestPasswordResetForceEmail(email: string): Promise<{ s
       .single()
 
     if (userError || !user) {
-      // Don't reveal if email exists or not
+      return { success: false, error: 'User not found' }
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+
+    // Store reset token (TOTP already verified)
+    console.log('[TOTP Reset] Inserting token for user:', user.id, 'token starts with:', resetToken.substring(0, 10))
+    const { error: insertError } = await supabaseAdmin
+      .from('password_reset_tokens')
+      .insert({
+        admin_user_id: user.id,
+        token: resetToken,
+        expires_at: expiresAt.toISOString()
+      })
+
+    if (insertError) {
+      console.error('[TOTP Reset] Failed to insert reset token:', insertError)
+      return { success: false, error: 'Failed to create reset token' }
+    }
+
+    console.log('[TOTP Reset] Token inserted successfully')
+    return { success: true, resetToken }
+  } catch (error) {
+    console.error('Error in requestPasswordResetWithTOTP:', error)
+    return { success: false, error: 'Internal server error' }
+  }
+}
+
+export async function requestPasswordResetForceEmail(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabaseAdmin) {
+      return { success: false, error: 'Database not configured' }
+    }
+
+    console.log('[Force Email Reset] Processing for email:', email)
+
+    // Find user by email
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('admin_users')
+      .select('id, username, email')
+      .eq('email', email)
+      .eq('is_active', true)
+      .single()
+
+    if (userError || !user) {
+      console.log('[Force Email Reset] User lookup failed for email:', email, 'error:', userError?.message)
+      // Don't reveal if email exists or not - return success to avoid email enumeration
       return { success: true }
+    }
+
+    console.log('[Force Email Reset] Found user ID:', user.id, 'type:', typeof user.id, 'username:', user.username, 'email:', user.email)
+
+    // Validate user ID is a valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(user.id)) {
+      console.error('[Force Email Reset] Invalid UUID format for user ID:', user.id)
+      return { success: false, error: 'Invalid user ID format' }
     }
 
     // Generate reset token (force email method)
@@ -1075,14 +1022,33 @@ export async function requestPasswordResetForceEmail(email: string): Promise<{ s
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
     // Store reset token
-    await supabase
+    console.log('[Force Email Reset] Inserting token for user:', user.id, 'token starts with:', resetToken.substring(0, 10))
+    console.log('[Force Email Reset] Insert data:', {
+      admin_user_id: user.id,
+      token: resetToken.substring(0, 20) + '...',
+      expires_at: expiresAt.toISOString()
+    })
+
+    const { error: insertError } = await supabaseAdmin
       .from('password_reset_tokens')
       .insert({
         admin_user_id: user.id,
         token: resetToken,
         expires_at: expiresAt.toISOString(),
-        requires_totp: false
       })
+
+    if (insertError) {
+      console.error('[Force Email Reset] Failed to insert reset token:', insertError)
+      console.error('[Force Email Reset] Insert error details:', {
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        code: insertError.code
+      })
+      return { success: false, error: 'Failed to create reset token' }
+    }
+
+    console.log('[Force Email Reset] Token inserted successfully')
 
     // Send reset email
     const resetUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/admin/reset-password?token=${encodeURIComponent(resetToken)}`
@@ -1107,89 +1073,72 @@ export async function requestPasswordResetForceEmail(email: string): Promise<{ s
   }
 }
 
-// Request password reset with TOTP verification
-export async function requestPasswordResetWithTOTP(email: string, totpCode: string): Promise<{ success: boolean; resetToken?: string; error?: string }> {
-  try {
-    if (!supabase) {
-      return { success: false, error: 'Database not configured' }
-    }
-
-    // Verify TOTP first
-    const totpResult = await verifyTOTP(email, totpCode)
-    if (!totpResult.success) {
-      return { success: false, error: totpResult.error }
-    }
-
-    // Find user by email
-    const { data: user, error: userError } = await supabase
-      .from('admin_users')
-      .select('id, username, email')
-      .eq('email', email)
-      .eq('is_active', true)
-      .single()
-
-    if (userError || !user) {
-      return { success: false, error: 'User not found' }
-    }
-
-    // Generate reset token
-    const resetToken = crypto.randomBytes(32).toString('hex')
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-
-    // Store reset token (TOTP already verified)
-    await supabase
-      .from('password_reset_tokens')
-      .insert({
-        admin_user_id: user.id,
-        token: resetToken,
-        expires_at: expiresAt.toISOString(),
-        requires_totp: false // Already verified
-      })
-
-    return { success: true, resetToken }
-  } catch (error) {
-    console.error('Error in requestPasswordResetWithTOTP:', error)
-    return { success: false, error: 'Internal server error' }
-  }
-}
 
 export async function resetPassword(
   token: string,
   newPassword: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!supabase) {
+    if (!supabaseAdmin) {
       return { success: false, error: 'Database not configured' }
     }
 
+    console.log('[Reset Password] Validating token:', token.substring(0, 10) + '...')
+
     // Find valid reset token
-    const { data: resetData, error: tokenError } = await supabase
+    const { data: resetData, error: tokenError } = await supabaseAdmin
       .from('password_reset_tokens')
-      .select('admin_user_id, requires_totp')
+      .select('admin_user_id, expires_at, used')
       .eq('token', token)
       .eq('used', false)
       .gt('expires_at', new Date().toISOString())
       .single()
 
     if (tokenError || !resetData) {
+      console.log('[Reset Password] Token lookup details:')
+      console.log('  Token provided:', token.substring(0, 10) + '...')
+      console.log('  Token error:', tokenError?.message)
+      console.log('  Reset data:', resetData)
+
+      // Let's also check if the token exists at all (ignoring expiration and used status)
+      const { data: anyToken } = await supabaseAdmin
+        .from('password_reset_tokens')
+        .select('admin_user_id, expires_at, used')
+        .eq('token', token)
+        .single()
+
+      console.log('  Token exists in DB:', !!anyToken)
+      if (anyToken) {
+        console.log('  Token details:', {
+          used: anyToken.used,
+          expired: new Date(anyToken.expires_at) < new Date(),
+          expires_at: anyToken.expires_at
+        })
+      }
+
       return { success: false, error: 'Invalid or expired reset token' }
     }
+
+    console.log('[Reset Password] Found valid token for user ID:', resetData.admin_user_id)
 
     // Hash new password
     const passwordHash = await hashPassword(newPassword)
 
     // Update password
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('admin_users')
       .update({ password_hash: passwordHash })
       .eq('id', resetData.admin_user_id)
 
     if (updateError) {
+      console.log('[Reset Password] Password update failed:', updateError.message)
       return { success: false, error: 'Failed to update password' }
     }
 
+    console.log('[Reset Password] Password updated successfully')
+
     // Mark token as used
-    await supabase
+    await supabaseAdmin
       .from('password_reset_tokens')
       .update({ used: true })
       .eq('token', token)
@@ -1254,25 +1203,187 @@ export async function changePassword(
   }
 }
 
-// Disable TOTP for a user
-export async function disableTOTP(userId: string): Promise<{ success: boolean; error?: string }> {
+// Setup TOTP for a user (generate secret and QR code)
+export async function setupTOTP(userId: string): Promise<{ success: boolean; secret?: string; qrCode?: string; error?: string }> {
   try {
-    if (!supabase) {
+    // Use admin client to bypass RLS policies for admin operations
+    if (!supabaseAdmin) {
       return { success: false, error: 'Database not configured' }
     }
 
-    const { error: updateError } = await supabase
+    // Get user info
+    const { data: user, error: userError } = await supabaseAdmin
       .from('admin_users')
-      .update({ totp_enabled: false, totp_secret: null })
+      .select('id, username, email')
+      .eq('id', userId)
+      .single()
+
+    if (userError || !user) {
+      return { success: false, error: 'User not found' }
+    }
+
+    // Generate TOTP secret
+    const secret = authenticator.generateSecret()
+
+    // Create service name for the authenticator app
+    const serviceName = 'OwlRSVP'
+    const accountName = user.email
+
+    // Generate the OTP Auth URL
+    const otpAuthUrl = authenticator.keyuri(accountName, serviceName, secret)
+
+    // Generate QR code as data URL
+    const qrCode = await QRCode.toDataURL(otpAuthUrl)
+
+    // Store the secret (encrypted/hashed in production - for now storing as-is)
+    // In production, you should encrypt this before storing
+    const { error: updateError } = await supabaseAdmin
+      .from('admin_users')
+      .update({ totp_secret: secret, totp_enabled: false }) // Not enabled until verified
       .eq('id', userId)
 
     if (updateError) {
-      return { success: false, error: 'Failed to disable TOTP' }
+      return { success: false, error: 'Failed to save TOTP secret' }
+    }
+
+    return { success: true, secret, qrCode }
+  } catch (error) {
+    console.error('Error in setupTOTP:', error)
+    return { success: false, error: 'Internal server error' }
+  }
+}
+
+// Verify TOTP code and enable it for a user
+export async function verifyAndEnableTOTP(userId: string, token: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Use admin client to bypass RLS policies for admin operations
+    if (!supabaseAdmin) {
+      return { success: false, error: 'Database not configured' }
+    }
+
+    // Get user's TOTP secret
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('admin_users')
+      .select('totp_secret')
+      .eq('id', userId)
+      .single()
+
+    if (userError || !user || !user.totp_secret) {
+      return { success: false, error: 'TOTP not set up. Please set it up first.' }
+    }
+
+    // Verify the token
+    const isValid = authenticator.verify({ token, secret: user.totp_secret })
+
+    if (!isValid) {
+      return { success: false, error: 'Invalid TOTP code' }
+    }
+
+    // Enable TOTP
+    const { error: updateError } = await supabaseAdmin
+      .from('admin_users')
+      .update({ totp_enabled: true })
+      .eq('id', userId)
+
+    if (updateError) {
+      return { success: false, error: 'Failed to enable TOTP' }
     }
 
     return { success: true }
   } catch (error) {
-    console.error('Error in disableTOTP:', error)
+    console.error('Error in verifyAndEnableTOTP:', error)
     return { success: false, error: 'Internal server error' }
   }
 }
+
+// Verify TOTP code (for password reset)
+export async function verifyTOTP(email: string, token: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!supabaseAdmin) {
+      return { success: false, error: 'Database not configured' }
+    }
+
+    // Get user's TOTP secret
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('admin_users')
+      .select('id, totp_secret, totp_enabled')
+      .eq('email', email)
+      .eq('is_active', true)
+      .single()
+
+    if (userError || !user) {
+      return { success: false, error: 'User not found' }
+    }
+
+    if (!user.totp_enabled || !user.totp_secret) {
+      return { success: false, error: 'TOTP is not enabled for this account' }
+    }
+
+    // Verify the token
+    const isValid = authenticator.verify({ token, secret: user.totp_secret })
+
+    if (!isValid) {
+      return { success: false, error: 'Invalid TOTP code' }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in verifyTOTP:', error)
+    return { success: false, error: 'Internal server error' }
+  }
+}
+
+// Check if user has TOTP enabled
+export async function checkTOTPEnabled(email: string): Promise<{ enabled: boolean; error?: string }> {
+  try {
+    if (!supabaseAdmin) {
+      return { enabled: false, error: 'Database not configured' }
+    }
+
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('admin_users')
+      .select('totp_enabled')
+      .eq('email', email)
+      .eq('is_active', true)
+      .single()
+
+    if (userError || !user) {
+      return { enabled: false }
+    }
+
+    return { enabled: !!user.totp_enabled }
+  } catch (error) {
+    console.error('Error in checkTOTPEnabled:', error)
+    return { enabled: false }
+  }
+}
+
+// Disable TOTP for a user
+export async function disableTOTP(userId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Use admin client to bypass RLS policies for admin operations
+    if (!supabaseAdmin) {
+      return { success: false, error: 'Database not configured' }
+    }
+
+    console.log('[Disable TOTP] Attempting to disable TOTP for user:', userId)
+
+    const { error: updateError, data } = await supabaseAdmin
+      .from('admin_users')
+      .update({ totp_enabled: false, totp_secret: null })
+      .eq('id', userId)
+      .select('id, totp_enabled, totp_secret')
+
+    if (updateError) {
+      console.error('[Disable TOTP] Database update error:', updateError)
+      return { success: false, error: 'Failed to disable TOTP: ' + updateError.message }
+    }
+
+    console.log('[Disable TOTP] Successfully updated user, new state:', data)
+    return { success: true }
+  } catch (error) {
+    console.error('[Disable TOTP] Exception:', error)
+    return { success: false, error: 'Internal server error: ' + (error instanceof Error ? error.message : String(error)) }
+  }
+}
+

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Send verification email (will auto-verify if TOTP is enabled)
+    // Send verification email
     const emailResult = await sendVerificationEmail(
       user.id,
       user.email,

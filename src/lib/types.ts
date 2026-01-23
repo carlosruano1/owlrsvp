@@ -20,7 +20,6 @@ export interface Event {
   event_date?: string | null
   event_end_time?: string | null
   event_location?: string | null
-  event_location_link?: string | null
   required_rsvp_fields?: {
     email?: boolean
     phone?: boolean
@@ -76,7 +75,6 @@ export interface CreateEventData {
   event_date?: string
   event_end_time?: string
   event_location?: string
-  event_location_link?: string
   ticket_price?: number
   currency?: string
   payment_required?: boolean

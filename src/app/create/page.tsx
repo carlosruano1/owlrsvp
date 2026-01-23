@@ -13,34 +13,6 @@ export const dynamic = 'force-dynamic'
 function CreateEventContent() {
   const [title, setTitle] = useState('')
   const [allowPlusGuests, setAllowPlusGuests] = useState(false)
-  const [backgroundColor, setBackgroundColor] = useState('#007AFF')
-  const [backgroundPageColor, setBackgroundPageColor] = useState('#000000')
-  const [spotlightColor, setSpotlightColor] = useState('#007AFF')
-  const [fontColor, setFontColor] = useState('#FFFFFF')
-  const [showColorPicker, setShowColorPicker] = useState(false)
-  const [showBgColorPicker, setShowBgColorPicker] = useState(false)
-  const [showSpotlightColorPicker, setShowSpotlightColorPicker] = useState(false)
-  const [showFontColorPicker, setShowFontColorPicker] = useState(false)
-  const [presetColors] = useState([
-    '#007AFF', // Default blue
-    '#FF2D55', // Red
-    '#5856D6', // Purple
-    '#FF9500', // Orange
-    '#34C759', // Green
-    '#AF52DE', // Magenta
-    '#000000', // Black
-    '#8E8E93'  // Gray
-  ])
-  const [presetBgColors] = useState([
-    '#000000', // Black
-    '#111111', // Dark gray
-    '#1A1A1A', // Charcoal
-    '#0A0A0A', // Near black
-    '#1E1E1E', // Dark mode
-    '#121212', // Spotify dark
-    '#191919', // Almost black
-    '#2D2D2D'  // Medium gray
-  ])
   const [companyName, setCompanyName] = useState('')
   const [companyLogoUrl, setCompanyLogoUrl] = useState('')
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -52,7 +24,6 @@ function CreateEventContent() {
   const [eventDate, setEventDate] = useState('')
   const [eventEndTime, setEventEndTime] = useState('')
   const [eventLocation, setEventLocation] = useState('')
-  const [eventLocationLink, setEventLocationLink] = useState('')
   const [error, setError] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
   const [userPlan, setUserPlan] = useState<{tier: string, eventsCreated: number | null} | null>(null)
@@ -121,15 +92,6 @@ function CreateEventContent() {
     return () => clearInterval(id)
   }, [titleExamples.length, companyExamples.length])
 
-  // Update CSS variables when colors change
-  useEffect(() => {
-    document.documentElement.style.setProperty('--company-color', backgroundColor)
-    document.documentElement.style.setProperty('--company-color-alpha', `${backgroundColor}33`)
-    document.documentElement.style.setProperty('--background', backgroundPageColor)
-    document.documentElement.style.setProperty('--spotlight-color', spotlightColor)
-    document.documentElement.style.setProperty('--spotlight-color-alpha', `${spotlightColor}33`)
-    document.documentElement.style.setProperty('--foreground', fontColor)
-  }, [backgroundColor, backgroundPageColor, spotlightColor, fontColor])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -174,37 +136,30 @@ function CreateEventContent() {
       const createMockEvent = () => {
         console.log('Creating mock event due to API failure')
         const mockAdminToken = 'mock-' + Math.random().toString(36).substring(2, 15)
-        return { 
-          event: { 
+        return {
+          event: {
             id: 'mock-' + Date.now(),
             admin_token: mockAdminToken,
             title: title.trim(),
             allow_plus_guests: allowPlusGuests,
-            background_color: backgroundColor,
             created_at: new Date().toISOString()
-          } 
+          }
         }
       }
 
       try {
         // Prepare the request body
-        // Only include color customization for paid accounts
         const requestBody: any = {
           title: title.trim(),
           allow_plus_guests: allowPlusGuests,
-          background_color: backgroundColor, // Default color always included
           auth_mode: 'open', // Default to open access mode
           event_date: eventDate || undefined,
           event_end_time: eventEndTime || undefined,
-          event_location: eventLocation || undefined,
-          event_location_link: eventLocationLink || undefined
+          event_location: eventLocation || undefined
         }
-        
-        // Only add advanced color customization for paid accounts
+
+        // Only add company branding for paid accounts
         if (canBrand && isAdmin) {
-          requestBody.page_background_color = backgroundPageColor
-          requestBody.spotlight_color = spotlightColor
-          requestBody.font_color = fontColor
           requestBody.company_name = companyName.trim() || undefined
           requestBody.company_logo_url = finalLogoUrl || undefined
         }
@@ -445,22 +400,6 @@ function CreateEventContent() {
                   />
                 </div>
 
-                <div className="space-y-3">
-                  <label htmlFor="eventLocationLink" className="block text-sm font-medium text-white/90">
-                    Location Map Link <span className="text-white/40">(optional)</span>
-                  </label>
-                  <input
-                    type="url"
-                    id="eventLocationLink"
-                    value={eventLocationLink}
-                    onChange={(e) => setEventLocationLink(e.target.value)}
-                    placeholder="Google Maps URL or address for navigation (leave empty to use display name)"
-                    className="modern-input w-full px-4 py-4 text-lg"
-                  />
-                  <p className="text-sm text-white/60">
-                    If different from display name, this is what opens in maps when guests click the location
-                  </p>
-                </div>
 
                 {/* Logo Upload Section */}
                 <div className="space-y-3">
@@ -632,335 +571,6 @@ function CreateEventContent() {
                     </div>
                   </div>
 
-                  {/* Color Customization Section - Only show for paid accounts */}
-                  {canBrand && isAdmin && (
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium text-white/90 mb-2">Appearance Customization</h3>
-                    </div>
-                    
-                    {/* Theme Color */}
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-white/90">Primary Theme Color</label>
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <input
-                            type="color"
-                            id="backgroundColor"
-                            value={backgroundColor}
-                            onChange={(e) => setBackgroundColor(e.target.value)}
-                            className="sr-only"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!canBrand && isAdmin) {
-                                router.push('/?upgrade=true&reason=branding#pricing')
-                                return
-                              }
-                              setShowColorPicker(!showColorPicker)
-                            }}
-                            className={`w-11 h-11 rounded-xl border-2 border-white/10 shadow-lg shadow-black/20 transition-all ${!canBrand && isAdmin ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
-                            style={{ backgroundColor }}
-                            aria-label="Select theme color"
-                            disabled={!canBrand && isAdmin}
-                          />
-                        </div>
-                        <input
-                          type="text"
-                          value={backgroundColor}
-                          onChange={(e) => {
-                            if (canBrand || !isAdmin) {
-                              setBackgroundColor(e.target.value)
-                            } else {
-                              router.push('/?upgrade=true&reason=branding#pricing')
-                            }
-                          }}
-                          className={`modern-input flex-1 px-4 py-3 font-mono text-sm uppercase ${!canBrand && isAdmin ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          maxLength={7}
-                          disabled={!canBrand && isAdmin}
-                        />
-                        
-                        {/* Color preview */}
-                        <div 
-                          className="w-11 h-11 rounded-xl border-2 border-white/10 flex items-center justify-center overflow-hidden"
-                          style={{ backgroundColor }}
-                        >
-                          <span className="text-xs font-bold" style={{ color: backgroundColor === '#000000' ? '#FFFFFF' : '#000000' }}>
-                            Aa
-                          </span>
-                        </div>
-                      </div>
-                      
-                      {/* Color picker panel */}
-                      {showColorPicker && (
-                        <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-xl animate-fadeIn">
-                          <div className="grid grid-cols-4 gap-3 mb-4">
-                            {presetColors.map((color) => (
-                              <button
-                                key={color}
-                                type="button"
-                                onClick={() => {
-                                  setBackgroundColor(color)
-                                  setShowColorPicker(false)
-                                }}
-                                className={`w-full aspect-square rounded-lg transition-transform hover:scale-110 ${backgroundColor === color ? 'ring-2 ring-white' : ''}`}
-                                style={{ backgroundColor: color }}
-                                aria-label={`Select color ${color}`}
-                              />
-                            ))}
-                          </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <label className="text-xs text-white/60">Custom:</label>
-                            <div className="relative flex-1">
-                              <input
-                                type="color"
-                                value={backgroundColor}
-                                onChange={(e) => setBackgroundColor(e.target.value)}
-                                className="w-full h-10 rounded-lg cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                          
-                          <p className="text-xs text-white/40 mt-3">
-                            Choose a color that represents your brand or event theme.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Background Color */}
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-white/90">Page Background Color</label>
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <input
-                            type="color"
-                            id="backgroundPageColor"
-                            value={backgroundPageColor}
-                            onChange={(e) => setBackgroundPageColor(e.target.value)}
-                            className="sr-only"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowBgColorPicker(!showBgColorPicker)}
-                            className="w-11 h-11 rounded-xl border-2 border-white/10 shadow-lg shadow-black/20 transition-all hover:scale-105"
-                            style={{ backgroundColor: backgroundPageColor }}
-                            aria-label="Select background color"
-                          />
-                        </div>
-                        <input
-                          type="text"
-                          value={backgroundPageColor}
-                          onChange={(e) => setBackgroundPageColor(e.target.value)}
-                          className="modern-input flex-1 px-4 py-3 font-mono text-sm uppercase"
-                          maxLength={7}
-                        />
-                      </div>
-                      
-                      {/* Background Color picker panel */}
-                      {showBgColorPicker && (
-                        <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-xl animate-fadeIn">
-                          <div className="grid grid-cols-4 gap-3 mb-4">
-                            {presetBgColors.map((color) => (
-                              <button
-                                key={color}
-                                type="button"
-                                onClick={() => {
-                                  setBackgroundPageColor(color)
-                                  setShowBgColorPicker(false)
-                                }}
-                                className={`w-full aspect-square rounded-lg transition-transform hover:scale-110 ${backgroundPageColor === color ? 'ring-2 ring-white' : ''}`}
-                                style={{ backgroundColor: color }}
-                                aria-label={`Select background color ${color}`}
-                              />
-                            ))}
-                          </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <label className="text-xs text-white/60">Custom:</label>
-                            <div className="relative flex-1">
-                              <input
-                                type="color"
-                                value={backgroundPageColor}
-                                onChange={(e) => setBackgroundPageColor(e.target.value)}
-                                className="w-full h-10 rounded-lg cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                          
-                          <p className="text-xs text-white/40 mt-3">
-                            Choose a dark color for the page background.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Spotlight Color */}
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-white/90">Spotlight Color</label>
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <input
-                            type="color"
-                            id="spotlightColor"
-                            value={spotlightColor}
-                            onChange={(e) => setSpotlightColor(e.target.value)}
-                            className="sr-only"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowSpotlightColorPicker(!showSpotlightColorPicker)}
-                            className="w-11 h-11 rounded-xl border-2 border-white/10 shadow-lg shadow-black/20 transition-all hover:scale-105"
-                            style={{ backgroundColor: spotlightColor }}
-                            aria-label="Select spotlight color"
-                          />
-                        </div>
-                        <input
-                          type="text"
-                          value={spotlightColor}
-                          onChange={(e) => setSpotlightColor(e.target.value)}
-                          className="modern-input flex-1 px-4 py-3 font-mono text-sm uppercase"
-                          maxLength={7}
-                        />
-                      </div>
-                      
-                      {/* Spotlight Color picker panel */}
-                      {showSpotlightColorPicker && (
-                        <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-xl animate-fadeIn">
-                          <div className="grid grid-cols-4 gap-3 mb-4">
-                            {presetColors.map((color) => (
-                              <button
-                                key={color}
-                                type="button"
-                                onClick={() => {
-                                  setSpotlightColor(color)
-                                  setShowSpotlightColorPicker(false)
-                                }}
-                                className={`w-full aspect-square rounded-lg transition-transform hover:scale-110 ${spotlightColor === color ? 'ring-2 ring-white' : ''}`}
-                                style={{ backgroundColor: color }}
-                                aria-label={`Select spotlight color ${color}`}
-                              />
-                            ))}
-                          </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <label className="text-xs text-white/60">Custom:</label>
-                            <div className="relative flex-1">
-                              <input
-                                type="color"
-                                value={spotlightColor}
-                                onChange={(e) => setSpotlightColor(e.target.value)}
-                                className="w-full h-10 rounded-lg cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                          
-                          <p className="text-xs text-white/40 mt-3">
-                            Choose a color for the animated spotlight effect.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Font Color */}
-                    <div className="space-y-3">
-                      <label className="block text-sm font-medium text-white/90">Font Color</label>
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <input
-                            type="color"
-                            id="fontColor"
-                            value={fontColor}
-                            onChange={(e) => setFontColor(e.target.value)}
-                            className="sr-only"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowFontColorPicker(!showFontColorPicker)}
-                            className="w-11 h-11 rounded-xl border-2 border-white/10 shadow-lg shadow-black/20 transition-all hover:scale-105"
-                            style={{ backgroundColor: fontColor }}
-                            aria-label="Select font color"
-                          />
-                        </div>
-                        <input
-                          type="text"
-                          value={fontColor}
-                          onChange={(e) => setFontColor(e.target.value)}
-                          className="modern-input flex-1 px-4 py-3 font-mono text-sm uppercase"
-                          maxLength={7}
-                        />
-                      </div>
-                      
-                      {/* Font Color picker panel */}
-                      {showFontColorPicker && (
-                        <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-xl animate-fadeIn">
-                          <div className="grid grid-cols-4 gap-3 mb-4">
-                            {['#FFFFFF', '#F2F2F7', '#E5E5EA', '#D1D1D6', '#C7C7CC', '#AEAEB2', '#8E8E93', '#F0F0F0'].map((color) => (
-                              <button
-                                key={color}
-                                type="button"
-                                onClick={() => {
-                                  setFontColor(color)
-                                  setShowFontColorPicker(false)
-                                }}
-                                className={`w-full aspect-square rounded-lg transition-transform hover:scale-110 ${fontColor === color ? 'ring-2 ring-white' : ''}`}
-                                style={{ backgroundColor: color }}
-                                aria-label={`Select font color ${color}`}
-                              />
-                            ))}
-                          </div>
-                          
-                          <div className="flex items-center gap-3">
-                            <label className="text-xs text-white/60">Custom:</label>
-                            <div className="relative flex-1">
-                              <input
-                                type="color"
-                                value={fontColor}
-                                onChange={(e) => setFontColor(e.target.value)}
-                                className="w-full h-10 rounded-lg cursor-pointer"
-                              />
-                            </div>
-                          </div>
-                          
-                          <p className="text-xs text-white/40 mt-3">
-                            Choose a color for the text. Light colors work best on dark backgrounds.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Live preview */}
-                    <div className="mt-6 rounded-xl overflow-hidden border border-white/10">
-                      <div className="text-xs text-white/60 px-3 py-2 bg-black/30">Preview:</div>
-                      <div className="relative overflow-hidden" style={{ backgroundColor: backgroundPageColor }}>
-                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 to-transparent opacity-70"></div>
-                        <div className="h-24 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${backgroundColor} 0%, ${backgroundColor}88 100%)` }}>
-                          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 to-transparent opacity-70"></div>
-                          <div className="relative z-10 h-full flex items-center justify-center">
-                            <div className="text-center">
-                              <h3 className="font-semibold text-shadow-sm" style={{ color: fontColor }}>{title || 'Your Event Title'}</h3>
-                              {companyName && (
-                                <div className="text-xs text-shadow-sm" style={{ color: `${fontColor}CC` }}>{companyName}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="h-16 relative">
-                          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))]" style={{ 
-                            background: `radial-gradient(circle at center, ${spotlightColor}33 0%, transparent 70%)`
-                          }}></div>
-                          <div className="relative z-10 h-full flex items-center justify-center">
-                            <div className="text-center text-xs" style={{ color: fontColor }}>
-                              Spotlight effect preview
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  )}
                 </div>
               </div>
 
