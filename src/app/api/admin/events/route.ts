@@ -38,21 +38,46 @@ export async function GET(request: NextRequest) {
     console.log('Fetching events for admin user ID:', userId);
 
     // Use the RPC function to get user's events (including team events)
-    const { data: events, error } = await supabase
+    // This returns event IDs and permissions, not full event data
+    const { data: eventPermissions, error } = await supabase
       .rpc('get_user_events', { p_user_id: userId })
 
-    const typedEvents: Event[] = events || [];
-
     let filteredEvents: Event[] = [];
-    if (typedEvents) {
-      // Filter by archived status and add permission info
-      filteredEvents = typedEvents
-        .filter(event => event.archived === includeArchived)
-        .map(event => ({
-          ...event,
-          permissions: event.permissions || { can_edit: true, can_view_analytics: true, can_export_data: true, can_send_communications: true }
-        }))
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    if (eventPermissions && eventPermissions.length > 0) {
+      // Extract event IDs from the RPC results
+      const eventIds = eventPermissions.map(ep => ep.id);
+
+      // Fetch full event data for these IDs
+      const { data: fullEvents, error: eventsError } = await supabase
+        .from('events')
+        .select(`
+          id, title, allow_plus_guests, background_color, page_background_color,
+          spotlight_color, font_color, admin_token, company_name, company_logo_url,
+          info_pdf_url, open_invite, auth_mode, promo_code, promo_codes,
+          contact_name, contact_email, contact_phone, event_date, event_end_time,
+          event_location, required_rsvp_fields, ticket_price, currency,
+          payment_required, created_at, updated_at, user_id, archived,
+          created_by_admin_id, original_created_at
+        `)
+        .in('id', eventIds)
+        .eq('archived', includeArchived)
+        .order('created_at', { ascending: false });
+
+      if (eventsError) {
+        console.error('Error fetching full event data:', eventsError);
+        return NextResponse.json({ error: 'Failed to fetch event details: ' + eventsError.message }, { status: 500 });
+      }
+
+      if (fullEvents) {
+        // Merge permissions from RPC results with full event data
+        filteredEvents = fullEvents.map(event => {
+          const permissionData = eventPermissions.find(ep => ep.id === event.id);
+          return {
+            ...event,
+            permissions: permissionData?.permissions || { can_edit: true, can_view_analytics: true, can_export_data: true, can_send_communications: true }
+          };
+        });
+      }
     }
 
     // Generate admin tokens for events that don't have them
@@ -104,47 +129,48 @@ export async function GET(request: NextRequest) {
         const eventIds = accessRecords.map(record => record.event_id);
         console.log(`Found ${eventIds.length} event access records, fetching events`);
         
-        // Then fetch those events
+        // Then fetch those events with full event data
         const { data: accessEvents, error: eventsError } = await supabase
           .from('events')
           .select(`
-            id, 
-            title, 
-            created_at,
-            admin_token,
-            created_by_admin_id,
-            archived,
-            original_created_at
+            id, title, allow_plus_guests, background_color, page_background_color,
+            spotlight_color, font_color, admin_token, company_name, company_logo_url,
+            info_pdf_url, open_invite, auth_mode, promo_code, promo_codes,
+            contact_name, contact_email, contact_phone, event_date, event_end_time,
+            event_location, required_rsvp_fields, ticket_price, currency,
+            payment_required, created_at, updated_at, user_id, archived,
+            created_by_admin_id, original_created_at
           `)
           .in('id', eventIds)
           .eq('archived', includeArchived) // Only show non-archived events
           .order('created_at', { ascending: false });
-          
+
         if (!eventsError && accessEvents && accessEvents.length > 0) {
           console.log(`Found ${accessEvents.length} events through access records`);
-          
+
           // Generate admin tokens for events that don't have them
           for (const event of accessEvents) {
             if (!event.admin_token) {
-              const adminToken = Math.random().toString(36).substring(2, 15) + 
+              const adminToken = Math.random().toString(36).substring(2, 15) +
                                Math.random().toString(36).substring(2, 15) +
                                Math.random().toString(36).substring(2, 8);
-              
+
               const { error: updateError } = await supabase
                 .from('events')
                 .update({ admin_token: adminToken })
                 .eq('id', event.id);
-                
+
               if (!updateError) {
                 event.admin_token = adminToken;
               }
             }
           }
-          
-          return NextResponse.json({ 
+
+          return NextResponse.json({
             events: accessEvents.map(event => ({
               ...event,
               attendee_count: 0, // We'll skip attendee count for simplicity in this fallback
+              permissions: { can_edit: false, can_view_analytics: true, can_export_data: false, can_send_communications: false }, // Limited permissions for collaborators
               access_type: 'collaborator'
             })),
             note: 'Events shown are those you have access to, but did not create'
@@ -165,14 +191,13 @@ export async function GET(request: NextRequest) {
         const { data: emailEvents, error: emailError } = await supabase
           .from('events')
           .select(`
-            id, 
-            title, 
-            created_at,
-            admin_token,
-            created_by_admin_id,
-            contact_email,
-            archived,
-            original_created_at
+            id, title, allow_plus_guests, background_color, page_background_color,
+            spotlight_color, font_color, admin_token, company_name, company_logo_url,
+            info_pdf_url, open_invite, auth_mode, promo_code, promo_codes,
+            contact_name, contact_email, contact_phone, event_date, event_end_time,
+            event_location, required_rsvp_fields, ticket_price, currency,
+            payment_required, created_at, updated_at, user_id, archived,
+            created_by_admin_id, original_created_at
           `)
           .eq('contact_email', adminData.email)
           .eq('archived', includeArchived) // Only show non-archived events
@@ -206,10 +231,11 @@ export async function GET(request: NextRequest) {
             }
           }
           
-          return NextResponse.json({ 
+          return NextResponse.json({
             events: emailEvents.map(event => ({
               ...event,
               attendee_count: 0, // We'll skip attendee count for simplicity
+              permissions: { can_edit: true, can_view_analytics: true, can_export_data: true, can_send_communications: true }, // Full permissions for auto-associated events
               auto_associated: true
             })),
             note: 'Events have been automatically associated with your account based on email'
