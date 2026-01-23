@@ -20,6 +20,7 @@ export interface Event {
   event_date?: string | null
   event_end_time?: string | null
   event_location?: string | null
+  event_location_link?: string | null
   required_rsvp_fields?: {
     email?: boolean
     phone?: boolean
@@ -75,6 +76,7 @@ export interface CreateEventData {
   event_date?: string
   event_end_time?: string
   event_location?: string
+  event_location_link?: string
   ticket_price?: number
   currency?: string
   payment_required?: boolean
@@ -104,7 +106,7 @@ export interface User {
   email: string
   first_name?: string
   last_name?: string
-  subscription_tier: 'free' | 'basic' | 'pro' | 'enterprise'
+  subscription_tier: 'free' | 'basic' | 'pro' | 'enterprise' | 'team'
   stripe_customer_id?: string
   stripe_subscription_id?: string
   subscription_status?: 'active' | 'trialing' | 'past_due' | 'canceled' | 'incomplete' | 'incomplete_expired'

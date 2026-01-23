@@ -4,10 +4,11 @@ import { useState, useEffect } from 'react'
 
 interface LocationMapLinkProps {
   location: string
+  locationLink?: string
   className?: string
 }
 
-export default function LocationMapLink({ location, className = '' }: LocationMapLinkProps) {
+export default function LocationMapLink({ location, locationLink, className = '' }: LocationMapLinkProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [showMapOptions, setShowMapOptions] = useState(false)
 
@@ -23,21 +24,24 @@ export default function LocationMapLink({ location, className = '' }: LocationMa
   }, [])
 
   const openGoogleMaps = () => {
-    const encodedLocation = encodeURIComponent(location)
+    const mapQuery = locationLink || location
+    const encodedLocation = encodeURIComponent(mapQuery)
     // Universal URL that works on all platforms and opens native app when available
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodedLocation}`, '_blank')
     setShowMapOptions(false)
   }
 
   const openAppleMaps = () => {
-    const encodedLocation = encodeURIComponent(location)
+    const mapQuery = locationLink || location
+    const encodedLocation = encodeURIComponent(mapQuery)
     // maps.apple.com automatically opens native app on iOS, web on other platforms
     window.open(`https://maps.apple.com/?q=${encodedLocation}`, '_blank')
     setShowMapOptions(false)
   }
 
   const openWaze = () => {
-    const encodedLocation = encodeURIComponent(location)
+    const mapQuery = locationLink || location
+    const encodedLocation = encodeURIComponent(mapQuery)
     // Universal URL - mobile browsers will prompt to open native app if installed
     window.open(`https://waze.com/ul?q=${encodedLocation}`, '_blank')
     setShowMapOptions(false)

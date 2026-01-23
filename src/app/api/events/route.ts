@@ -162,6 +162,7 @@ export async function POST(request: NextRequest) {
         if (body.event_date) eventData.event_date = body.event_date;
         if (body.event_end_time) eventData.event_end_time = body.event_end_time;
         if (body.event_location) eventData.event_location = body.event_location;
+        if (body.event_location_link) eventData.event_location_link = body.event_location_link;
         // Payment fields
         if (body.ticket_price !== undefined) eventData.ticket_price = body.ticket_price || null;
         if (body.currency !== undefined) eventData.currency = body.currency || 'usd';

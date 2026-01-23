@@ -48,6 +48,16 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     allowsAdvancedAnalytics: true,
     allowsExportToCSV: true,
     overageFeePerGuest: 0.05,
+  },
+  team: {
+    maxEvents: 999999, // Effectively unlimited - inherits from admin
+    maxAttendeesPerEvent: Infinity, // Unlimited - inherits from admin
+    maxTotalAttendees: undefined, // No total limit
+    allowsMultipleEvents: true,
+    allowsCustomBranding: true, // Inherits from admin permissions
+    allowsAdvancedAnalytics: true, // Inherits from admin permissions
+    allowsExportToCSV: true,
+    overageFeePerGuest: 0.05,
   }
 };
 
@@ -90,13 +100,15 @@ export function hasFeature(feature: keyof PlanLimits, subscriptionTier: string =
 // Get a friendly display message about the limit
 export function getLimitMessage(subscriptionTier: string = 'free'): string {
   const limits = getPlanLimits(subscriptionTier);
-  
+
   if (subscriptionTier === 'free') {
     return `Free plan: Limited to ${limits.maxEvents} event with up to ${limits.maxAttendeesPerEvent} attendees.`;
   } else if (subscriptionTier === 'basic') {
     return `Basic plan: Up to ${limits.maxEvents} events with ${limits.maxAttendeesPerEvent} attendees each. $0.05 per guest over limit.`;
   } else if (subscriptionTier === 'pro') {
     return `Pro plan: Up to ${limits.maxEvents} events with ${limits.maxAttendeesPerEvent} attendees each. $0.05 per guest over limit.`;
+  } else if (subscriptionTier === 'team') {
+    return `Team account: Inherits full access from your organization administrator.`;
   } else {
     return `Enterprise plan: Unlimited events with unlimited attendees each.`;
   }

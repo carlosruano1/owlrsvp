@@ -12,6 +12,7 @@ interface TeamInvitationWithMember {
     role: string
     status: string
     owner_id: string
+    owner_subscription_tier: string
     admin_users: {
       username: string
       email: string
@@ -29,6 +30,11 @@ interface TeamInvitationSimple {
     email: string
     role: string
     owner_id: string
+    owner_subscription_tier: string
+    admin_users: {
+      username: string
+      email: string
+    }[]
   }
 }
 
@@ -54,6 +60,7 @@ export async function GET(request: NextRequest) {
           role,
           status,
           owner_id,
+          owner_subscription_tier,
           admin_users!team_members_owner_id_fkey (
             username,
             email
@@ -88,6 +95,7 @@ export async function GET(request: NextRequest) {
         email: invitation.team_members.email,
         role: invitation.team_members.role,
         inviter: invitation.team_members.admin_users,
+        admin_tier: invitation.team_members.owner_subscription_tier,
         expires_at: invitation.expires_at
       },
       user_exists: !!existingUser,

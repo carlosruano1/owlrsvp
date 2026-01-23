@@ -52,6 +52,7 @@ function CreateEventContent() {
   const [eventDate, setEventDate] = useState('')
   const [eventEndTime, setEventEndTime] = useState('')
   const [eventLocation, setEventLocation] = useState('')
+  const [eventLocationLink, setEventLocationLink] = useState('')
   const [error, setError] = useState('')
   const [isAdmin, setIsAdmin] = useState(false)
   const [userPlan, setUserPlan] = useState<{tier: string, eventsCreated: number | null} | null>(null)
@@ -195,7 +196,8 @@ function CreateEventContent() {
           auth_mode: 'open', // Default to open access mode
           event_date: eventDate || undefined,
           event_end_time: eventEndTime || undefined,
-          event_location: eventLocation || undefined
+          event_location: eventLocation || undefined,
+          event_location_link: eventLocationLink || undefined
         }
         
         // Only add advanced color customization for paid accounts
@@ -431,16 +433,33 @@ function CreateEventContent() {
                 
                 <div className="space-y-3">
                   <label htmlFor="eventLocation" className="block text-sm font-medium text-white/90">
-                    Event Location <span className="text-white/40">(optional)</span>
+                    Event Location Display Name <span className="text-white/40">(optional)</span>
                   </label>
                   <input
                     type="text"
                     id="eventLocation"
                     value={eventLocation}
                     onChange={(e) => setEventLocation(e.target.value)}
-                    placeholder="Location or address"
+                    placeholder="What guests will see (e.g., 'My House', 'Downtown Venue')"
                     className="modern-input w-full px-4 py-4 text-lg"
                   />
+                </div>
+
+                <div className="space-y-3">
+                  <label htmlFor="eventLocationLink" className="block text-sm font-medium text-white/90">
+                    Location Map Link <span className="text-white/40">(optional)</span>
+                  </label>
+                  <input
+                    type="url"
+                    id="eventLocationLink"
+                    value={eventLocationLink}
+                    onChange={(e) => setEventLocationLink(e.target.value)}
+                    placeholder="Google Maps URL or address for navigation (leave empty to use display name)"
+                    className="modern-input w-full px-4 py-4 text-lg"
+                  />
+                  <p className="text-sm text-white/60">
+                    If different from display name, this is what opens in maps when guests click the location
+                  </p>
                 </div>
 
                 {/* Logo Upload Section */}

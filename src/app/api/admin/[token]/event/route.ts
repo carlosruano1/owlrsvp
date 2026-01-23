@@ -175,6 +175,10 @@ export async function PATCH(
     if (body.event_location !== undefined) {
       updates.event_location = body.event_location || null
     }
+
+    if (body.event_location_link !== undefined) {
+      updates.event_location_link = body.event_location_link || null
+    }
     
     // Check if user has custom branding feature for branding-related updates
     const sessionCookie = request.cookies.get('admin_session')?.value

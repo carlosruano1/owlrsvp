@@ -45,20 +45,20 @@ export async function GET(request: NextRequest) {
     let filteredEvents: Event[] = [];
     if (eventPermissions && eventPermissions.length > 0) {
       // Extract event IDs from the RPC results
-      const eventIds = eventPermissions.map(ep => ep.id);
+      const eventIds = eventPermissions.map((ep: { id: string }) => ep.id);
 
       // Fetch full event data for these IDs
-      const { data: fullEvents, error: eventsError } = await supabase
-        .from('events')
-        .select(`
-          id, title, allow_plus_guests, background_color, page_background_color,
-          spotlight_color, font_color, admin_token, company_name, company_logo_url,
-          info_pdf_url, open_invite, auth_mode, promo_code, promo_codes,
-          contact_name, contact_email, contact_phone, event_date, event_end_time,
-          event_location, required_rsvp_fields, ticket_price, currency,
-          payment_required, created_at, updated_at, user_id, archived,
-          created_by_admin_id, original_created_at
-        `)
+        const { data: fullEvents, error: eventsError } = await supabase
+          .from('events')
+          .select(`
+            id, title, allow_plus_guests, background_color, page_background_color,
+            spotlight_color, font_color, admin_token, company_name, company_logo_url,
+            info_pdf_url, open_invite, auth_mode, promo_code, promo_codes,
+            contact_name, contact_email, contact_phone, event_date, event_end_time,
+            event_location, required_rsvp_fields, ticket_price, currency,
+            payment_required, created_at, updated_at, archived,
+            created_by_admin_id, original_created_at
+          `)
         .in('id', eventIds)
         .eq('archived', includeArchived)
         .order('created_at', { ascending: false });
@@ -71,9 +71,10 @@ export async function GET(request: NextRequest) {
       if (fullEvents) {
         // Merge permissions from RPC results with full event data
         filteredEvents = fullEvents.map(event => {
-          const permissionData = eventPermissions.find(ep => ep.id === event.id);
+          const permissionData = eventPermissions.find((ep: { id: string }) => ep.id === event.id);
           return {
             ...event,
+            user_id: event.created_by_admin_id, // Map created_by_admin_id to user_id for interface compatibility
             permissions: permissionData?.permissions || { can_edit: true, can_view_analytics: true, can_export_data: true, can_send_communications: true }
           };
         });
@@ -138,7 +139,7 @@ export async function GET(request: NextRequest) {
             info_pdf_url, open_invite, auth_mode, promo_code, promo_codes,
             contact_name, contact_email, contact_phone, event_date, event_end_time,
             event_location, required_rsvp_fields, ticket_price, currency,
-            payment_required, created_at, updated_at, user_id, archived,
+            payment_required, created_at, updated_at, archived,
             created_by_admin_id, original_created_at
           `)
           .in('id', eventIds)
@@ -169,6 +170,7 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({
             events: accessEvents.map(event => ({
               ...event,
+              user_id: event.created_by_admin_id, // Map created_by_admin_id to user_id
               attendee_count: 0, // We'll skip attendee count for simplicity in this fallback
               permissions: { can_edit: false, can_view_analytics: true, can_export_data: false, can_send_communications: false }, // Limited permissions for collaborators
               access_type: 'collaborator'
@@ -196,7 +198,7 @@ export async function GET(request: NextRequest) {
             info_pdf_url, open_invite, auth_mode, promo_code, promo_codes,
             contact_name, contact_email, contact_phone, event_date, event_end_time,
             event_location, required_rsvp_fields, ticket_price, currency,
-            payment_required, created_at, updated_at, user_id, archived,
+            payment_required, created_at, updated_at, archived,
             created_by_admin_id, original_created_at
           `)
           .eq('contact_email', adminData.email)
@@ -234,6 +236,7 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({
             events: emailEvents.map(event => ({
               ...event,
+              user_id: event.created_by_admin_id, // Map created_by_admin_id to user_id
               attendee_count: 0, // We'll skip attendee count for simplicity
               permissions: { can_edit: true, can_view_analytics: true, can_export_data: true, can_send_communications: true }, // Full permissions for auto-associated events
               auto_associated: true

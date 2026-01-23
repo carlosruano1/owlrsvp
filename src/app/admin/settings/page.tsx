@@ -456,6 +456,12 @@ export default function AdminSettings() {
     e.preventDefault()
     if (!permissionsForm) return
 
+    // Validate that event ID is selected
+    if (!permissionsForm.eventId || permissionsForm.eventId.trim() === '') {
+      setError('Please select an event to grant access to.')
+      return
+    }
+
     setSettingPermissions(true)
     setError('')
 
@@ -464,7 +470,11 @@ export default function AdminSettings() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(permissionsForm)
+        body: JSON.stringify({
+          team_member_email: permissionsForm.teamMemberEmail,
+          event_id: permissionsForm.eventId,
+          permissions: permissionsForm.permissions
+        })
       })
 
       const data = await response.json()

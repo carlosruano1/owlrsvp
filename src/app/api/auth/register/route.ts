@@ -2,6 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminUser } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 
+interface TeamInvitation {
+  id: string
+  team_member_id: string
+  expires_at: string
+  used: boolean
+  team_members: {
+    id: string
+    email: string
+    role: string
+    owner_id: string
+    owner_subscription_tier: string
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('Register API called');
@@ -86,15 +100,25 @@ export async function POST(request: NextRequest) {
               id,
               email,
               role,
-              owner_id
+              owner_id,
+              owner_subscription_tier
             )
           `)
           .eq('invitation_token', invitation_token)
           .eq('used', false)
           .gt('expires_at', new Date().toISOString())
-          .single()
+          .single() as { data: TeamInvitation | null, error: any }
 
         if (invitation && !invitationError) {
+          // Set user subscription tier to 'team'
+          await supabaseAdmin
+            .from('admin_users')
+            .update({
+              subscription_tier: 'team',
+              subscription_status: 'active'
+            })
+            .eq('email', email)
+
           // Mark invitation as used
           await supabaseAdmin
             .from('team_invitations')
@@ -110,7 +134,7 @@ export async function POST(request: NextRequest) {
             })
             .eq('id', invitation.team_member_id)
 
-          console.log('Team invitation accepted automatically for:', email);
+          console.log('Team invitation accepted automatically for:', email, 'with tier:', invitation.team_members.owner_subscription_tier);
         }
       } catch (invitationError) {
         console.error('Error processing team invitation:', invitationError);

@@ -67,6 +67,7 @@ function AdminDashboardContent() {
     event_date: string;
     event_end_time: string;
     event_location: string;
+    event_location_link: string;
     company_name: string;
     company_logo_url: string;
   }>({
@@ -74,6 +75,7 @@ function AdminDashboardContent() {
     event_date: '',
     event_end_time: '',
     event_location: '',
+    event_location_link: '',
     company_name: '',
     company_logo_url: ''
   })
@@ -922,6 +924,7 @@ function AdminDashboardContent() {
           event_date: formatDateForInput(result.event.event_date),
           event_end_time: formatDateForInput(result.event.event_end_time),
           event_location: result.event.event_location || '',
+          event_location_link: result.event.event_location_link || '',
           company_name: result.event.company_name || '',
           company_logo_url: result.event.company_logo_url || ''
         })
@@ -1690,6 +1693,7 @@ function AdminDashboardContent() {
                       event_date: eventDetailsForm.event_date ? formatDateForDatabase(eventDetailsForm.event_date) : undefined,
                       event_end_time: eventDetailsForm.event_end_time ? formatDateForDatabase(eventDetailsForm.event_end_time) : undefined,
                       event_location: eventDetailsForm.event_location || undefined,
+                      event_location_link: eventDetailsForm.event_location_link || undefined,
                     };
                     
                     // Only include branding fields if user has access
@@ -1764,7 +1768,24 @@ function AdminDashboardContent() {
                       className="modern-input w-full px-4 py-3"
                     />
                   </div>
-                  
+
+                  {/* Event Location Link */}
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">
+                      Location Map Link
+                    </label>
+                    <input
+                      type="url"
+                      value={eventDetailsForm.event_location_link}
+                      onChange={(e) => setEventDetailsForm({...eventDetailsForm, event_location_link: e.target.value})}
+                      placeholder="Google Maps URL or address for navigation (leave empty to use display name)"
+                      className="modern-input w-full px-4 py-3"
+                    />
+                    <p className="text-xs text-white/60 mt-1">
+                      If different from display name, this is what opens in maps when guests click the location
+                    </p>
+                  </div>
+
                   {/* Company Name */}
                   <div>
                     <label className="block text-sm font-medium text-white/80 mb-2">
@@ -1998,6 +2019,7 @@ function AdminDashboardContent() {
                             event_date: formatDateForInput(data.event.event_date),
                             event_end_time: formatDateForInput(data.event.event_end_time),
                             event_location: data.event.event_location || '',
+                            event_location_link: data.event.event_location_link || '',
                             company_name: data.event.company_name || '',
                             company_logo_url: data.event.company_logo_url || ''
                           });
@@ -2056,7 +2078,14 @@ function AdminDashboardContent() {
                           </svg>
                           <span className="text-sm font-medium text-white/60">Location</span>
                         </div>
-                        <p className="text-white/90">{data?.event.event_location || 'Not set'}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-white/90">{data?.event.event_location || 'Not set'}</p>
+                          {data?.event.event_location_link && (
+                            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full">
+                              Map Link
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     

@@ -9,6 +9,7 @@ CREATE TABLE team_members (
   email VARCHAR(255) NOT NULL,
   role VARCHAR(50) NOT NULL DEFAULT 'member', -- 'admin', 'editor', 'viewer'
   status VARCHAR(50) NOT NULL DEFAULT 'invited', -- 'invited', 'active', 'inactive'
+  owner_subscription_tier VARCHAR(50) NOT NULL DEFAULT 'free', -- Store admin's tier at invitation time
   invited_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   joined_at TIMESTAMP WITH TIME ZONE,
   last_login_at TIMESTAMP WITH TIME ZONE,
@@ -116,14 +117,15 @@ CREATE OR REPLACE FUNCTION invite_team_member(
 DECLARE
   v_team_member_id UUID;
   v_invitation_token VARCHAR(255);
+  v_owner_tier VARCHAR(50);
 BEGIN
+  -- Get owner's current subscription tier
+  SELECT subscription_tier INTO v_owner_tier
+  FROM admin_users
+  WHERE id = p_owner_id;
+
   -- Check if owner has pro or enterprise subscription
-  IF NOT EXISTS (
-    SELECT 1 FROM admin_users
-    WHERE id = p_owner_id
-    AND subscription_tier IN ('pro', 'enterprise')
-    AND subscription_status = 'active'
-  ) THEN
+  IF v_owner_tier NOT IN ('pro', 'enterprise') THEN
     RAISE EXCEPTION 'Team management requires a Pro or Enterprise subscription';
   END IF;
 
@@ -143,8 +145,8 @@ BEGIN
   END IF;
 
   -- Create team member record
-  INSERT INTO team_members (owner_id, email, role, status)
-  VALUES (p_owner_id, p_email, p_role, 'invited')
+  INSERT INTO team_members (owner_id, email, role, status, owner_subscription_tier)
+  VALUES (p_owner_id, p_email, p_role, 'invited', v_owner_tier)
   RETURNING id INTO v_team_member_id;
 
   -- Generate invitation token
@@ -278,8 +280,8 @@ DROP FUNCTION IF EXISTS get_user_events(uuid);
 CREATE FUNCTION get_user_events(p_user_id UUID)
 RETURNS TABLE (
   id UUID,
-  title VARCHAR(255),
-  admin_token VARCHAR(255),
+  title TEXT,
+  admin_token TEXT,
   created_by_admin_id UUID,
   archived BOOLEAN,
   created_at TIMESTAMP WITH TIME ZONE,

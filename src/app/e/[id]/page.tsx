@@ -641,7 +641,10 @@ function EventRSVPContent() {
             {/* Event location */}
             {event?.event_location && (
               <div className="text-lg apple-subtitle mt-3">
-                <LocationMapLink location={event.event_location} />
+                <LocationMapLink
+                  location={event.event_location}
+                  locationLink={event.event_location_link || undefined}
+                />
               </div>
             )}
             

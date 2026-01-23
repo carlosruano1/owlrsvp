@@ -14,6 +14,7 @@ interface InvitationData {
       username: string
       email: string
     }
+    admin_tier: string
     expires_at: string
   }
   user_exists: boolean
@@ -203,9 +204,15 @@ function RegisterTeamContent() {
                 </svg>
                 <span className="text-blue-200 font-medium">Team Invitation</span>
               </div>
-              <p className="text-white/80 text-sm">
+              <p className="text-white/80 text-sm mb-2">
                 <strong>{invitationData.invitation.inviter.username}</strong> invited you to join their team as <strong>{invitationData.invitation.role}</strong>
               </p>
+              <div className="flex items-center gap-2 text-green-400 text-sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>You'll get full access to {invitationData.invitation.admin_tier} features!</span>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6" noValidate>
