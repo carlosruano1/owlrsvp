@@ -2,6 +2,36 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { validateSession } from '@/lib/auth'
 
+interface TeamInvitationWithMember {
+  id: string
+  expires_at: string
+  used: boolean
+  team_members: {
+    id: string
+    email: string
+    role: string
+    status: string
+    owner_id: string
+    admin_users: {
+      username: string
+      email: string
+    }[]
+  }
+}
+
+interface TeamInvitationSimple {
+  id: string
+  team_member_id: string
+  expires_at: string
+  used: boolean
+  team_members: {
+    id: string
+    email: string
+    role: string
+    owner_id: string
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -31,7 +61,7 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('invitation_token', token)
-      .single()
+      .single() as { data: TeamInvitationWithMember | null, error: any }
 
     if (invitationError || !invitation) {
       return NextResponse.json({ error: 'Invalid invitation token' }, { status: 400 })
@@ -108,7 +138,7 @@ export async function POST(request: NextRequest) {
       .eq('invitation_token', invitation_token)
       .eq('used', false)
       .gt('expires_at', new Date().toISOString())
-      .single()
+      .single() as { data: TeamInvitationSimple | null, error: any }
 
     if (invitationError || !invitation) {
       return NextResponse.json({ error: 'Invalid or expired invitation token' }, { status: 400 })

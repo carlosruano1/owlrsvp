@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase';
+import { Event } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,10 +41,12 @@ export async function GET(request: NextRequest) {
     const { data: events, error } = await supabase
       .rpc('get_user_events', { p_user_id: userId })
 
-    let filteredEvents = [];
-    if (events) {
+    const typedEvents: Event[] = events || [];
+
+    let filteredEvents: Event[] = [];
+    if (typedEvents) {
       // Filter by archived status and add permission info
-      filteredEvents = events
+      filteredEvents = typedEvents
         .filter(event => event.archived === includeArchived)
         .map(event => ({
           ...event,

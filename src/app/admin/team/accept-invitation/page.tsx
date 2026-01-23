@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
 
-export default function AcceptTeamInvitation() {
+function AcceptTeamInvitationContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'expired'>('loading')
   const [message, setMessage] = useState('')
   const [user, setUser] = useState<any>(null)
@@ -182,5 +182,13 @@ export default function AcceptTeamInvitation() {
       </div>
       <Footer />
     </div>
+  )
+}
+
+export default function AcceptTeamInvitation() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><div className="text-white">Loading...</div></div>}>
+      <AcceptTeamInvitationContent />
+    </Suspense>
   )
 }

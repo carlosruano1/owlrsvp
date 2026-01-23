@@ -32,6 +32,15 @@ export interface Event {
   created_at: string
   updated_at: string
   user_id?: string | null
+  // Admin/Team management fields
+  archived?: boolean
+  created_by_admin_id?: string
+  permissions?: {
+    can_edit: boolean
+    can_view_analytics: boolean
+    can_export_data: boolean
+    can_send_communications: boolean
+  }
 }
 
 export interface Attendee {

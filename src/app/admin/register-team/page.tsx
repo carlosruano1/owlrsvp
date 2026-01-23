@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
@@ -20,7 +20,7 @@ interface InvitationData {
   user_verified: boolean
 }
 
-export default function RegisterTeam() {
+function RegisterTeamContent() {
   const [invitationData, setInvitationData] = useState<InvitationData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -347,5 +347,13 @@ export default function RegisterTeam() {
       </div>
       <Footer />
     </div>
+  )
+}
+
+export default function RegisterTeam() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><div className="text-white">Loading...</div></div>}>
+      <RegisterTeamContent />
+    </Suspense>
   )
 }

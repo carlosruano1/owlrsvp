@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requestPasswordReset, requestPasswordResetWithTOTP } from '@/lib/auth'
+import { requestPasswordReset, requestPasswordResetWithTOTP, requestPasswordResetForceEmail } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
