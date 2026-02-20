@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
 import AdminNavigation from '@/components/AdminNavigation'
+import AdminLoadingScreen from '@/components/AdminLoadingScreen'
 import { getPlanLimits } from '@/lib/plans'
 import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
 
@@ -62,6 +63,7 @@ export default function AdminSettings() {
   // Subscription tab state
   const [billingPortalLoading, setBillingPortalLoading] = useState(false)
   const [stripeConnectLoading, setStripeConnectLoading] = useState(false)
+  const [stripeDisconnectLoading, setStripeDisconnectLoading] = useState(false)
   const [stripeConnectStatus, setStripeConnectStatus] = useState<{
     connected: boolean
     status: string | null
@@ -429,6 +431,29 @@ export default function AdminSettings() {
     }
   }
 
+  const handleStripeDisconnect = async () => {
+    if (!confirm('Disconnect your Stripe account? You can reconnect anytime. Event payments will not work until you connect again.')) {
+      return
+    }
+    setStripeDisconnectLoading(true)
+    setError('')
+    try {
+      const response = await fetch('/api/stripe/connect/disconnect', { method: 'POST', credentials: 'include' })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to disconnect')
+      }
+      setStripeConnectStatus({ connected: false, status: null })
+      if (user) {
+        setUser({ ...user, stripe_account_id: undefined, stripe_account_status: undefined })
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect Stripe')
+    } finally {
+      setStripeDisconnectLoading(false)
+    }
+  }
+
   // Team tab handlers
   const handleInviteTeamMember = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -605,22 +630,12 @@ export default function AdminSettings() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
-        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
-          <div className="text-white/80 text-xl">Loading...</div>
-        </div>
-      </div>
-    )
+    return <AdminLoadingScreen />
   }
 
   if (!user) {
     return (
       <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
         <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
           <div className="text-center">
             <div className="text-red-400 text-xl mb-4">Access Denied</div>
@@ -678,8 +693,6 @@ export default function AdminSettings() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bind8-bg" />
-      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header */}
@@ -1263,6 +1276,18 @@ export default function AdminSettings() {
                             </button>
                           </div>
                         )}
+                        <div className="mt-3 pt-3 border-t border-white/10">
+                          <button
+                            onClick={handleStripeDisconnect}
+                            disabled={stripeDisconnectLoading}
+                            className="px-4 py-2 bg-red-500/20 border border-red-500/30 rounded-lg hover:bg-red-500/30 transition-all text-red-300 text-sm disabled:opacity-50"
+                          >
+                            {stripeDisconnectLoading ? 'Disconnecting...' : 'Disconnect Stripe Account'}
+                          </button>
+                          <p className="text-white/50 text-xs mt-1">
+                            Disconnect and reconnect if payments are failing (e.g. Stripe not recognizing event).
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>

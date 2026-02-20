@@ -101,8 +101,6 @@ export default function ForgotPassword() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bind8-bg" />
-      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           <div className="text-center mb-8 text-white text-glow">

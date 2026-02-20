@@ -13,6 +13,7 @@ import EventComparisonChart from '@/components/charts/EventComparisonChart'
 import GrowthTrendChart from '@/components/charts/GrowthTrendChart'
 import ResponseVelocityChart from '@/components/charts/ResponseVelocityChart'
 import EventComparisonDetail from '@/components/charts/EventComparisonDetail'
+import AdminLoadingScreen from '@/components/AdminLoadingScreen'
 
 interface EventAnalytics {
   eventId: string;
@@ -151,15 +152,7 @@ export default function EventAnalyticsPage() {
   }, [compareEventId, analytics])
 
   if (loading) {
-    return (
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
-        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
-          <div className="text-white/80 text-xl">Loading analytics data...</div>
-        </div>
-      </div>
-    )
+    return <AdminLoadingScreen />
   }
 
   if (error || !analytics) {
@@ -167,8 +160,6 @@ export default function EventAnalyticsPage() {
     
     return (
       <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
         <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6">
           {isUpgradeRequired ? (
             <>
@@ -221,8 +212,6 @@ export default function EventAnalyticsPage() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bind8-bg" />
-      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header */}

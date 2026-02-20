@@ -11,8 +11,12 @@ export default function EventAdminLayout({
   return (
     <>
       <AdminNavigation />
-      <div className="pt-16">
-        {children}
+      <div className="pt-16 min-h-screen relative">
+        <div className="absolute inset-0 bind8-bg" />
+        <div className="absolute inset-0 bind8-glow" />
+        <div className="relative z-10">
+          {children}
+        </div>
       </div>
       <ScrollToTop />
     </>

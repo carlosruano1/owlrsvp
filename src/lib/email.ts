@@ -59,7 +59,7 @@ export async function sendEmail({ to, subject, html, text }: EmailOptions) {
 
 export function generateVerificationEmail(username: string, verificationUrl: string) {
   const subject = 'Verify your OwlRSVP account'
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -84,16 +84,16 @@ export function generateVerificationEmail(username: string, verificationUrl: str
       <div class="content">
         <h2>Hi ${username}!</h2>
         <p>Thank you for creating an account with OwlRSVP. To get started creating beautiful RSVP pages for your events, please verify your email address.</p>
-        
+
         <div style="text-align: center;">
           <a href="${verificationUrl}" class="button">Verify Email Address</a>
         </div>
-        
+
         <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
         <p style="word-break: break-all; background: #e9ecef; padding: 10px; border-radius: 4px; font-family: monospace;">${verificationUrl}</p>
-        
+
         <p><strong>This link will expire in 24 hours.</strong></p>
-        
+
         <p>Once verified, you'll be able to:</p>
         <ul>
           <li>Create unlimited RSVP pages for your events</li>
@@ -101,7 +101,7 @@ export function generateVerificationEmail(username: string, verificationUrl: str
           <li>Customize your event pages with your branding</li>
           <li>Export attendee data to CSV</li>
         </ul>
-        
+
         <p>If you didn't create an account with OwlRSVP, you can safely ignore this email.</p>
       </div>
       <div class="footer">
@@ -111,36 +111,36 @@ export function generateVerificationEmail(username: string, verificationUrl: str
     </body>
     </html>
   `
-  
+
   const text = `
     Welcome to OwlRSVP!
-    
+
     Hi ${username},
-    
+
     Thank you for creating an account with OwlRSVP. To get started creating beautiful RSVP pages for your events, please verify your email address by clicking the link below:
-    
+
     ${verificationUrl}
-    
+
     This link will expire in 24 hours.
-    
+
     Once verified, you'll be able to:
     - Create unlimited RSVP pages for your events
     - Track attendance and manage guest lists
     - Customize your event pages with your branding
     - Export attendee data to CSV
-    
+
     If you didn't create an account with OwlRSVP, you can safely ignore this email.
-    
+
     Best regards,
     The OwlRSVP Team
   `
-  
+
   return { subject, html, text }
 }
 
 export function generatePasswordResetEmail(username: string, resetUrl: string) {
   const subject = 'Reset your OwlRSVP password'
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -166,20 +166,20 @@ export function generatePasswordResetEmail(username: string, resetUrl: string) {
       <div class="content">
         <h2>Hi ${username}!</h2>
         <p>We received a request to reset your OwlRSVP account password.</p>
-        
+
         <div style="text-align: center;">
           <a href="${resetUrl}" class="button">Reset Password</a>
         </div>
-        
+
         <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
         <p style="word-break: break-all; background: #e9ecef; padding: 10px; border-radius: 4px; font-family: monospace;">${resetUrl}</p>
-        
+
         <div class="warning">
           <strong>Important:</strong> This link will expire in 1 hour for security reasons.
         </div>
-        
+
         <p>If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
-        
+
         <p>For security reasons, we recommend:</p>
         <ul>
           <li>Using a strong, unique password</li>
@@ -194,31 +194,31 @@ export function generatePasswordResetEmail(username: string, resetUrl: string) {
     </body>
     </html>
   `
-  
+
   const text = `
     Password Reset Request - OwlRSVP
-    
+
     Hi ${username},
-    
+
     We received a request to reset your OwlRSVP account password.
-    
+
     To reset your password, click the link below:
     ${resetUrl}
-    
+
     This link will expire in 1 hour for security reasons.
-    
+
     If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
-    
+
     Best regards,
     The OwlRSVP Team
   `
-  
+
   return { subject, html, text }
 }
 
 export function generateMagicLinkEmail(username: string, magicLinkUrl: string) {
   const subject = 'Your OwlRSVP Magic Login Link'
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -244,18 +244,18 @@ export function generateMagicLinkEmail(username: string, magicLinkUrl: string) {
       <div class="content">
         <h2>Hi ${username}!</h2>
         <p>Here's your magic login link for OwlRSVP. Click the button below to sign in instantly - no password needed!</p>
-        
+
         <div style="text-align: center;">
           <a href="${magicLinkUrl}" class="button">Sign In Now</a>
         </div>
-        
+
         <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
         <p style="word-break: break-all; background: #e9ecef; padding: 10px; border-radius: 4px; font-family: monospace;">${magicLinkUrl}</p>
-        
+
         <div class="warning">
           <strong>Important:</strong> This link will expire in 1 hour for security reasons.
         </div>
-        
+
         <p>If you didn't request this login link, you can safely ignore this email.</p>
       </div>
       <div class="footer">
@@ -265,30 +265,30 @@ export function generateMagicLinkEmail(username: string, magicLinkUrl: string) {
     </body>
     </html>
   `
-  
+
   const text = `
     Your OwlRSVP Magic Login Link
-    
+
     Hi ${username},
-    
+
     Here's your magic login link for OwlRSVP. Click the link below to sign in instantly - no password needed!
-    
+
     ${magicLinkUrl}
-    
+
     This link will expire in 1 hour for security reasons.
-    
+
     If you didn't request this login link, you can safely ignore this email.
-    
+
     Best regards,
     The OwlRSVP Team
   `
-  
+
   return { subject, html, text }
 }
 
 export function generateEventAccessEmail(username: string, eventTitle: string, accessCode: string, eventUrl: string) {
   const subject = `Your Access Code for ${eventTitle}`
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -314,20 +314,20 @@ export function generateEventAccessEmail(username: string, eventTitle: string, a
       <div class="content">
         <h2>Hi ${username}!</h2>
         <p>You've been granted access to manage the event: <strong>${eventTitle}</strong></p>
-        
+
         <p>Your unique access code is:</p>
         <div class="access-code">${accessCode}</div>
-        
+
         <p>To access the event management dashboard:</p>
         <ol>
           <li>Visit the event admin page</li>
           <li>Enter this access code when prompted</li>
         </ol>
-        
+
         <div style="text-align: center;">
           <a href="${eventUrl}" class="button">Go to Event Dashboard</a>
         </div>
-        
+
         <p>This access code will expire in 7 days for security reasons.</p>
         <p>If you didn't request access to this event, you can safely ignore this email.</p>
       </div>
@@ -338,28 +338,28 @@ export function generateEventAccessEmail(username: string, eventTitle: string, a
     </body>
     </html>
   `
-  
+
   const text = `
     Your Access Code for ${eventTitle}
-    
+
     Hi ${username},
-    
+
     You've been granted access to manage the event: ${eventTitle}
-    
+
     Your unique access code is: ${accessCode}
-    
+
     To access the event management dashboard:
     1. Visit the event admin page: ${eventUrl}
     2. Enter this access code when prompted
-    
+
     This access code will expire in 7 days for security reasons.
-    
+
     If you didn't request access to this event, you can safely ignore this email.
-    
+
     Best regards,
     The OwlRSVP Team
   `
-  
+
   return { subject, html, text }
 }
 
@@ -470,7 +470,7 @@ export function generateTeamInvitationEmail(inviterEmail: string, teamName: stri
 
 export function generateCollaboratorInviteEmail(inviterName: string, eventTitle: string, inviteUrl: string, message?: string) {
   const subject = `${inviterName} invited you to collaborate on "${eventTitle}"`
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -496,9 +496,9 @@ export function generateCollaboratorInviteEmail(inviterName: string, eventTitle:
       <div class="content">
         <h2>Collaboration Invitation</h2>
         <p><strong>${inviterName}</strong> has invited you to collaborate on the event: <strong>${eventTitle}</strong></p>
-        
+
         ${message ? `<div class="message">"${message}"</div>` : ''}
-        
+
         <p>As a collaborator, you'll be able to:</p>
         <ul>
           <li>View and manage RSVPs</li>
@@ -506,11 +506,11 @@ export function generateCollaboratorInviteEmail(inviterName: string, eventTitle:
           <li>Export attendee data</li>
           <li>Send communications to guests</li>
         </ul>
-        
+
         <div style="text-align: center;">
           <a href="${inviteUrl}" class="button">Accept Invitation</a>
         </div>
-        
+
         <p>This invitation will expire in 7 days.</p>
         <p>If you weren't expecting this invitation, you can safely ignore this email.</p>
       </div>
@@ -521,50 +521,46 @@ export function generateCollaboratorInviteEmail(inviterName: string, eventTitle:
     </body>
     </html>
   `
-  
+
   const text = `
     ${inviterName} invited you to collaborate on "${eventTitle}"
-    
+
     Collaboration Invitation
-    
+
     ${inviterName} has invited you to collaborate on the event: ${eventTitle}
-    
+
     ${message ? `Message from ${inviterName}: "${message}"` : ''}
-    
+
     As a collaborator, you'll be able to:
     - View and manage RSVPs
     - Update event details
     - Export attendee data
     - Send communications to guests
-    
+
     To accept this invitation, visit:
     ${inviteUrl}
-    
+
     This invitation will expire in 7 days.
-    
+
     If you weren't expecting this invitation, you can safely ignore this email.
-    
+
     Best regards,
     The OwlRSVP Team
   `
-  
+
   return { subject, html, text }
 }
 
-// RSVP Confirmation Email with Calendar Attachment
-/**
- * Generate email ad HTML for free tier events
- * Uses image-based ads since JavaScript doesn't work in emails
- */
+// Generate email ad HTML for free tier events
 function generateEmailAdHTML(): string {
   const adImageUrl = process.env.EMAIL_AD_IMAGE_URL || ''
   const adLinkUrl = process.env.EMAIL_AD_LINK_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://owlrsvp.com'
   const adEnabled = process.env.EMAIL_ADS_ENABLED === 'true'
-  
+
   if (!adEnabled || !adImageUrl) {
     return ''
   }
-  
+
   return `
     <div style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center; border-top: 3px solid #667eea;">
       <p style="margin: 0 0 10px 0; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px;">Sponsored</p>
@@ -588,7 +584,7 @@ export function generateRSVPConfirmationEmail(
   const subject = `RSVP Confirmation: ${eventTitle}`
   const showAd = creatorTier === 'free'
   const adHTML = showAd ? generateEmailAdHTML() : ''
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -614,22 +610,22 @@ export function generateRSVPConfirmationEmail(
       <div class="content">
         <h2>Hi ${attendeeName}!</h2>
         <p>Thank you for RSVPing to <strong>${eventTitle}</strong>!</p>
-        
+
         <div class="event-details">
           ${eventDate ? `<p><strong>Date:</strong> ${new Date(eventDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
           ${eventEndTime ? `<p><strong>Time:</strong> ${eventEndTime}</p>` : ''}
           ${eventLocation ? `<p><strong>Location:</strong> ${eventLocation}</p>` : ''}
         </div>
-        
+
         ${calendarIcs ? `
           <div style="text-align: center;">
             <a href="data:text/calendar;charset=utf8,${encodeURIComponent(calendarIcs)}" class="button" download="event.ics">Add to Calendar</a>
           </div>
         ` : ''}
-        
+
         <p>We look forward to seeing you there!</p>
         <p>If you need to update your RSVP, please contact the event organizer.</p>
-        
+
         ${adHTML}
       </div>
       <div class="footer">
@@ -638,24 +634,24 @@ export function generateRSVPConfirmationEmail(
     </body>
     </html>
   `
-  
+
   const text = `
     RSVP Confirmation: ${eventTitle}
-    
+
     Hi ${attendeeName},
-    
+
     Thank you for RSVPing to ${eventTitle}!
-    
+
     ${eventDate ? `Date: ${new Date(eventDate).toLocaleDateString()}` : ''}
     ${eventEndTime ? `Time: ${eventEndTime}` : ''}
     ${eventLocation ? `Location: ${eventLocation}` : ''}
-    
+
     We look forward to seeing you there!
-    
+
     Best regards,
     The OwlRSVP Team
   `
-  
+
   return { subject, html, text }
 }
 
@@ -669,7 +665,7 @@ export function generateCalendarICS(
 ): string {
   const startDate = new Date(eventDate)
   let endDate: Date
-  
+
   if (eventEndTime) {
     // Try to parse the end time and combine with date
     const [hours, minutes] = eventEndTime.split(':').map(Number)
@@ -679,7 +675,7 @@ export function generateCalendarICS(
     // Default 2 hours duration
     endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000)
   }
-  
+
   // Format dates for ICS (YYYYMMDDTHHmmssZ)
   const formatICSDate = (date: Date): string => {
     const year = date.getUTCFullYear()
@@ -690,7 +686,7 @@ export function generateCalendarICS(
     const seconds = String(date.getUTCSeconds()).padStart(2, '0')
     return `${year}${month}${day}T${hours}${minutes}${seconds}Z`
   }
-  
+
   const ics = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -710,7 +706,7 @@ export function generateCalendarICS(
     'END:VEVENT',
     'END:VCALENDAR'
   ].filter(Boolean).join('\r\n')
-  
+
   return ics
 }
 
@@ -726,7 +722,7 @@ export function generateOrganizerNotificationEmail(
 ) {
   const subject = `New RSVP: ${attendeeName}${guestCount > 0 ? ` (+${guestCount} guest${guestCount > 1 ? 's' : ''})` : ''} - ${eventTitle}`
   const guestText = guestCount > 0 ? ` (+${guestCount} guest${guestCount > 1 ? 's' : ''})` : ''
-  
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -752,13 +748,13 @@ export function generateOrganizerNotificationEmail(
       <div class="content">
         <h2>Hi ${organizerName || 'Event Organizer'}!</h2>
         <p>Someone just RSVP'd to your event <strong>${eventTitle}</strong>!</p>
-        
+
         <div class="attendee-info">
           <p><strong>Name:</strong> ${attendeeName}${guestText}</p>
           ${attendeeEmail ? `<p><strong>Email:</strong> ${attendeeEmail}</p>` : ''}
           ${attendeePhone ? `<p><strong>Phone:</strong> ${attendeePhone}</p>` : ''}
         </div>
-        
+
         <div style="text-align: center;">
           <a href="${eventAdminUrl}" class="button">View All RSVPs</a>
         </div>
@@ -769,23 +765,130 @@ export function generateOrganizerNotificationEmail(
     </body>
     </html>
   `
-  
+
   const text = `
     New RSVP Received!
-    
+
     Hi ${organizerName || 'Event Organizer'},
-    
+
     Someone just RSVP'd to your event: ${eventTitle}
-    
+
     Name: ${attendeeName}${guestText}
     ${attendeeEmail ? `Email: ${attendeeEmail}` : ''}
     ${attendeePhone ? `Phone: ${attendeePhone}` : ''}
-    
+
     View all RSVPs: ${eventAdminUrl}
-    
+
     Best regards,
     The OwlRSVP Team
   `
-  
+
+  return { subject, html, text }
+}
+
+// Ticket Email with QR Code and Receipt (Pro feature)
+export function generateTicketEmail(
+  attendeeName: string,
+  eventTitle: string,
+  qrCodeDataUrl: string,
+  ticketUrl: string,
+  stripeReceiptUrl: string,
+  eventDate?: string,
+  eventLocation?: string,
+  creatorTier?: string
+) {
+  const subject = `Your Ticket for ${eventTitle}`
+  const showAd = creatorTier === 'free'
+  const adHTML = showAd ? generateEmailAdHTML() : ''
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Your Event Ticket</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+        .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; background: #007AFF; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 10px 5px; }
+        .qr-code { text-align: center; margin: 20px 0; }
+        .qr-code img { max-width: 200px; height: auto; border: 2px solid #333; border-radius: 8px; }
+        .event-details { background: #e9ecef; padding: 15px; border-radius: 6px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+        .logo { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .instructions { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 6px; margin: 20px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="logo">owl<span style="color: #4FC3F7;">rsvp</span></div>
+        <h1>Your Event Ticket</h1>
+      </div>
+      <div class="content">
+        <h2>Hi ${attendeeName}!</h2>
+        <p>Thank you for purchasing your ticket to <strong>${eventTitle}</strong>!</p>
+
+        <div class="event-details">
+          ${eventDate ? `<p><strong>Date:</strong> ${new Date(eventDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
+          ${eventLocation ? `<p><strong>Location:</strong> ${eventLocation}</p>` : ''}
+        </div>
+
+        <div class="qr-code">
+          <p><strong>Your Ticket QR Code:</strong></p>
+          <img src="${qrCodeDataUrl}" alt="Event Ticket QR Code" />
+          <p style="font-size: 14px; color: #666; margin-top: 10px;">Show this QR code at the event entrance for check-in</p>
+        </div>
+
+        <div class="instructions">
+          <strong>How to Check In:</strong>
+          <ol>
+            <li>Arrive at the event venue</li>
+            <li>Show this QR code to the check-in staff</li>
+            <li>They will scan it to mark you as checked in</li>
+          </ol>
+        </div>
+
+        <div style="text-align: center;">
+          <a href="${stripeReceiptUrl}" class="button">View Receipt</a>
+        </div>
+
+        <p>If you need to change your RSVP or have any questions, please contact the event organizer.</p>
+
+        ${adHTML}
+      </div>
+      <div class="footer">
+        <p>Best regards,<br>The OwlRSVP Team</p>
+      </div>
+    </body>
+    </html>
+  `
+
+  const text = `
+    Your Ticket for ${eventTitle}
+
+    Hi ${attendeeName},
+
+    Thank you for purchasing your ticket to ${eventTitle}!
+
+    ${eventDate ? `Date: ${new Date(eventDate).toLocaleDateString()}` : ''}
+    ${eventLocation ? `Location: ${eventLocation}` : ''}
+
+    Your ticket QR code is attached to this email. Show it at the event entrance for check-in.
+
+    View your receipt: ${stripeReceiptUrl}
+
+    How to Check In:
+    1. Arrive at the event venue
+    2. Show this QR code to the check-in staff
+    3. They will scan it to mark you as checked in
+
+    If you need to change your RSVP or have any questions, please contact the event organizer.
+
+    Best regards,
+    The OwlRSVP Team
+  `
+
   return { subject, html, text }
 }

@@ -12,6 +12,7 @@ import FAQAccordion from '@/components/FAQAccordion'
 import { useScrollReveal, useParallax } from '@/hooks/useScrollReveal'
 import { PLANS, PLAN_DETAILS } from '@/lib/stripe'
 import { TOP_10_FAQS } from '@/lib/faqData'
+import LoadingScreen from '@/components/LoadingScreen'
 
 function HomeContent() {
   const router = useRouter()
@@ -836,16 +837,7 @@ function HomeContent() {
 
 export default function Home() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="absolute inset-0 bind8-bg" />
-        <div className="absolute inset-0 bind8-glow" />
-        <div className="relative z-10 min-h-screen flex items-center justify-center">
-          <div className="text-white">Loading...</div>
-        </div>
-        <Footer showDonate={true} />
-      </div>
-    }>
+    <Suspense fallback={<LoadingScreen />}>
       <HomeContent />
     </Suspense>
   )

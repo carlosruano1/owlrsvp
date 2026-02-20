@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
+import LoadingScreen from '@/components/LoadingScreen'
 
 function ResetPasswordContent() {
   const [newPassword, setNewPassword] = useState('')
@@ -69,8 +70,6 @@ function ResetPasswordContent() {
   if (success) {
     return (
       <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
         <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
           <div className="w-full max-w-md">
             <div className="glass-card rounded-3xl p-8 shadow-2xl text-center">
@@ -97,8 +96,6 @@ function ResetPasswordContent() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bind8-bg" />
-      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           <div className="text-center mb-8 text-white text-glow">
@@ -192,16 +189,7 @@ function ResetPasswordContent() {
 
 export default function ResetPassword() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
-        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
-          <div className="text-white">Loading...</div>
-        </div>
-        <Footer showDonate={false} />
-      </div>
-    }>
+    <Suspense fallback={<LoadingScreen />}>
       <ResetPasswordContent />
     </Suspense>
   )

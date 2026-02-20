@@ -1,19 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase, supabaseAdmin } from '@/lib/supabase'
+import { supabaseAdmin } from '@/lib/supabase'
 import { validateSession, checkEventAccess } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> | { id: string } }
 ) {
-  // Extract id from params
-  const { id } = params
+  const params = await Promise.resolve(context.params)
+  const id = params?.id?.trim()
 
   try {
-    console.log('GET /api/events/[id] called with id:', id);
+    if (!id) {
+      console.error('GET /api/events/[id] missing id', { params: context.params })
+      return NextResponse.json({ error: 'Event not found', details: 'Missing event id' }, { status: 404 })
+    }
+    console.log('GET /api/events/[id] id:', id)
 
-    if (!supabase) {
-      console.error('Supabase client not initialized');
+    if (!supabaseAdmin) {
+      console.error('GET /api/events/[id] supabaseAdmin is null')
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
     }
 
@@ -30,42 +34,47 @@ export async function GET(
       }
     }
     
-    // Try to find the event by ID first
-    const { data: event, error } = await supabase
+    // Use admin client so public invite links work regardless of RLS
+    const { data: event, error } = await supabaseAdmin
       .from('events')
       .select('*')
       .eq('id', id)
-      .single()
+      .maybeSingle()
 
     let finalEvent = event
 
     if (error) {
-      console.error('Error fetching event by ID:', error);
-      
-      // Try to find the event by admin_token as a fallback
-      // This allows the event page to work even if the URL uses admin_token instead of id
-      console.log('Trying to find event by admin_token instead...');
-      const { data: eventByToken, error: tokenError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('admin_token', id)
-        .single()
-        
-      if (tokenError || !eventByToken) {
-        console.error('Event not found by admin_token either:', tokenError);
-        return NextResponse.json({ 
-          error: 'Event not found', 
-          details: error.message 
-        }, { status: 404 })
-      }
-      
-      console.log('Found event by admin_token:', eventByToken.id);
-      finalEvent = eventByToken
+      console.error('[events/[id]] Supabase error by id:', id, error.code, error.message, error.details)
+      return NextResponse.json({
+        error: 'Event not found',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      }, { status: 404 })
     }
 
     if (!finalEvent) {
-      console.error('Event query returned null');
-      return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+      // Fallback: find by admin_token (share link)
+      const { data: eventByToken, error: tokenError } = await supabaseAdmin
+        .from('events')
+        .select('*')
+        .eq('admin_token', id)
+        .maybeSingle()
+
+      if (tokenError) {
+        console.error('[events/[id]] Supabase error by admin_token:', id, tokenError.code, tokenError.message)
+        return NextResponse.json({
+          error: 'Event not found',
+          details: process.env.NODE_ENV === 'development' ? tokenError.message : undefined,
+        }, { status: 404 })
+      }
+      if (!eventByToken) {
+        console.error('[events/[id]] No row for id or admin_token:', id)
+        return NextResponse.json({
+          error: 'Event not found',
+          ...(process.env.NODE_ENV === 'development' && { requestedId: id, hint: 'Check Supabase events table has a row with id or admin_token matching this value.' }),
+        }, { status: 404 })
+      }
+      console.log('[events/[id]] Found by admin_token:', eventByToken.id)
+      finalEvent = eventByToken
     }
 
     // If this is an admin request, check permissions
@@ -79,16 +88,18 @@ export async function GET(
     // Check if event creator is on free tier (for ads display)
     // Only show ads if we're CERTAIN it's free tier - default to paid tier if uncertain
     let creatorTier: string | null = null
-    if (finalEvent.user_id && supabaseAdmin) {
+    const creatorId = finalEvent.user_id || finalEvent.created_by_admin_id
+    
+    if (creatorId && supabaseAdmin) {
       try {
         const { data: creatorData, error: creatorError } = await supabaseAdmin
           .from('admin_users')
           .select('subscription_tier')
-          .eq('id', finalEvent.user_id)
+          .eq('id', creatorId)
           .single()
         
         if (creatorError) {
-          console.error('[API] Error fetching creator tier for user_id:', finalEvent.user_id, 'Error:', creatorError)
+          console.error('[API] Error fetching creator tier for creator_id:', creatorId, 'Error:', creatorError)
           // Default to 'pro' if error - don't show ads if we can't verify
           creatorTier = 'pro'
         } else if (creatorData) {
@@ -97,12 +108,12 @@ export async function GET(
             creatorTier = String(rawTier).toLowerCase().trim()
             console.log('[API] Found creator tier - Raw:', rawTier, 'Normalized:', creatorTier, 'Will show ads:', creatorTier === 'free')
           } else {
-            console.warn('[API] Creator data found but subscription_tier is null/undefined for user_id:', finalEvent.user_id)
+            console.warn('[API] Creator data found but subscription_tier is null/undefined for creator_id:', creatorId)
             // No tier data - default to paid tier (don't show ads)
             creatorTier = 'pro'
           }
         } else {
-          console.warn('[API] No creator data found for user_id:', finalEvent.user_id)
+          console.warn('[API] No creator data found for creator_id:', creatorId)
           // No tier data - default to paid tier (don't show ads)
           creatorTier = 'pro'
         }
@@ -113,7 +124,14 @@ export async function GET(
       }
     } else {
       // If event has no creator (anonymous event), default to free tier for ads
-      creatorTier = 'free'
+      // But only if we're CERTAIN there's no creator - if supabaseAdmin is unavailable, default to pro
+      if (!supabaseAdmin) {
+        console.warn('[API] supabaseAdmin not available, defaulting to pro tier (no ads)')
+        creatorTier = 'pro'
+      } else {
+        console.log('[API] Event has no creator_id (user_id or created_by_admin_id), defaulting to free tier for ads')
+        creatorTier = 'free'
+      }
     }
 
     console.log('Found event by ID:', finalEvent.id, 'Creator tier:', creatorTier);

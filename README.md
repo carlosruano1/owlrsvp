@@ -53,7 +53,54 @@ npm run dev
 
 Visit `http://localhost:3000` to create your first event!
 
-### 4. Deploy to Vercel
+### 4. Stripe (subscription tier after payment)
+
+The app updates a user’s tier when Stripe sends **webhooks** to your server. If the webhook never runs, the tier stays “free” after payment.
+
+**Environment variables:**
+- `STRIPE_SECRET_KEY` - Your Stripe secret key (`sk_test_...` for test, `sk_live_...` for live)
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Your Stripe publishable key
+- `STRIPE_WEBHOOK_SECRET_TEST` - Webhook signing secret for **test mode** (recommended)
+- `STRIPE_WEBHOOK_SECRET_LIVE` - Webhook signing secret for **live mode** (recommended)
+- `STRIPE_WEBHOOK_SECRET` - Fallback if test/live specific secrets aren't set
+- `NEXT_PUBLIC_STRIPE_BASIC_PRICE_ID`, `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID`, `NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID` - Your Stripe price IDs (use **test** price IDs for test mode)
+
+**Webhook setup:**
+
+1. **Test mode (local/dev):**
+   - Install Stripe CLI: `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
+   - Copy the printed webhook signing secret (starts with `whsec_...`)
+   - Set `STRIPE_WEBHOOK_SECRET_TEST=whsec_...` in `.env.local`
+   - Or use the CLI secret directly: `stripe listen --forward-to localhost:3000/api/webhooks/stripe --print-secret`
+
+2. **Test mode (deployed):**
+   - In [Stripe Dashboard → Developers → Webhooks](https://dashboard.stripe.com/test/webhooks) (make sure you're in **Test mode** toggle at top)
+   - Click "Add endpoint"
+   - URL: `https://your-domain.com/api/webhooks/stripe`
+   - Subscribe to: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_succeeded`
+   - Copy the "Signing secret" (starts with `whsec_...`)
+   - Set `STRIPE_WEBHOOK_SECRET_TEST=whsec_...` in your deployment env vars
+
+3. **Live mode (production):**
+   - In [Stripe Dashboard → Developers → Webhooks](https://dashboard.stripe.com/webhooks) (make sure you're in **Live mode** toggle at top)
+   - Click "Add endpoint"
+   - URL: `https://your-domain.com/api/webhooks/stripe`
+   - Subscribe to the same events as above
+   - Copy the "Signing secret"
+   - Set `STRIPE_WEBHOOK_SECRET_LIVE=whsec_...` in your production env vars
+
+**Verify webhook connectivity:**
+- Visit `https://your-domain.com/api/webhooks/stripe` (GET request) to see webhook status, mode detection, and configuration
+- Check server logs for `[webhook]` messages when events are received
+- In Stripe Dashboard → Webhooks, check the endpoint's "Recent deliveries" to see if requests are succeeding
+
+**Important:**
+- The webhook automatically detects test vs live mode from your `STRIPE_SECRET_KEY` prefix
+- If webhook secret verification fails, check that you're using the correct secret for the mode (test vs live)
+- Price IDs must match the mode: use test price IDs when `STRIPE_SECRET_KEY` starts with `sk_test_`
+- Run `add_missing_stripe_columns.sql` on your Supabase project so `admin_users` has `stripe_customer_id`, `subscription_tier`, and related columns
+
+### 5. Deploy to Vercel
 
 1. Push to GitHub
 2. Connect to Vercel

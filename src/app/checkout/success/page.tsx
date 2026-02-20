@@ -78,10 +78,10 @@ export default function CheckoutSuccess() {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                href="/admin/settings"
+                href="/admin/events"
                 className="px-8 py-3 bg-white text-black font-medium rounded-xl hover:bg-white/90 transition-all"
               >
-                Go to Dashboard
+                Go to My Events
               </Link>
               <Link
                 href="/create"

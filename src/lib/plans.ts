@@ -8,6 +8,7 @@ export interface PlanLimits {
   allowsCustomBranding: boolean;
   allowsAdvancedAnalytics: boolean;
   allowsExportToCSV: boolean;
+  allowsTicketing: boolean;
   overageFeePerGuest?: number;
 }
 
@@ -20,6 +21,7 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     allowsCustomBranding: false,
     allowsAdvancedAnalytics: false,
     allowsExportToCSV: true,
+    allowsTicketing: false,
   },
   basic: {
     maxEvents: 5,
@@ -28,6 +30,7 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     allowsCustomBranding: true,
     allowsAdvancedAnalytics: false,
     allowsExportToCSV: true,
+    allowsTicketing: false,
     overageFeePerGuest: 0.05,
   },
   pro: {
@@ -37,6 +40,7 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     allowsCustomBranding: true,
     allowsAdvancedAnalytics: true,
     allowsExportToCSV: true,
+    allowsTicketing: true,
     overageFeePerGuest: 0.05,
   },
   enterprise: {
@@ -47,6 +51,7 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     allowsCustomBranding: true,
     allowsAdvancedAnalytics: true,
     allowsExportToCSV: true,
+    allowsTicketing: true,
     overageFeePerGuest: 0.05,
   },
   team: {
@@ -57,6 +62,7 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
     allowsCustomBranding: true, // Inherits from admin permissions
     allowsAdvancedAnalytics: true, // Inherits from admin permissions
     allowsExportToCSV: true,
+    allowsTicketing: true,
     overageFeePerGuest: 0.05,
   }
 };

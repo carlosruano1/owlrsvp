@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface InvitationData {
   valid: boolean
@@ -136,22 +137,12 @@ function RegisterTeamContent() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="absolute inset-0 bind8-bg" />
-        <div className="absolute inset-0 bind8-glow" />
-        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
-          <div className="text-white/80 text-xl">Validating invitation...</div>
-        </div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (error || !invitationData) {
     return (
       <div className="min-h-screen relative overflow-hidden">
-        <div className="absolute inset-0 bind8-bg" />
-        <div className="absolute inset-0 bind8-glow" />
         <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
           <div className="max-w-md mx-auto pt-20">
             <div className="text-center mb-8">
@@ -184,8 +175,6 @@ function RegisterTeamContent() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bind8-bg" />
-      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
         <div className="max-w-md mx-auto pt-10">
           <div className="text-center mb-8">
@@ -359,7 +348,7 @@ function RegisterTeamContent() {
 
 export default function RegisterTeam() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><div className="text-white">Loading...</div></div>}>
+    <Suspense fallback={<LoadingScreen />}>
       <RegisterTeamContent />
     </Suspense>
   )

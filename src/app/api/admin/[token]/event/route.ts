@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { canUseCustomBranding, getEffectiveUserTier } from '@/lib/tierEnforcement'
+import { canUseCustomBranding, getSessionTokenFromRequest, getEffectiveTier } from '@/lib/tierAuth'
+import { getUpgradeMessage } from '@/lib/tiers'
 
 // Get event by admin token
 export async function GET(
@@ -178,9 +179,9 @@ export async function PATCH(
 
     
     // Check if user has custom branding feature for branding-related updates
-    const sessionCookie = request.cookies.get('admin_session')?.value
+    const sessionCookie = getSessionTokenFromRequest(request)
     const canBrand = await canUseCustomBranding(sessionCookie)
-    
+
     // Check if trying to update branding features without permission
     const brandingFields = [
       body.company_name !== undefined,
@@ -189,10 +190,10 @@ export async function PATCH(
       body.spotlight_color !== undefined,
       body.font_color !== undefined
     ].some(Boolean)
-    
+
     if (brandingFields && !canBrand) {
-      return NextResponse.json({ 
-        error: 'Custom branding is only available on Basic, Pro, and Enterprise plans. Please upgrade to customize your event appearance.',
+      return NextResponse.json({
+        error: getUpgradeMessage('branding'),
         requiresUpgrade: true,
         upgradeUrl: '/?upgrade=true&reason=branding#pricing'
       }, { status: 403 })
@@ -229,8 +230,12 @@ export async function PATCH(
       if (body.font_color !== undefined) {
         updates.font_color = body.font_color
       }
+      if (body.theme_style !== undefined) {
+        const valid = ['default', 'glass', 'electric', 'drawing', 'elegant']
+        updates.theme_style = valid.includes(body.theme_style) ? body.theme_style : 'default'
+      }
     } catch (e) {
-      console.log('Advanced color fields not available in database schema yet')
+      console.log('Advanced color/theme_style fields not available in database schema yet')
       // These fields will be ignored if they don't exist in the database
     }
     
@@ -238,7 +243,7 @@ export async function PATCH(
     // Only allow for basic+ tier accounts
     if (body.required_rsvp_fields !== undefined) {
       // Check user tier
-      const userTier = await getEffectiveUserTier(sessionCookie)
+      const userTier = await getEffectiveTier(sessionCookie)
       if (userTier === 'free') {
         return NextResponse.json({ 
           error: 'Additional RSVP fields (email, phone, address, guests) are only available on Basic tier and above. Please upgrade to use this feature.',

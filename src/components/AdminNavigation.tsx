@@ -156,9 +156,9 @@ export default function AdminNavigation() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">
             {ADMIN_LINKS.map((link) => (
-              <Link 
+              <Link
                 key={link.href}
-                href={link.href} 
+                href={link.href}
                 className="text-white/80 hover:text-white transition-colors"
               >
                 {link.label}

@@ -44,8 +44,12 @@ html {
   scroll-behavior: smooth;
 }
 
+html {
+  background: #000000;
+}
+
 body {
-  background: #0a1929;
+  background: #000000;
   color: var(--foreground);
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   font-weight: 300; /* Lighter default weight for cleaner look */
@@ -65,7 +69,7 @@ body {
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background-color: var(--background);
+  background-color: #000000;
   transition: background-color 0.3s ease;
 }
 
@@ -467,6 +471,398 @@ body {
   border-color: var(--theme-border);
   border-width: 1px;
   border-style: solid;
+}
+
+/* Invite section contrast: form/contact cards adapt to page bg (and future custom image) */
+[data-contrast="dark"] .glass-card {
+  background: var(--invite-section-bg, rgba(0,0,0,0.78));
+  color: var(--invite-section-text, #f5f5f4);
+  border: 1px solid var(--invite-section-border, rgba(255,255,255,0.12));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.04) inset, 0 8px 32px rgba(0,0,0,0.3);
+}
+[data-contrast="dark"] .glass-card label,
+[data-contrast="dark"] .glass-card .text-white\/80,
+[data-contrast="dark"] .glass-card .text-white\/70,
+[data-contrast="dark"] .glass-card .text-white\/60 {
+  color: var(--invite-section-text, #f5f5f4) !important;
+  opacity: 1 !important;
+}
+[data-contrast="dark"] .glass-card .modern-input {
+  background: var(--invite-section-input-bg, rgba(255,255,255,0.08));
+  border-color: var(--invite-section-input-border, rgba(255,255,255,0.2));
+  color: var(--invite-section-text, #f5f5f4);
+}
+[data-contrast="dark"] .glass-card .modern-input::placeholder {
+  color: rgba(255,255,255,0.45);
+}
+[data-contrast="dark"] .glass-card .modern-input:focus {
+  border-color: rgba(255,255,255,0.4);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.15);
+}
+[data-contrast="light"] .glass-card {
+  background: var(--invite-section-bg, rgba(255,255,255,0.92));
+  color: var(--invite-section-text, #1a1a1a);
+  border: 1px solid var(--invite-section-border, rgba(0,0,0,0.08));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.5) inset, 0 8px 32px rgba(0,0,0,0.06);
+}
+[data-contrast="light"] .glass-card label,
+[data-contrast="light"] .glass-card .text-white\/80,
+[data-contrast="light"] .glass-card .text-white\/70,
+[data-contrast="light"] .glass-card .text-white\/60 {
+  color: var(--invite-section-text, #1a1a1a) !important;
+  opacity: 1 !important;
+}
+[data-contrast="light"] .glass-card .modern-input {
+  background: var(--invite-section-input-bg, rgba(255,255,255,0.95));
+  border-color: var(--invite-section-input-border, rgba(0,0,0,0.12));
+  color: var(--invite-section-text, #1a1a1a);
+}
+[data-contrast="light"] .glass-card .modern-input::placeholder {
+  color: rgba(0,0,0,0.4);
+}
+
+/* ========== Invite theme styles (data-invite-effect on event page) ========== */
+
+/* Glass: stronger frosted glass on cards and buttons */
+[data-invite-effect="glass"] .glass-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.06));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.25);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+[data-invite-effect="glass"] .modern-button {
+  background: linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.1));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: var(--theme-text);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+[data-invite-effect="glass"] .modern-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15));
+  border-color: rgba(255,255,255,0.4);
+}
+[data-invite-effect="glass"] .btn-choice::before {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background-color: rgba(255,255,255,0.12);
+}
+
+/* Electric: neon borders and glow */
+[data-invite-effect="electric"] .glass-card {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid color-mix(in srgb, var(--theme-primary) 60%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--theme-primary) 25%, transparent);
+  backdrop-filter: blur(12px);
+}
+[data-invite-effect="electric"] .apple-title {
+  text-shadow: 0 0 20px color-mix(in srgb, var(--theme-primary) 40%, transparent);
+}
+[data-invite-effect="electric"] .modern-button {
+  background: transparent;
+  border: 2px solid var(--theme-primary);
+  color: var(--theme-primary);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--theme-primary) 35%, transparent);
+}
+[data-invite-effect="electric"] .modern-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--theme-primary) 20%, transparent);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--theme-primary) 50%, transparent);
+}
+[data-invite-effect="electric"] .btn-yes {
+  box-shadow: 0 0 12px rgba(52, 199, 89, 0.4);
+}
+[data-invite-effect="electric"] .btn-no {
+  box-shadow: 0 0 12px rgba(255, 59, 48, 0.4);
+}
+
+/* Drawing: original/fun font, transparent boxes with blur + shadow, contrast-safe text */
+[data-invite-effect="drawing"] {
+  --draw-font: 'Caveat', 'Segoe Print', 'Chalkboard', 'Comic Sans MS', cursive;
+}
+[data-invite-effect="drawing"] .apple-title,
+[data-invite-effect="drawing"] .apple-subtitle {
+  font-family: var(--draw-font);
+}
+[data-invite-effect="drawing"] .apple-title { font-weight: 700; }
+[data-invite-effect="drawing"] .apple-subtitle { font-weight: 500; }
+/* Transparent card + blur + fun shadow — dark page: dark tint + light text */
+[data-invite-effect="drawing"][data-contrast="dark"] .glass-card {
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08) inset, 4px 6px 20px rgba(0,0,0,0.25), -2px -2px 12px rgba(0,0,0,0.15);
+  color: #f5f5f4;
+}
+[data-invite-effect="drawing"][data-contrast="light"] .glass-card {
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 2px dashed rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.5) inset, 4px 6px 20px rgba(0,0,0,0.12), -2px -2px 12px rgba(0,0,0,0.06);
+  color: #1a1a1a;
+}
+[data-invite-effect="drawing"] .glass-card .apple-title,
+[data-invite-effect="drawing"] .glass-card .apple-subtitle {
+  font-family: var(--draw-font);
+}
+[data-invite-effect="drawing"] .glass-card .apple-title { font-weight: 700; }
+[data-invite-effect="drawing"] .glass-card label,
+[data-invite-effect="drawing"] .glass-card .text-white\/80,
+[data-invite-effect="drawing"] .glass-card .text-white\/70,
+[data-invite-effect="drawing"] .glass-card .text-white\/60 {
+  color: inherit !important;
+  opacity: 1 !important;
+  font-family: var(--draw-font);
+  font-weight: 500;
+}
+[data-invite-effect="drawing"] .modern-button {
+  background: transparent;
+  border: 2px dashed var(--theme-primary);
+  color: var(--theme-primary);
+  font-family: var(--draw-font);
+  font-weight: 700;
+  font-size: 1.05em;
+}
+[data-invite-effect="drawing"] .modern-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--theme-primary) 20%, transparent);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--theme-primary) 30%, transparent);
+}
+[data-invite-effect="drawing"] .btn-choice::before {
+  background-color: transparent;
+}
+[data-invite-effect="drawing"] .btn-choice {
+  font-family: var(--draw-font);
+  font-weight: 600;
+  border: 2px dashed rgba(255,255,255,0.4);
+  background: transparent;
+  color: inherit;
+}
+[data-invite-effect="drawing"][data-contrast="light"] .btn-choice {
+  border-color: rgba(0,0,0,0.25);
+  color: #1a1a1a;
+}
+[data-invite-effect="drawing"] .btn-yes { border-color: color-mix(in srgb, var(--theme-primary) 60%, transparent); }
+[data-invite-effect="drawing"] .btn-yes:hover,
+[data-invite-effect="drawing"] .btn-yes.selected {
+  background: color-mix(in srgb, var(--theme-primary) 18%, transparent);
+}
+[data-invite-effect="drawing"] .modern-input,
+[data-invite-effect="drawing"] label {
+  font-family: var(--draw-font);
+  font-weight: 500;
+}
+[data-invite-effect="drawing"] .modern-input {
+  border: 2px dashed rgba(255,255,255,0.3);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  color: inherit;
+  font-family: var(--draw-font);
+  font-size: 1.05em;
+}
+[data-invite-effect="drawing"] .modern-input::placeholder {
+  opacity: 0.6;
+}
+[data-invite-effect="drawing"] .modern-input:focus {
+  background: rgba(255,255,255,0.12);
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--theme-primary) 25%, transparent);
+}
+[data-invite-effect="drawing"][data-contrast="light"] .modern-input {
+  border-color: rgba(0,0,0,0.2);
+  background: rgba(255,255,255,0.5);
+  color: #1a1a1a;
+}
+[data-invite-effect="drawing"][data-contrast="light"] .modern-input::placeholder {
+  color: rgba(0,0,0,0.5);
+}
+[data-invite-effect="drawing"][data-contrast="light"] .modern-input:focus {
+  background: rgba(255,255,255,0.7);
+  border-color: var(--theme-primary);
+}
+
+/* Elegant: James Bond style — gold accent, title-card typography, sleek minimal */
+[data-invite-effect="elegant"] {
+  --bond-gold: #c9a227;
+  --bond-gold-dim: rgba(201, 162, 39, 0.5);
+  --bond-gold-subtle: rgba(201, 162, 39, 0.25);
+}
+[data-invite-effect="elegant"] .apple-title,
+[data-invite-effect="elegant"] .apple-subtitle {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: var(--theme-text);
+  letter-spacing: 0.02em;
+}
+[data-invite-effect="elegant"] .apple-subtitle {
+  letter-spacing: 0.2em;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  opacity: 0.9;
+  color: var(--bond-gold-dim);
+}
+[data-invite-effect="elegant"] .text-center.mb-8 .apple-title:not(h1) {
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--bond-gold-dim);
+}
+/* Main event title: Bond title-card — caps, wide tracking, gold rules */
+[data-invite-effect="elegant"] .text-center.mb-8 h1.apple-title {
+  text-transform: uppercase;
+  letter-spacing: 0.35em;
+  font-weight: 400;
+  position: relative;
+  padding: 1.25rem 0;
+  margin: 0.5rem 0;
+}
+[data-invite-effect="elegant"] .text-center.mb-8 h1.apple-title::before,
+[data-invite-effect="elegant"] .text-center.mb-8 h1.apple-title::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  max-width: 280px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--bond-gold), transparent);
+}
+[data-invite-effect="elegant"] .text-center.mb-8 h1.apple-title::before { top: 0; }
+[data-invite-effect="elegant"] .text-center.mb-8 h1.apple-title::after { bottom: 0; }
+/* Date/time/location: refined, slight gold tint */
+[data-invite-effect="elegant"] .apple-subtitle svg,
+[data-invite-effect="elegant"] .text-center.mb-8 .apple-subtitle {
+  color: var(--bond-gold-dim);
+}
+[data-invite-effect="elegant"] .text-center.mb-8 a {
+  color: var(--bond-gold);
+  border-color: var(--bond-gold-subtle);
+}
+[data-invite-effect="elegant"] .text-center.mb-8 a:hover {
+  color: var(--bond-gold);
+  opacity: 1;
+}
+/* Card: black, gold outer frame, light text — works over custom bg (backdrop-blur) */
+[data-invite-effect="elegant"] .glass-card {
+  /* Same as page background but a bit darker */
+  background: color-mix(in srgb, var(--theme-bg) 88%, black);
+  border: 1px solid var(--bond-gold);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 0 0 1px var(--bond-gold-subtle) inset, 0 0 0 1px rgba(0,0,0,0.3), 0 12px 40px rgba(0,0,0,0.4);
+  color: #f5f5f4;
+  padding: 2.5rem 2.25rem;
+  position: relative;
+}
+[data-invite-effect="elegant"] .glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--bond-gold), transparent);
+  opacity: 0.7;
+}
+[data-invite-effect="elegant"] .glass-card .apple-title,
+[data-invite-effect="elegant"] .glass-card .apple-subtitle {
+  font-family: Georgia, 'Times New Roman', serif;
+  color: #f5f5f4;
+  letter-spacing: 0.02em;
+}
+[data-invite-effect="elegant"] .glass-card .apple-title { font-weight: 400; }
+[data-invite-effect="elegant"] .glass-card .apple-subtitle {
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  opacity: 0.9;
+}
+[data-invite-effect="elegant"] .glass-card label,
+[data-invite-effect="elegant"] .glass-card .text-white\/80,
+[data-invite-effect="elegant"] .glass-card .text-white\/70,
+[data-invite-effect="elegant"] .glass-card .text-white\/60 {
+  color: #f5f5f4 !important;
+  opacity: 1 !important;
+}
+/* CTA: black, gold accent — Bond tuxedo vibe */
+[data-invite-effect="elegant"] .modern-button {
+  background: #0a0a0a;
+  border: 1px solid var(--bond-gold);
+  color: var(--bond-gold);
+  font-family: Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  border-radius: 0;
+  padding: 0.875rem 1.75rem;
+  box-shadow: 0 0 0 0 var(--bond-gold-subtle);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+[data-invite-effect="elegant"] .modern-button:hover:not(:disabled) {
+  background: var(--bond-gold);
+  border-color: var(--bond-gold);
+  color: #0a0a0a;
+  box-shadow: 0 0 20px var(--bond-gold-subtle);
+}
+[data-invite-effect="elegant"] .btn-choice::before {
+  background-color: transparent;
+}
+[data-invite-effect="elegant"] .btn-choice {
+  color: #f5f5f4;
+  font-family: Georgia, serif;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: transparent;
+  font-size: 0.85rem;
+}
+[data-invite-effect="elegant"] .btn-yes {
+  border-color: var(--bond-gold-subtle);
+  color: #f5f5f4;
+}
+[data-invite-effect="elegant"] .btn-yes:hover,
+[data-invite-effect="elegant"] .btn-yes.selected {
+  background: var(--bond-gold-subtle);
+  border-color: var(--bond-gold);
+  color: #0a0a0a;
+}
+[data-invite-effect="elegant"] .btn-no {
+  border-color: rgba(255,255,255,0.15);
+  color: rgba(245,245,244,0.8);
+}
+[data-invite-effect="elegant"] .btn-no:hover,
+[data-invite-effect="elegant"] .btn-no.selected {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.25);
+  color: #f5f5f4;
+}
+[data-invite-effect="elegant"] .modern-input,
+[data-invite-effect="elegant"] label {
+  color: #f5f5f4;
+  font-family: Georgia, serif;
+  letter-spacing: 0.03em;
+}
+[data-invite-effect="elegant"] .modern-input {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 0;
+  color: #f5f5f4;
+  font-family: Georgia, serif;
+}
+[data-invite-effect="elegant"] .modern-input::placeholder {
+  color: rgba(255,255,255,0.4);
+}
+[data-invite-effect="elegant"] .modern-input:focus {
+  border-color: var(--bond-gold);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--bond-gold-subtle);
+  background: rgba(255,255,255,0.08);
 }
 
 /* Advanced animations */
@@ -1337,4 +1733,20 @@ select.modern-input {
 /* Smooth transitions for all interactive elements */
 button, input, select, textarea {
   transition: all 0.2s ease-in-out;
+}
+
+/* Loading screen logo pulse animation */
+@keyframes pulse-dim {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse-dim {
+  animation: pulse-dim 2s ease-in-out infinite;
 }

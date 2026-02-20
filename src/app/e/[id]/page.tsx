@@ -12,6 +12,7 @@ import LocationMapLink from '@/components/LocationMapLink'
 import Image from 'next/image'
 import { ThemeProvider, ThemeColors, useTheme } from '@/components/ThemeProvider'
 import { formatDateLong, formatTime12h, parseDateTimeLocal } from '@/lib/dateUtils'
+import LoadingScreen from '@/components/LoadingScreen'
  
 
 // Use shared utils
@@ -51,6 +52,42 @@ function EventRSVPContent() {
   const [error, setError] = useState('')
   const [creatorTier, setCreatorTier] = useState<string | null>(null)
   const { colors, setColors } = useTheme()
+
+  // Helper function to convert hex/rgb to rgba
+  const colorToRgba = (color: string, alpha: number): string => {
+    if (!color) return `rgba(0, 200, 216, ${alpha})` // Default cyan fallback
+
+    // If already rgba/rgb, extract and replace alpha
+    if (color.startsWith('rgba')) {
+      // Match the alpha value (number with optional decimal) before the closing paren
+      return color.replace(/,\s*[\d.]+\)$/g, `, ${alpha})`)
+    }
+    if (color.startsWith('rgb')) {
+      return color.replace('rgb', 'rgba').replace(')', `, ${alpha})`)
+    }
+
+    // Handle hex colors
+    if (color.startsWith('#')) {
+      const hex = color.slice(1)
+      // Handle 3-digit hex
+      if (hex.length === 3) {
+        const r = parseInt(hex[0] + hex[0], 16)
+        const g = parseInt(hex[1] + hex[1], 16)
+        const b = parseInt(hex[2] + hex[2], 16)
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`
+      }
+      // Handle 6-digit hex
+      if (hex.length === 6) {
+        const r = parseInt(hex.slice(0, 2), 16)
+        const g = parseInt(hex.slice(2, 4), 16)
+        const b = parseInt(hex.slice(4, 6), 16)
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`
+      }
+    }
+
+    // Fallback
+    return `rgba(0, 200, 216, ${alpha})`
+  }
   
   // Tier detection - only show ads/watermark for FREE tier
   // Hide ads/watermark for BASIC, PRO, ENTERPRISE, and any unknown/null tiers
@@ -217,29 +254,25 @@ function EventRSVPContent() {
         } else {
           console.log('✅ [Event Page] PAID/UNKNOWN TIER:', tier || 'null', '- Ads and watermark WILL BE HIDDEN')
         }
-        // Get colors from event data
+        // Map Supabase theme columns to ThemeColors (event page background + accents)
+        const bg = data.event.page_background_color || data.event.background_color || '#0f172a'
+        const textFromApi = data.event.font_color || '#ffffff'
+        // Ensure readable contrast: if background is dark, force light text
+        const bgBrightness = (() => {
+          const hex = bg.replace('#', '')
+          if (hex.length !== 6) return 0
+          const r = parseInt(hex.slice(0, 2), 16)
+          const g = parseInt(hex.slice(2, 4), 16)
+          const b = parseInt(hex.slice(4, 6), 16)
+          return (r * 299 + g * 587 + b * 114) / 1000
+        })()
         const themeColors: Partial<ThemeColors> = {
           primary: data.event.background_color || '#007AFF',
-        };
-        
-        // Try to get additional colors if they exist
-        try {
-          if (data.event.page_background_color) {
-            themeColors.bg = data.event.page_background_color;
-          }
-          
-          if (data.event.spotlight_color) {
-            themeColors.secondary = data.event.spotlight_color;
-          }
-          
-          if (data.event.font_color) {
-            themeColors.text = data.event.font_color;
-          }
-        } catch (e) {
-          console.log('Could not load advanced color properties');
+          bg,
+          secondary: data.event.spotlight_color || data.event.background_color || '#007AFF',
+          text: bgBrightness < 140 ? '#ffffff' : textFromApi,
         }
-        
-        // Apply fetched colors to theme
+
         setColors({
           ...colors,
           ...themeColors,
@@ -271,7 +304,8 @@ function EventRSVPContent() {
       setError('Address is required')
       return
     }
-    if (event?.required_rsvp_fields?.guests && attending && guestCount === 0) {
+    // Don't require guests for ticketed events (attendee can be just themselves)
+    if (event?.required_rsvp_fields?.guests && attending && guestCount === 0 && !event?.payment_required) {
       setError('Number of guests is required')
       return
     }
@@ -324,7 +358,9 @@ function EventRSVPContent() {
             window.location.href = checkoutData.url
             return // Don't submit RSVP yet, wait for payment success
           } else {
-            throw new Error(checkoutData.error || 'Payment setup failed')
+            const msg = checkoutData.error || 'Payment setup failed'
+            const hint = checkoutData.hint ? ` ${checkoutData.hint}` : ''
+            throw new Error(hint ? `${msg}. ${hint}` : msg)
           }
         } catch (paymentErr) {
           setError(paymentErr instanceof Error ? paymentErr.message : 'Payment error occurred')
@@ -385,23 +421,12 @@ function EventRSVPContent() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
-        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
-          <div className="text-white/80 text-xl">Loading…</div>
-        </div>
-        <Footer showDonate={false} />
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (error && !event) {
     return (
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
+      <div className="min-h-screen relative overflow-hidden bg-black">
         <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
           <div className="text-center">
             <div className="text-red-400 text-xl mb-4">Event Not Found</div>
@@ -415,9 +440,7 @@ function EventRSVPContent() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
+      <div className="min-h-screen relative overflow-hidden bg-black">
         <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
           <div className="w-full max-w-md glass-card rounded-3xl p-8 shadow-2xl text-center text-white">
             <div className="text-6xl mb-4">✅</div>
@@ -449,96 +472,115 @@ function EventRSVPContent() {
     )
   }
 
-  // Helper function to convert hex/rgb to rgba
-  const colorToRgba = (color: string, alpha: number): string => {
-    if (!color) return `rgba(0, 200, 216, ${alpha})` // Default cyan fallback
-    
-    // If already rgba/rgb, extract and replace alpha
-    if (color.startsWith('rgba')) {
-      // Match the alpha value (number with optional decimal) before the closing paren
-      return color.replace(/,\s*[\d.]+\)$/g, `, ${alpha})`)
-    }
-    if (color.startsWith('rgb')) {
-      return color.replace('rgb', 'rgba').replace(')', `, ${alpha})`)
-    }
-    
-    // Handle hex colors
-    if (color.startsWith('#')) {
-      const hex = color.slice(1)
-      // Handle 3-digit hex
-      if (hex.length === 3) {
-        const r = parseInt(hex[0] + hex[0], 16)
-        const g = parseInt(hex[1] + hex[1], 16)
-        const b = parseInt(hex[2] + hex[2], 16)
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`
-      }
-      // Handle 6-digit hex
-      if (hex.length === 6) {
-        const r = parseInt(hex.slice(0, 2), 16)
-        const g = parseInt(hex.slice(2, 4), 16)
-        const b = parseInt(hex.slice(4, 6), 16)
-        return `rgba(${r}, ${g}, ${b}, ${alpha})`
-      }
-    }
-    
-    // Fallback
-    return `rgba(0, 200, 216, ${alpha})`
-  }
-
-  // Get background style using event's custom colors
+  // Get simple background style using event's theme colors
   const getBackgroundStyle = () => {
-    const bgColor = colors.bg || '#0a1929'
-    const primaryColor = colors.primary || '#00c8d8'
-    const secondaryColor = colors.secondary || colors.primary || primaryColor
-    
+    const bgColor = colors.bg || '#0f172a';
+
+    // For free tier, add a subtle animated gradient
+    if (normalizedTier === 'free') {
+      return {
+        background: bgColor,
+        backgroundImage: `
+          radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%),
+          radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 50%)
+        `,
+      };
+    }
+
+    // For paid tiers, use solid background with subtle accent
     return {
       background: bgColor,
       backgroundImage: `
-        radial-gradient(ellipse 80% 50% at 20% 20%, ${colorToRgba(primaryColor, 0.4)} 0%, transparent 50%),
-        radial-gradient(ellipse 80% 50% at 80% 30%, ${colorToRgba(secondaryColor, 0.35)} 0%, transparent 50%),
-        radial-gradient(ellipse 60% 40% at 50% 80%, ${colorToRgba(primaryColor, 0.3)} 0%, transparent 60%)
+        linear-gradient(135deg, ${bgColor} 0%, ${bgColor}CC 100%)
       `,
-      backgroundSize: '100% 100%',
-      filter: 'blur(60px)',
-      opacity: 0.9,
-    }
-  }
-
-  const getGlowStyle = () => {
-    const primaryColor = colors.primary || '#00c8d8'
-    const secondaryColor = colors.secondary || colors.primary || primaryColor
-    
-    return {
-      backgroundImage: `
-        radial-gradient(circle 40vmax at 15% 25%, ${colorToRgba(primaryColor, 0.15)} 0%, transparent 50%),
-        radial-gradient(circle 35vmax at 85% 30%, ${colorToRgba(secondaryColor, 0.12)} 0%, transparent 50%),
-        radial-gradient(circle 30vmax at 50% 75%, ${colorToRgba(primaryColor, 0.1)} 0%, transparent 60%)
-      `,
-      filter: 'blur(80px)',
-      opacity: 0.6,
-    }
+    };
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Dynamic blurry background using event's custom colors */}
-      <div 
-        className="absolute inset-0 z-0"
-        style={{
-          ...getBackgroundStyle(),
-          animation: 'bind8-breathe 20s ease-in-out infinite',
-        }}
-      />
-      <div 
-        className="absolute inset-0 z-1"
-        style={{
-          ...getGlowStyle(),
-          animation: 'bind8-glow-move 25s ease-in-out infinite',
-          mixBlendMode: 'screen',
-        }}
-      />
-      <div className={`relative z-10 min-h-screen flex items-center justify-center p-4 ${isFreeTier ? 'pb-24' : ''}`}>
-        <div className="w-full max-w-xl">
+    <div className="min-h-screen relative overflow-hidden" style={{ backgroundColor: colors.bg }}>
+      {/* Subtle background effects for paid tiers */}
+      {!isFreeTier && (
+        <>
+          <div
+            className="absolute inset-0 z-0 opacity-30"
+            style={{
+              backgroundImage: `
+                radial-gradient(circle at 20% 80%, ${colorToRgba(colors.primary, 0.1)} 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, ${colorToRgba(colors.secondary, 0.08)} 0%, transparent 50%)
+              `,
+            }}
+          />
+          <div
+            className="absolute inset-0 z-1 opacity-20"
+            style={{
+              backgroundImage: `linear-gradient(135deg, ${colors.bg} 0%, ${colorToRgba(colors.primary, 0.05)} 100%)`,
+            }}
+          />
+        </>
+      )}
+      {/* Animated background for free tier */}
+      {isFreeTier && (
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            ...getBackgroundStyle(),
+            animation: 'bind8-breathe 20s ease-in-out infinite',
+          }}
+        />
+      )}
+      <div
+        data-invite-effect={event?.theme_style || 'default'}
+        data-contrast={(() => {
+          const hex = (colors.bg || '').replace('#', '');
+          if (hex.length !== 6) return 'dark';
+          const r = parseInt(hex.slice(0, 2), 16);
+          const g = parseInt(hex.slice(2, 4), 16);
+          const b = parseInt(hex.slice(4, 6), 16);
+          const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+          return brightness < 140 ? 'dark' : 'light';
+        })()}
+        style={(() => {
+          const hex = (colors.bg || '').replace('#', '');
+          const isDarkBg = hex.length !== 6 || (() => {
+            const r = parseInt(hex.slice(0, 2), 16);
+            const g = parseInt(hex.slice(2, 4), 16);
+            const b = parseInt(hex.slice(4, 6), 16);
+            return (r * 299 + g * 587 + b * 114) / 1000 < 140;
+          })();
+          const p = colors.primary || '#007AFF';
+          const s = colors.secondary || p;
+          return {
+            '--theme-bg': colors.bg,
+            '--theme-text': colors.text,
+            '--theme-primary': p,
+            '--theme-secondary': s,
+            '--theme-primary-alpha': `${p}20`,
+            '--theme-secondary-alpha': `${s}15`,
+            '--background': colors.bg,
+            '--foreground': colors.text,
+            '--company-color': p,
+            '--company-color-alpha': `${p}33`,
+            '--spotlight-color': s,
+            '--spotlight-color-alpha': `${s}33`,
+            '--invite-section-bg': isDarkBg ? 'rgba(0,0,0,0.78)' : 'rgba(255,255,255,0.92)',
+            '--invite-section-text': isDarkBg ? '#f5f5f4' : '#1a1a1a',
+            '--invite-section-border': isDarkBg ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+            '--invite-section-input-bg': isDarkBg ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.95)',
+            '--invite-section-input-border': isDarkBg ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)',
+            '--theme-card-bg': isDarkBg ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+            '--theme-border': isDarkBg ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+            '--theme-shadow': isDarkBg ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)',
+            '--field-bg': isDarkBg ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.9)',
+            '--field-border': isDarkBg ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+            '--field-focus-ring': `${p}40`,
+            '--accent-gradient': isDarkBg
+              ? 'linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.01))'
+              : 'linear-gradient(135deg, rgba(0,0,0,0.03), rgba(0,0,0,0.01))',
+          } as React.CSSProperties;
+        })()}
+      >
+        <div className={`relative z-10 min-h-screen flex items-center justify-center p-4 ${isFreeTier ? 'pb-24' : ''}`}>
+          <div className="w-full max-w-xl">
           <div className="text-center mb-8">
             {/* Company block - Enhanced with larger logo and better styling */}
             <div className="flex flex-col items-center gap-6 mb-8">
@@ -859,7 +901,7 @@ function EventRSVPContent() {
                   (event?.required_rsvp_fields?.email && !email.trim()) ||
                   (event?.required_rsvp_fields?.phone && !phone.trim()) ||
                   (event?.required_rsvp_fields?.address && !address.trim()) ||
-                  (event?.required_rsvp_fields?.guests && attending && guestCount === 0)
+                  (!event?.payment_required && event?.required_rsvp_fields?.guests && attending && guestCount === 0)
                 }
                 className="modern-button w-full py-3 px-4 text-lg"
               >
@@ -871,13 +913,13 @@ function EventRSVPContent() {
             {isFreeTier && <DiscreteAd show={true} />}
           </div>
         </div>
-      </div>
+        </div>
 
-      {/* Contact card pinned near the bottom */}
-      {(event?.contact_name || event?.contact_email || event?.contact_phone) && (
-        <div className="relative z-10 px-4 pb-6 mt-6">
-          <div className="max-w-xl mx-auto">
-            <div className="glass-card rounded-2xl p-5 text-white animate-slideUp">
+        {/* Contact card pinned near the bottom */}
+        {(event?.contact_name || event?.contact_email || event?.contact_phone) && (
+          <div className="relative z-10 px-4 pb-6 mt-6">
+            <div className="max-w-xl mx-auto">
+              <div className="glass-card rounded-2xl p-5 text-white animate-slideUp">
               <div className="flex items-start gap-3">
                 <div className="shrink-0 w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center">
                   <svg className="w-5 h-5 text-white/80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -915,13 +957,14 @@ function EventRSVPContent() {
                   </div>
                 </div>
               </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Show watermark ONLY for free tier events - completely hidden for paid accounts */}
-      {isFreeTier && <Watermark />}
+        {/* Show watermark ONLY for free tier events - completely hidden for paid accounts */}
+        {isFreeTier && <Watermark />}
+      </div>
 
       <Footer showDonate={false} />
     </div>

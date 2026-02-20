@@ -36,19 +36,29 @@ export async function getUserTierFromSession(sessionCookie: string | undefined, 
 
     // If user is on team tier and we have an event context, check if they have admin-level permissions
     if (baseTier === 'team' && eventId) {
-      // Check if this team member has permissions for this specific event
-      const { data: permissions, error: permError } = await supabase
-        .from('event_permissions')
-        .select('permissions')
-        .eq('event_id', eventId)
-        .eq('team_member_email', userData.email)
+      // First find the team member record by email
+      const { data: teamMember, error: teamError } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('email', userData.email)
+        .eq('status', 'active')
         .single()
 
-      if (!permError && permissions) {
-        const perms = permissions.permissions || {}
-        // If team member has analytics permission, they effectively have pro features for this event
-        if (perms.can_view_analytics) {
-          return 'pro' // Grant pro-level features for this context
+      if (!teamError && teamMember) {
+        // Check if this team member has permissions for this specific event
+        const { data: permissions, error: permError } = await supabase
+          .from('event_permissions')
+          .select('permissions')
+          .eq('event_id', eventId)
+          .eq('team_member_id', teamMember.id)
+          .single()
+
+        if (!permError && permissions) {
+          const perms = permissions.permissions || {}
+          // If team member has analytics permission, they effectively have pro features for this event
+          if (perms.can_view_analytics) {
+            return 'pro' // Grant pro-level features for this context
+          }
         }
       }
     }
@@ -61,21 +71,23 @@ export async function getUserTierFromSession(sessionCookie: string | undefined, 
 }
 
 /**
+ * @deprecated Use tierAuth.ts instead
  * Check if user can use custom branding (logo + colors)
  * Team accounts inherit this from their admin
  */
 export async function canUseCustomBranding(sessionCookie: string | undefined): Promise<boolean> {
-  const tier = await getEffectiveUserTier(sessionCookie)
-  return hasFeature('allowsCustomBranding', tier)
+  const { canUseCustomBranding: newFn } = await import('./tierAuth')
+  return newFn(sessionCookie)
 }
 
 /**
+ * @deprecated Use tierAuth.ts instead
  * Check if user can access advanced analytics
  * Team accounts inherit this from their admin
  */
-export async function canAccessAdvancedAnalytics(sessionCookie: string | undefined): Promise<boolean> {
-  const tier = await getEffectiveUserTier(sessionCookie)
-  return hasFeature('allowsAdvancedAnalytics', tier)
+export async function canAccessAdvancedAnalytics(sessionCookie: string | undefined, eventId?: string): Promise<boolean> {
+  const { canAccessAdvancedAnalytics: newFn } = await import('./tierAuth')
+  return newFn(sessionCookie, eventId)
 }
 
 /**
@@ -117,14 +129,21 @@ export async function getAdminTierForTeamMember(userEmail: string): Promise<stri
  */
 export async function getEffectiveUserTier(sessionCookie: string | undefined, context?: { eventId?: string }): Promise<string> {
   if (!sessionCookie || !supabase) {
+    console.log('[getEffectiveUserTier] No session cookie or supabase')
     return 'free'
   }
 
   try {
-    const { data: sessionData } = await supabase
+    const { data: sessionData, error: sessionError } = await supabase
       .rpc('validate_admin_session', { p_token: sessionCookie })
 
+    if (sessionError) {
+      console.error('[getEffectiveUserTier] Session validation error:', sessionError)
+      return 'free'
+    }
+
     if (!sessionData || sessionData.length === 0) {
+      console.log('[getEffectiveUserTier] No session data')
       return 'free'
     }
 
@@ -137,21 +156,59 @@ export async function getEffectiveUserTier(sessionCookie: string | undefined, co
       .eq('id', userId)
       .single()
 
-    if (userError || !userData) {
+    if (userError) {
+      console.error('[getEffectiveUserTier] User fetch error:', userError)
       return 'free'
     }
 
-    const baseTier = userData.subscription_tier || 'free'
+    if (!userData) {
+      console.log('[getEffectiveUserTier] No user data found')
+      return 'free'
+    }
+
+    const baseTier = (userData.subscription_tier || 'free').toLowerCase().trim()
+    console.log('[getEffectiveUserTier] Base tier:', baseTier, 'User ID:', userId, 'Raw tier:', userData.subscription_tier)
+
+    // If user is on team tier and we have an event context, check if they have admin-level permissions
+    if (baseTier === 'team' && context?.eventId) {
+      // First find the team member record by email
+      const { data: teamMember, error: teamError } = await supabase
+        .from('team_members')
+        .select('id')
+        .eq('email', userData.email)
+        .eq('status', 'active')
+        .single()
+
+      if (!teamError && teamMember) {
+        // Check if this team member has permissions for this specific event
+        const { data: permissions, error: permError } = await supabase
+          .from('event_permissions')
+          .select('permissions')
+          .eq('event_id', context.eventId)
+          .eq('team_member_id', teamMember.id)
+          .single()
+
+        if (!permError && permissions) {
+          const perms = permissions.permissions || {}
+          // If team member has analytics permission, they effectively have pro features for this event
+          if (perms.can_view_analytics) {
+            return 'pro' // Grant pro-level features for this context
+          }
+        }
+      }
+    }
 
     // If user is on team tier, return their admin's tier for feature access
     if (baseTier === 'team') {
       const adminTier = await getAdminTierForTeamMember(userData.email)
+      console.log('[getEffectiveUserTier] Team member, admin tier:', adminTier)
       return adminTier
     }
 
+    console.log('[getEffectiveUserTier] Returning base tier:', baseTier)
     return baseTier
   } catch (error) {
-    console.error('Error getting effective user tier:', error)
+    console.error('[getEffectiveUserTier] Error getting effective user tier:', error)
     return 'free'
   }
 }

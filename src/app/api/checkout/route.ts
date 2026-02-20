@@ -4,7 +4,9 @@ import { supabase, supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[DEBUG] Checkout API called at:', new Date().toISOString())
     const { priceId, successUrl, cancelUrl } = await request.json()
+    console.log('[DEBUG] Request params:', { priceId, successUrl, cancelUrl })
     
     // Validate required fields
     if (!priceId || !successUrl || !cancelUrl) {
@@ -45,15 +47,16 @@ export async function POST(request: NextRequest) {
     // Validate session
     const { data: sessionData, error: sessionError } = await supabase
       .rpc('validate_admin_session', { p_token: sessionToken })
-      
+
     if (sessionError || !sessionData || sessionData.length === 0) {
       return NextResponse.json(
         { error: { message: 'Invalid session - Please log in again' } },
         { status: 401 }
       )
     }
-    
+
     const userId = sessionData[0].user_id
+    console.log('[DEBUG] Session validated for userId:', userId)
     
     if (!userId) {
       console.error('No user_id found in session data')
@@ -115,8 +118,9 @@ export async function POST(request: NextRequest) {
         .select('stripe_customer_id')
         .eq('id', userId)
         .single()
-      
+
       customerId = customerData?.stripe_customer_id || null
+      console.log('[DEBUG] Retrieved customerId from DB:', customerId, 'for user:', userId)
     } catch (err) {
       // Column doesn't exist yet - we'll create it when saving
       console.log('stripe_customer_id column not found, will create customer and add column')
@@ -154,6 +158,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Create a checkout session
+    console.log('[DEBUG] Creating checkout session with:', { priceId, customerId, successUrl, cancelUrl })
     const { sessionId } = await createCheckoutSession({
       priceId,
       customerId,

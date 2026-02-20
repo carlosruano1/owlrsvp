@@ -22,5 +22,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// For server-side operations that need elevated permissions
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+// For server-side operations that need elevated permissions (bypasses RLS)
+export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { persistSession: false },
+  db: { schema: 'public' },
+});

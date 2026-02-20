@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Footer from '@/components/Footer'
+import LoadingScreen from '@/components/LoadingScreen'
 
 function AcceptTeamInvitationContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'expired'>('loading')
@@ -98,8 +99,6 @@ function AcceptTeamInvitationContent() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bind8-bg" />
-      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
         <div className="max-w-md mx-auto pt-20">
           <div className="text-center mb-8">
@@ -187,7 +186,7 @@ function AcceptTeamInvitationContent() {
 
 export default function AcceptTeamInvitation() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><div className="text-white">Loading...</div></div>}>
+    <Suspense fallback={<LoadingScreen />}>
       <AcceptTeamInvitationContent />
     </Suspense>
   )

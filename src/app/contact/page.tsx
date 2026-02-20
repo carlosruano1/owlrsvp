@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Footer from '@/components/Footer'
 import Navigation from '@/components/Navigation'
+import LoadingScreen from '@/components/LoadingScreen'
 
 const EMAIL = 'carlos@owlrsvp.com'
 
@@ -88,11 +89,11 @@ function ContactContent() {
 
 export default function Contact() {
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col">
+    <div className="min-h-screen bg-black text-white flex flex-col">
       <Navigation />
       <Suspense fallback={
-        <main className="flex-1 px-6 py-24">
-          <div className="max-w-4xl mx-auto text-center text-white/60">Loading...</div>
+        <main className="flex-1 flex items-center justify-center">
+          <LoadingScreen />
         </main>
       }>
         <ContactContent />

@@ -10,26 +10,50 @@ export type ThemeColors = {
   secondary: string;
 };
 
-// Define preset themes
-export const THEME_PRESETS = {
-  dark: {
-    bg: '#000000',
-    text: '#FFFFFF',
-    primary: '#007AFF',
-    secondary: '#007AFF',
+// Define tier-based default themes
+export const TIER_DEFAULTS = {
+  free: {
+    bg: '#0f172a', // slate-900
+    text: '#ffffff',
+    primary: '#00c8d8', // cyan-400
+    secondary: '#00c8d8',
   },
+  basic: {
+    bg: '#1e293b', // slate-800
+    text: '#ffffff',
+    primary: '#3b82f6', // blue-500
+    secondary: '#3b82f6',
+  },
+  pro: {
+    bg: '#0f172a', // slate-900
+    text: '#ffffff',
+    primary: '#8b5cf6', // violet-500
+    secondary: '#06b6d4', // cyan-500
+  },
+  enterprise: {
+    bg: '#0c0a09', // stone-950
+    text: '#ffffff',
+    primary: '#f59e0b', // amber-500
+    secondary: '#ef4444', // red-500
+  },
+  team: {
+    bg: '#0f172a', // slate-900
+    text: '#ffffff',
+    primary: '#10b981', // emerald-500
+    secondary: '#f59e0b', // amber-500
+  },
+};
+
+// Legacy preset themes (kept for backward compatibility)
+export const THEME_PRESETS = {
+  dark: TIER_DEFAULTS.free,
   light: {
     bg: '#FFFFFF',
     text: '#000000',
     primary: '#007AFF',
     secondary: '#007AFF',
   },
-  midnight: {
-    bg: '#121212',
-    text: '#FFFFFF',
-    primary: '#6200EA',
-    secondary: '#03DAC6',
-  },
+  midnight: TIER_DEFAULTS.pro,
   sunset: {
     bg: '#1A1A2E',
     text: '#FFFFFF',
@@ -56,7 +80,9 @@ interface ThemeContextType {
   setColors: (colors: ThemeColors) => void;
   applyPreset: (presetName: keyof typeof THEME_PRESETS) => void;
   saveTheme: () => void;
+  resetToTierDefault: (tier: string) => void;
   themeKey?: string;
+  tier?: string;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -66,23 +92,28 @@ interface ThemeProviderProps {
   children: ReactNode;
   initialColors?: Partial<ThemeColors>;
   themeKey?: string; // Optional key for storing in localStorage
+  tier?: string; // User's subscription tier
 }
 
-export function ThemeProvider({ 
-  children, 
-  initialColors = {}, 
-  themeKey = 'owlrsvp_theme' 
+export function ThemeProvider({
+  children,
+  initialColors = {},
+  themeKey = 'owlrsvp_theme',
+  tier = 'free'
 }: ThemeProviderProps) {
-  // Initialize with dark theme and override with initialColors
+  // Get tier default as base
+  const tierDefault = TIER_DEFAULTS[tier as keyof typeof TIER_DEFAULTS] || TIER_DEFAULTS.free;
+
+  // Initialize with tier default and override with initialColors
   const [colors, setColorsState] = useState<ThemeColors>({
-    ...THEME_PRESETS.dark,
+    ...tierDefault,
     ...initialColors,
   });
 
   // Load theme from localStorage on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     try {
       const savedTheme = localStorage.getItem(themeKey);
       if (savedTheme) {
@@ -97,67 +128,9 @@ export function ThemeProvider({
     }
   }, [themeKey]);
 
-  // Apply colors to CSS variables whenever colors change
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    // Apply main colors
-    document.documentElement.style.setProperty('--theme-bg', colors.bg);
-    document.documentElement.style.setProperty('--theme-text', colors.text);
-    document.documentElement.style.setProperty('--theme-primary', colors.primary);
-    document.documentElement.style.setProperty('--theme-secondary', colors.secondary);
-    
-    // Apply derived colors
-    document.documentElement.style.setProperty('--theme-primary-alpha', `${colors.primary}33`);
-    document.documentElement.style.setProperty('--theme-secondary-alpha', `${colors.secondary}33`);
-    
-    // Update legacy variables
-    document.documentElement.style.setProperty('--background', colors.bg);
-    document.documentElement.style.setProperty('--foreground', colors.text);
-    document.documentElement.style.setProperty('--company-color', colors.primary);
-    document.documentElement.style.setProperty('--company-color-alpha', `${colors.primary}33`);
-    document.documentElement.style.setProperty('--spotlight-color', colors.secondary);
-    document.documentElement.style.setProperty('--spotlight-color-alpha', `${colors.secondary}33`);
-    
-    // Adjust styles based on background brightness
-    const isDarkBg = getBrightness(colors.bg) < 128;
-    
-    // Glass card styles
-    document.documentElement.style.setProperty(
-      '--theme-card-bg', 
-      isDarkBg ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'
-    );
-    document.documentElement.style.setProperty(
-      '--theme-border', 
-      isDarkBg ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
-    );
-    document.documentElement.style.setProperty(
-      '--theme-shadow', 
-      isDarkBg ? 'rgba(0,0,0,0.36)' : 'rgba(0,0,0,0.1)'
-    );
-    
-    // Form field styles
-    document.documentElement.style.setProperty(
-      '--field-bg', 
-      isDarkBg ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.8)'
-    );
-    document.documentElement.style.setProperty(
-      '--field-border', 
-      isDarkBg ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'
-    );
-    document.documentElement.style.setProperty(
-      '--field-focus-ring', 
-      `${colors.primary}40`
-    );
-    
-    // Update accent gradient
-    document.documentElement.style.setProperty(
-      '--accent-gradient', 
-      isDarkBg 
-        ? 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03))' 
-        : 'linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02))'
-    );
-  }, [colors]);
+  // Do NOT set CSS variables on document.documentElement here.
+  // Theme is applied only on the event invite page via inline styles on the invite wrapper,
+  // so admin and other pages keep default UI colors.
 
   // Function to set colors with validation
   const setColors = (newColors: Partial<ThemeColors>) => {
@@ -178,7 +151,7 @@ export function ThemeProvider({
   // Function to save theme to localStorage
   const saveTheme = () => {
     if (typeof window === 'undefined') return;
-    
+
     try {
       localStorage.setItem(themeKey, JSON.stringify(colors));
     } catch (error) {
@@ -186,25 +159,25 @@ export function ThemeProvider({
     }
   };
 
+  // Function to reset to tier default
+  const resetToTierDefault = (userTier: string = tier) => {
+    const defaultTheme = TIER_DEFAULTS[userTier as keyof typeof TIER_DEFAULTS] || TIER_DEFAULTS.free;
+    setColorsState(defaultTheme);
+  };
+
   return (
-    <ThemeContext.Provider value={{ colors, setColors, applyPreset, saveTheme, themeKey }}>
+    <ThemeContext.Provider value={{
+      colors,
+      setColors,
+      applyPreset,
+      saveTheme,
+      resetToTierDefault,
+      themeKey,
+      tier
+    }}>
       {children}
     </ThemeContext.Provider>
   );
-}
-
-// Helper function to calculate brightness (0-255)
-function getBrightness(hexColor: string): number {
-  // Remove # if present
-  const hex = hexColor.replace('#', '');
-  
-  // Convert hex to RGB
-  const r = parseInt(hex.substr(0, 2), 16);
-  const g = parseInt(hex.substr(2, 2), 16);
-  const b = parseInt(hex.substr(4, 2), 16);
-  
-  // Calculate brightness using the formula: (0.299*R + 0.587*G + 0.114*B)
-  return Math.round(0.299 * r + 0.587 * g + 0.114 * b);
 }
 
 // Custom hook to use theme

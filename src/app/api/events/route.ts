@@ -3,7 +3,9 @@ export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase'
 import { CreateEventData } from '@/lib/types'
 import { canCreateEvent, getPlanLimits } from '@/lib/plans'
-import { canUseCustomBranding } from '@/lib/tierEnforcement'
+import { canUseCustomBranding, getSessionTokenFromRequest } from '@/lib/tierAuth'
+import { getUpgradeMessage } from '@/lib/tiers'
+import { TIER_DEFAULTS } from '@/components/ThemeProvider'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,21 +18,13 @@ export async function POST(request: NextRequest) {
 
     const body: CreateEventData = await request.json()
 
-    // Check if user has custom branding feature
-    const sessionCookie = request.cookies.get('admin_session')?.value
-    const canBrand = await canUseCustomBranding(sessionCookie)
+    // All users can use custom branding - no tier check
+    const canBrand = true
 
     // Basic validation for logo URL if provided
     const allowedLogoExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.svg']
     if (body.company_logo_url) {
-      // Check if free tier is trying to use logo
-      if (!canBrand) {
-        return NextResponse.json({ 
-          error: 'Custom branding (logo upload) is only available on Basic, Pro, and Enterprise plans. Please upgrade to use custom logos.',
-          requiresUpgrade: true,
-          upgradeUrl: '/?upgrade=true&reason=branding#pricing'
-        }, { status: 403 })
-      }
+      // Logo validation only - no tier check
 
       const url = body.company_logo_url.trim()
       const isHttp = url.startsWith('http://') || url.startsWith('https://')
@@ -42,10 +36,10 @@ export async function POST(request: NextRequest) {
 
     // Check if free tier is trying to use custom colors
     if (!canBrand && (body.page_background_color || body.spotlight_color || body.font_color || body.company_name)) {
-      return NextResponse.json({ 
-        error: 'Custom branding (colors, company name) is only available on Basic, Pro, and Enterprise plans. Please upgrade to customize your event appearance.',
+      return NextResponse.json({
+        error: getUpgradeMessage('branding'),
         requiresUpgrade: true,
-        upgradeUrl: '/pricing?upgrade=true&reason=branding'
+        upgradeUrl: '/?upgrade=true&reason=branding#pricing'
       }, { status: 403 })
     }
     
@@ -54,6 +48,7 @@ export async function POST(request: NextRequest) {
                       Math.random().toString(36).substring(2, 15)
     
     // Check if user is authenticated
+    const sessionCookie = getSessionTokenFromRequest(request)
     let userId = null;
     let userTier = 'free';
     let eventsCreated = 0;
@@ -129,12 +124,15 @@ export async function POST(request: NextRequest) {
       }
     }
     
+    // Get tier-based defaults
+    const tierDefaults = TIER_DEFAULTS[userTier as keyof typeof TIER_DEFAULTS] || TIER_DEFAULTS.free;
+
     // Create a base event object with required fields
     const now = new Date().toISOString();
     const eventData: any = {
       title: body.title,
       allow_plus_guests: body.allow_plus_guests,
-      background_color: body.background_color || '#1f2937',
+      background_color: body.background_color || tierDefaults.bg,
       admin_token: adminToken,
       company_name: body.company_name ?? null,
       company_logo_url: body.company_logo_url ?? null,
@@ -156,9 +154,10 @@ export async function POST(request: NextRequest) {
       // If we can get the structure, add the optional fields
       if (!columnsError) {
         // Add fields that might not exist in all installations
-        if (body.page_background_color) eventData.page_background_color = body.page_background_color;
-        if (body.spotlight_color) eventData.spotlight_color = body.spotlight_color;
-        if (body.font_color) eventData.font_color = body.font_color;
+        // Set tier-based defaults if not provided
+        eventData.page_background_color = body.page_background_color || tierDefaults.bg;
+        eventData.spotlight_color = body.spotlight_color || tierDefaults.secondary;
+        eventData.font_color = body.font_color || tierDefaults.text;
         if (body.event_date) eventData.event_date = body.event_date;
         if (body.event_end_time) eventData.event_end_time = body.event_end_time;
         if (body.event_location) eventData.event_location = body.event_location;
@@ -166,14 +165,26 @@ export async function POST(request: NextRequest) {
         if (body.ticket_price !== undefined) eventData.ticket_price = body.ticket_price || null;
         if (body.currency !== undefined) eventData.currency = body.currency || 'usd';
         if (body.payment_required !== undefined) eventData.payment_required = body.payment_required || false;
+
+        // Handle required_rsvp_fields
+        let requiredFields = body.required_rsvp_fields;
+
+        // Automatically require email when payment is enabled (for ticket delivery)
+        if (body.payment_required && !requiredFields?.email) {
+          console.log('Event creation: Automatically requiring email for ticketed event')
+          requiredFields = { ...requiredFields, email: true };
+        }
+
+        console.log('Event creation: payment_required =', body.payment_required, 'requiredFields =', requiredFields)
+
         // Only allow required_rsvp_fields for basic+ tier accounts
-        if (body.required_rsvp_fields) {
+        if (requiredFields) {
           if (userTier === 'free') {
-            return NextResponse.json({ 
+            return NextResponse.json({
               error: 'Additional RSVP fields (email, phone, address, guests) are only available on Basic tier and above. Please upgrade to use this feature.',
             }, { status: 403 });
           }
-          eventData.required_rsvp_fields = body.required_rsvp_fields;
+          eventData.required_rsvp_fields = requiredFields;
         }
         if (userId) eventData.created_by_admin_id = userId;
       } else {

@@ -6,6 +6,7 @@ import { PLANS, PLAN_DETAILS, formatGuestLimit } from '@/lib/stripe'
 import Navigation from '@/components/Navigation'
 import Footer from '@/components/Footer'
 import StripeCheckoutButton from '@/components/StripeCheckoutButton'
+import LoadingScreen from '@/components/LoadingScreen'
 function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -201,13 +202,7 @@ function CheckoutContent() {
 
 export default function Checkout() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen relative overflow-hidden flex items-center justify-center">
-        <div className="absolute inset-0 bind8-bg" />
-        <div className="absolute inset-0 bind8-glow" />
-        <div className="relative z-10 text-white text-xl">Loading...</div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingScreen />}>
       <CheckoutContent />
     </Suspense>
   )

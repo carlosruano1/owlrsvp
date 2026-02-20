@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { sendEmail } from '@/lib/email'
-import { generateRSVPConfirmationEmail, generateOrganizerNotificationEmail, generateCalendarICS } from '@/lib/email'
+import { generateRSVPConfirmationEmail, generateOrganizerNotificationEmail, generateCalendarICS, generateTicketEmail } from '@/lib/email'
+import { nanoid } from 'nanoid'
+import QRCode from 'qrcode'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,21 +21,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database not configured' }, { status: 500 })
     }
     
-    // First, fetch the event to check access mode and promo code
-    const { data: event, error: eventError } = await supabase
+    // First, fetch the event to check access mode and promo code (try by id, then by admin_token)
+    let event: { id: string; auth_mode?: string; open_invite?: boolean; promo_code?: string } | null = null
+    let eventIdForDb = body.event_id
+
+    const { data: eventById, error: eventError } = await supabase
       .from('events')
       .select('id, auth_mode, open_invite, promo_code')
-      .eq('id', body.event_id)
+      .eq('id', eventIdForDb)
       .single()
-      
-    if (eventError || !event) {
-      console.error('Error fetching event:', eventError)
-      return NextResponse.json({ 
-        error: 'Event not found or invalid event ID', 
-        details: eventError?.message || 'Unknown error'
-      }, { status: 404 })
+
+    if (!eventError && eventById) {
+      event = eventById
+      eventIdForDb = event.id
+    } else {
+      const { data: eventByToken, error: tokenError } = await supabase
+        .from('events')
+        .select('id, auth_mode, open_invite, promo_code')
+        .eq('admin_token', body.event_id)
+        .single()
+
+      if (tokenError || !eventByToken) {
+        console.error('Direct RSVP: Event not found. ID:', body.event_id, 'Error:', eventError?.message, tokenError?.message)
+        return NextResponse.json({
+          error: 'Event not found or invalid event ID',
+          details: eventError?.message || tokenError?.message || 'Unknown error'
+        }, { status: 404 })
+      }
+      event = eventByToken
+      eventIdForDb = event.id
     }
-    
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found or invalid event ID' }, { status: 404 })
+    }
+
     // Determine auth mode (fallback to open_invite for backward compatibility)
     const authMode = event.auth_mode || (event.open_invite ? 'open' : 'guest_list')
     
@@ -60,7 +82,7 @@ export async function POST(request: NextRequest) {
       const { data: existingAttendee, error: attendeeError } = await supabase
         .from('attendees')
         .select('id')
-        .eq('event_id', body.event_id)
+        .eq('event_id', eventIdForDb)
         .eq('first_name', body.first_name)
         .eq('last_name', body.last_name)
         .single()
@@ -81,7 +103,7 @@ export async function POST(request: NextRequest) {
       const { data: existingAttendee } = await supabase
         .from('attendees')
         .select('id')
-        .eq('event_id', body.event_id)
+        .eq('event_id', eventIdForDb)
         .eq('email', body.email)
         .single()
         
@@ -101,7 +123,8 @@ export async function POST(request: NextRequest) {
           phone: body.phone || null,
           address: body.address || null,
           guest_count: body.guest_count || 0,
-          attending: body.attending === undefined ? true : body.attending
+          attending: body.attending === undefined ? true : body.attending,
+          ticket_code: nanoid(16) // Generate new ticket code on update (for re-RSVP)
         })
         .eq('id', existingAttendeeId)
         .select()
@@ -128,7 +151,7 @@ export async function POST(request: NextRequest) {
           const { data: fullEvent } = await supabase
             .from('events')
             .select('title, contact_email, contact_name, event_date, event_end_time, event_location, user_id, admin_token')
-            .eq('id', body.event_id)
+            .eq('id', eventIdForDb)
             .single()
 
           if (!fullEvent) return
@@ -189,14 +212,15 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('attendees')
       .insert({
-        event_id: body.event_id,
+        event_id: eventIdForDb,
         first_name: body.first_name,
         last_name: body.last_name,
         email: body.email || null,
         phone: body.phone || null,
         address: body.address || null,
         guest_count: body.guest_count || 0,
-        attending: body.attending === undefined ? true : body.attending
+        attending: body.attending === undefined ? true : body.attending,
+        ticket_code: nanoid(16) // Generate unique ticket code for QR scanning
       })
       .select()
       
@@ -221,9 +245,10 @@ export async function POST(request: NextRequest) {
             phone: body.phone || null,
             address: body.address || null,
             guest_count: body.guest_count || 0,
-            attending: body.attending === undefined ? true : body.attending
+            attending: body.attending === undefined ? true : body.attending,
+            ticket_code: nanoid(16) // Generate new ticket code on update
           })
-          .eq('event_id', body.event_id)
+          .eq('event_id', eventIdForDb)
           .eq('first_name', body.first_name)
           .eq('last_name', body.last_name)
           .select()
@@ -262,13 +287,13 @@ export async function POST(request: NextRequest) {
         // Fetch full event details for email
         const { data: fullEvent } = await supabase
           .from('events')
-          .select('title, contact_email, contact_name, event_date, event_end_time, event_location, user_id, admin_token')
-          .eq('id', body.event_id)
+          .select('title, contact_email, contact_name, event_date, event_end_time, event_location, user_id, admin_token, payment_required, ticket_price')
+          .eq('id', eventIdForDb)
           .single()
 
         if (!fullEvent) return
 
-        // Get creator tier for ad display
+        // Get creator tier for ad display and ticketing
         let creatorTier = 'free'
         if (fullEvent.user_id) {
           const { data: creatorData } = await supabase
@@ -283,37 +308,82 @@ export async function POST(request: NextRequest) {
         const attendeeName = `${attendee.first_name} ${attendee.last_name}`
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
         const adminUrl = `${baseUrl}/a/${fullEvent.admin_token}`
+        const ticketUrl = attendee.ticket_code ? `${baseUrl}/v/${attendee.ticket_code}` : ''
 
         // 1. Send confirmation email to attendee (if email provided)
         if (attendee.email) {
-          const calendarIcs = fullEvent.event_date 
-            ? generateCalendarICS(
+          // Check if this is a paid ticket (has payment_required and Pro creator)
+          const isPaidTicket = fullEvent.payment_required && fullEvent.ticket_price && ['pro', 'enterprise', 'team'].includes(creatorTier)
+
+          if (isPaidTicket && attendee.ticket_code && ticketUrl) {
+            // Send ticket email with QR code
+            try {
+              const qrCodeDataUrl = await QRCode.toDataURL(ticketUrl, {
+                width: 256,
+                margin: 2,
+                color: {
+                  dark: '#000000',
+                  light: '#FFFFFF'
+                }
+              })
+
+              // Use a generic Stripe receipt URL (users can find receipts in their customer portal)
+              const stripeReceiptUrl = 'https://billing.stripe.com/p/login' // Generic receipt access URL
+
+              const ticketEmail = generateTicketEmail(
+                attendeeName,
                 fullEvent.title,
-                fullEvent.event_date,
-                fullEvent.event_end_time || undefined,
+                qrCodeDataUrl,
+                ticketUrl,
+                stripeReceiptUrl,
+                fullEvent.event_date || undefined,
                 fullEvent.event_location || undefined,
-                `RSVP confirmation for ${fullEvent.title}`
+                creatorTier
               )
-            : undefined
 
-          const confirmationEmail = generateRSVPConfirmationEmail(
-            attendeeName,
-            fullEvent.title,
-            fullEvent.event_date || undefined,
-            fullEvent.event_end_time || undefined,
-            fullEvent.event_location || undefined,
-            calendarIcs,
-            creatorTier
-          )
+              await sendEmail({
+                to: attendee.email,
+                subject: ticketEmail.subject,
+                html: ticketEmail.html,
+                text: ticketEmail.text
+              }).catch(err => {
+                console.error('Failed to send ticket email:', err)
+              })
+            } catch (qrError) {
+              console.error('Failed to generate QR code for ticket:', qrError)
+              // Fallback to regular confirmation email
+            }
+          } else {
+            // Send regular confirmation email
+            const calendarIcs = fullEvent.event_date
+              ? generateCalendarICS(
+                  fullEvent.title,
+                  fullEvent.event_date,
+                  fullEvent.event_end_time || undefined,
+                  fullEvent.event_location || undefined,
+                  `RSVP confirmation for ${fullEvent.title}`
+                )
+              : undefined
 
-          await sendEmail({
-            to: attendee.email,
-            subject: confirmationEmail.subject,
-            html: confirmationEmail.html,
-            text: confirmationEmail.text
-          }).catch(err => {
-            console.error('Failed to send RSVP confirmation email:', err)
-          })
+            const confirmationEmail = generateRSVPConfirmationEmail(
+              attendeeName,
+              fullEvent.title,
+              fullEvent.event_date || undefined,
+              fullEvent.event_end_time || undefined,
+              fullEvent.event_location || undefined,
+              calendarIcs,
+              creatorTier
+            )
+
+            await sendEmail({
+              to: attendee.email,
+              subject: confirmationEmail.subject,
+              html: confirmationEmail.html,
+              text: confirmationEmail.text
+            }).catch(err => {
+              console.error('Failed to send RSVP confirmation email:', err)
+            })
+          }
         }
 
         // 2. Send notification to organizer (Pro feature - check tier)

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import AdminLoadingScreen from '@/components/AdminLoadingScreen'
 import Footer from '@/components/Footer'
 
 interface AdminEvent {
@@ -118,22 +119,10 @@ export default function AdminEvents() {
   const handleArchiveEvent = (eventId: string) => updateArchiveStatus(eventId, true)
   const handleUnarchiveEvent = (eventId: string) => updateArchiveStatus(eventId, false)
 
-  if (loading) {
-    return (
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
-        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
-          <div className="text-white/80 text-xl">Loading events...</div>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <AdminLoadingScreen />
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="absolute inset-0 bind8-bg" />
-      <div className="absolute inset-0 bind8-glow" />
       <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
         <div className="max-w-6xl mx-auto space-y-6">
           {/* Header */}

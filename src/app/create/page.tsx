@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Footer from '@/components/Footer'
 import Image from 'next/image'
 import { canCreateEvent, hasFeature } from '@/lib/plans'
+import LoadingScreen from '@/components/LoadingScreen'
 
 // Mark page as dynamic since it uses searchParams
 export const dynamic = 'force-dynamic'
@@ -646,11 +647,7 @@ function CreateEventContent() {
 
 export default function CreateEvent() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-white/60">Loading...</div>
-      </div>
-    }>
+    <Suspense fallback={<LoadingScreen />}>
       <CreateEventContent />
     </Suspense>
   )

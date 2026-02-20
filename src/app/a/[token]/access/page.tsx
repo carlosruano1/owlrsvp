@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { Event } from '@/lib/types'
 import Footer from '@/components/Footer'
+import AdminLoadingScreen from '@/components/AdminLoadingScreen'
+import { TokenAdminNav } from '@/components/TokenAdminNav'
 
 interface AccessUser {
   id: string
@@ -145,23 +147,11 @@ export default function EventAccessManagement() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
-        <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
-          <div className="text-white/80 text-xl">Loading access management...</div>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <AdminLoadingScreen />
 
   if (error && !data) {
     return (
       <div className="min-h-screen relative overflow-hidden">
-        <div className="animated-bg" />
-        <div className="spotlight" />
         <div className="relative z-10 min-h-screen flex items-center justify-center p-6">
           <div className="text-center">
             <div className="text-red-400 text-xl mb-4">Access Denied</div>
@@ -174,36 +164,32 @@ export default function EventAccessManagement() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="animated-bg" />
-      <div className="spotlight" />
       <div className="relative z-10 min-h-screen p-4 sm:p-8 pb-24">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
-          <div className="text-center mb-8 text-white text-glow">
-            <h1 className="text-4xl font-bold mb-2">{data?.event.title}</h1>
-            <p className="text-white/80 text-lg">Access Management</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+            <div className="text-white text-glow">
+              <h1 className="text-4xl font-bold mb-1">{data?.event.title}</h1>
+              <p className="text-white/80 text-lg">Access Management</p>
+            </div>
+            <TokenAdminNav token={adminToken} current="access" />
           </div>
 
           {/* Brand / Company */}
           <div className="brand-bar">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="logo-frame">
-                  {data?.event.company_logo_url ? (
-                    <img src={data.event.company_logo_url} alt={data?.event.company_name ? `${data.event.company_name} logo` : 'Company logo'} />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/20" />
-                  )}
-                </div>
-                <div>
-                  <div className="text-white font-semibold text-lg">
-                    {data?.event.company_name || 'Your Company'}
-                  </div>
-                  <div className="text-white/60 text-sm">Access Management</div>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="logo-frame">
+                {data?.event.company_logo_url ? (
+                  <img src={data.event.company_logo_url} alt={data?.event.company_name ? `${data.event.company_name} logo` : 'Company logo'} />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-white/10 border border-white/20" />
+                )}
               </div>
-              <div className="hidden sm:block">
-                <span className="logo-anim text-xl font-bold">owl<span className="logo-word-rsvp">rsvp</span></span>
+              <div>
+                <div className="text-white font-semibold text-lg">
+                  {data?.event.company_name || 'Your Company'}
+                </div>
+                <div className="text-white/60 text-sm">Access Management</div>
               </div>
             </div>
           </div>

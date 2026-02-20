@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic'
 import { supabase } from '@/lib/supabase';
-import { canAccessAdvancedAnalytics } from '@/lib/tierEnforcement';
+import { canAccessAdvancedAnalytics, getSessionTokenFromRequest } from '@/lib/tierAuth'
+import { getUpgradeMessage } from '@/lib/tiers'
 
 // Helper function to group dates by day for charts
 function groupByDay(dates: string[]) {
@@ -42,40 +43,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Get session token from cookies
-    const request_cookies = request.cookies;
-    const sessionToken = request_cookies.get('admin_session')?.value;
-    
+    const sessionToken = getSessionTokenFromRequest(request);
+
     if (!sessionToken) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    
-    // Validate session
+
+    // Validate session and get user ID
     const { data, error: sessionError } = await supabase
       .rpc('validate_admin_session', { p_token: sessionToken });
-      
-    if (sessionError) {
-      console.error('Session validation error:', sessionError);
-      return NextResponse.json({ error: 'Invalid session: ' + sessionError.message }, { status: 401 });
+
+    if (sessionError || !data || data.length === 0) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
-    
-    if (!data || data.length === 0) {
-      console.error('No session data returned');
-      return NextResponse.json({ error: 'Invalid session: No data returned' }, { status: 401 });
-    }
-    
+
     const userId = data[0].user_id;
 
-    // Check if user has access to advanced analytics
-    const canAccess = await canAccessAdvancedAnalytics(sessionToken);
-    if (!canAccess) {
-      return NextResponse.json({
-        error: 'Advanced analytics is only available on Pro and Enterprise plans. Please upgrade to access analytics.',
-        requiresUpgrade: true,
-        upgradeUrl: '/?upgrade=true&reason=analytics#pricing'
-      }, { status: 403 });
-    }
-
-    // Fetch event details to verify ownership
+    // Fetch event details first
     const { data: event, error: eventError } = await supabase
       .from('events')
       .select('id, created_by_admin_id, title, created_at, event_date, admin_token')
@@ -87,7 +71,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify ownership - check if user created the event or has access to it
-    if (event.created_by_admin_id && event.created_by_admin_id !== userId) {
+    let hasEventAccess = false;
+    if (event.created_by_admin_id === userId) {
+      hasEventAccess = true;
+    } else {
       // Check if user has access through event_access table
       const { data: accessData, error: accessError } = await supabase
         .from('event_access')
@@ -95,10 +82,33 @@ export async function GET(request: NextRequest) {
         .eq('event_id', eventId)
         .eq('admin_user_id', userId)
         .single();
-        
-      if (accessError || !accessData) {
-        return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+
+      if (!accessError && accessData) {
+        hasEventAccess = true;
+      } else {
+        // Check if user has access through team permissions
+        const { data: teamPermissions, error: teamError } = await supabase
+          .rpc('get_user_events', { p_user_id: userId });
+
+        if (!teamError && teamPermissions) {
+          hasEventAccess = teamPermissions.some((ep: any) => ep.id === eventId);
+        }
       }
+    }
+
+    if (!hasEventAccess) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // Check if user has access to advanced analytics
+    const hasAccess = await canAccessAdvancedAnalytics(sessionToken, eventId);
+
+    if (!hasAccess) {
+      return NextResponse.json({
+        error: getUpgradeMessage('analytics'),
+        requiresUpgrade: true,
+        upgradeUrl: '/?upgrade=true&reason=analytics#pricing'
+      }, { status: 403 });
     }
 
     // Fetch all attendees for this event

@@ -6,6 +6,8 @@ export interface Event {
   page_background_color?: string
   spotlight_color?: string
   font_color?: string
+  /** Invite visual style: default | glass | electric | drawing | elegant */
+  theme_style?: 'default' | 'glass' | 'electric' | 'drawing' | 'elegant'
   admin_token: string
   company_name?: string
   company_logo_url?: string
@@ -53,6 +55,9 @@ export interface Attendee {
   address?: string
   guest_count: number
   attending: boolean
+  ticket_code?: string
+  checked_in_at?: string
+  checked_in_by?: string
   created_at: string
   updated_at: string
 }
